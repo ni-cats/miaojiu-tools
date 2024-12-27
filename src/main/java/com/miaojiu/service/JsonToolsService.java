@@ -9,5 +9,7 @@ import com.miaojiu.comment.vo.Result;
 
 public interface JsonToolsService {
 
-     Result JsonDataDeduplication();
+     String swyHello();
+
+     String JsonDataDeduplication();
 }
