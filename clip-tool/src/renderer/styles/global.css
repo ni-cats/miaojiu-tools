@@ -615,3 +615,248 @@ html, body, #root {
   font-weight: 600;
   animation: toastIn 0.3s ease;
 }
+
+/* ===== 设置面板 ===== */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-bottom: 4px;
+}
+
+.settings-section-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+
+.settings-shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.settings-shortcut-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-shortcut-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-shortcut-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.settings-shortcut-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.settings-shortcut-btn {
+  min-width: 120px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-shortcut-btn:hover {
+  border-color: var(--accent-color);
+  background: var(--bg-hover);
+}
+
+.settings-shortcut-btn.recording {
+  border-color: var(--accent-color);
+  background: var(--bg-active);
+  animation: recordingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes recordingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.recording-text {
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+.shortcut-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  letter-spacing: 1px;
+}
+
+.settings-clear-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-clear-btn:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--danger-color);
+}
+
+/* ===== 内置快捷键列表（只读展示） ===== */
+.settings-builtin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-builtin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.settings-builtin-item:nth-child(odd) {
+  background: var(--bg-secondary);
+}
+
+.settings-builtin-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  min-width: 90px;
+}
+
+.settings-builtin-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* ===== 设置面板底部操作区 ===== */
+.settings-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+.settings-footer-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.settings-reset-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-reset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-save-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-save-btn:hover {
+  background: var(--accent-hover);
+}
+
+.settings-save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-save-btn:disabled:hover {
+  background: var(--accent-color);
+}
+
+.settings-status {
+  font-size: 12px;
+  font-weight: 500;
+  animation: toastIn 0.3s ease;
+}
+
+.settings-status.success {
+  color: var(--success-color);
+}
+
+.settings-status.error {
+  color: var(--danger-color);
+}

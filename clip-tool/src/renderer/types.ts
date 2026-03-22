@@ -19,6 +19,11 @@ export interface ClipboardData {
   language?: string
 }
 
+export interface ShortcutConfig {
+  openSave: string
+  openSearch: string
+}
+
 export interface ClipToolAPI {
   getAllSnippets: () => Promise<SnippetData[]>
   readClipboard: () => Promise<ClipboardData>
@@ -29,6 +34,8 @@ export interface ClipToolAPI {
   updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags'>>) => Promise<SnippetData[]>
   hideWindow: () => void
   onSwitchMode: (callback: (mode: 'save' | 'search') => void) => (() => void)
+  getShortcuts: () => Promise<ShortcutConfig>
+  saveShortcuts: (config: ShortcutConfig) => Promise<ShortcutConfig>
 }
 
 declare global {

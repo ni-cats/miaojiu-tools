@@ -74,16 +74,22 @@ export function useShortcuts(handlers: ShortcutHandlers) {
         return
       }
 
-      // ← / →：切换 Tab（非输入框聚焦时）
-      if (e.key === 'ArrowLeft' && !isInputFocused) {
-        e.preventDefault()
-        h.onSwitchTab?.('left')
-        return
+      // ← / →：切换 Tab（非输入框聚焦时，或输入框内容为空时）
+      if (e.key === 'ArrowLeft') {
+        const canSwitch = !isInputFocused || (isInputFocused && (target as HTMLInputElement).value === '')
+        if (canSwitch) {
+          e.preventDefault()
+          h.onSwitchTab?.('left')
+          return
+        }
       }
-      if (e.key === 'ArrowRight' && !isInputFocused) {
-        e.preventDefault()
-        h.onSwitchTab?.('right')
-        return
+      if (e.key === 'ArrowRight') {
+        const canSwitch = !isInputFocused || (isInputFocused && (target as HTMLInputElement).value === '')
+        if (canSwitch) {
+          e.preventDefault()
+          h.onSwitchTab?.('right')
+          return
+        }
       }
 
       // ↑ / ↓：在搜索 Tab 下切换选中项

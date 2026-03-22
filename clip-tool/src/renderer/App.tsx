@@ -8,16 +8,35 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import SavePanel, { type SavePanelRef } from './components/SavePanel'
 import SearchPanel, { type SearchPanelRef } from './components/SearchPanel'
 import FavoritePanel from './components/FavoritePanel'
+import SettingsPanel from './components/SettingsPanel'
 import { useShortcuts } from './hooks/useShortcuts'
 import type { SnippetData } from './types'
 
-type TabType = 'save' | 'search' | 'favorite'
+type TabType = 'save' | 'search' | 'favorite' | 'settings'
+
+/** 将 Electron accelerator 格式转换为短标签显示 */
+function formatHint(accelerator: string): string {
+  if (!accelerator) return ''
+  return accelerator
+    .replace(/CommandOrControl/g, '⌘')
+    .replace(/CmdOrCtrl/g, '⌘')
+    .replace(/Command/g, '⌘')
+    .replace(/Control/g, '⌃')
+    .replace(/Shift/g, '⇧')
+    .replace(/Alt/g, '⌥')
+    .replace(/Option/g, '⌥')
+    .replace(/\+/g, '')
+}
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('save')
   const [snippets, setSnippets] = useState<SnippetData[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const [triggerRead, setTriggerRead] = useState(0)
+  const [shortcutHints, setShortcutHints] = useState<{ save: string; search: string }>({
+    save: '⌘⇧K',
+    search: '⌘⇧S',
+  })
   const searchPanelRef = useRef<SearchPanelRef>(null)
   const savePanelRef = useRef<SavePanelRef>(null)
 
@@ -31,9 +50,23 @@ const App: React.FC = () => {
     }
   }, [])
 
+  // 加载快捷键提示
+  const loadShortcutHints = useCallback(async () => {
+    try {
+      const config = await window.clipToolAPI.getShortcuts()
+      setShortcutHints({
+        save: formatHint(config.openSave),
+        search: formatHint(config.openSearch),
+      })
+    } catch (error) {
+      console.error('加载快捷键配置失败:', error)
+    }
+  }, [])
+
   useEffect(() => {
     loadSnippets()
-  }, [loadSnippets])
+    loadShortcutHints()
+  }, [loadSnippets, loadShortcutHints])
 
   // 监听主进程发来的模式切换（全局快捷键触发）
   useEffect(() => {
@@ -166,7 +199,7 @@ const App: React.FC = () => {
     },
     // ← / → 切换 Tab（使用函数式更新避免闭包陷阱）
     onSwitchTab: (direction: 'left' | 'right') => {
-      const tabKeys: TabType[] = ['save', 'search', 'favorite']
+      const tabKeys: TabType[] = ['save', 'search', 'favorite', 'settings']
       setActiveTab((prev) => {
         const currentIndex = tabKeys.indexOf(prev)
         let nextIndex: number
@@ -192,9 +225,10 @@ const App: React.FC = () => {
   })
 
   const tabs: { key: TabType; label: string; hint: string }[] = [
-    { key: 'save', label: '📋 保存', hint: '⌘⇧K' },
-    { key: 'search', label: '🔍 搜索', hint: '⌘⇧S' },
+    { key: 'save', label: '📋 保存', hint: shortcutHints.save },
+    { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
     { key: 'favorite', label: '⭐ 收藏', hint: '' },
+    { key: 'settings', label: '⚙ 设置', hint: '' },
   ]
 
   return (
@@ -238,6 +272,7 @@ const App: React.FC = () => {
             onToggleFavorite={handleToggleFavorite}
           />
         )}
+        {activeTab === 'settings' && <SettingsPanel onShortcutsChanged={loadShortcutHints} />}
       </div>
 
       {/* Toast 提示 */}

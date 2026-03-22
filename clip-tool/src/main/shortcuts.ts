@@ -1,7 +1,9 @@
 /**
  * 全局快捷键注册模块
+ * 支持根据用户自定义配置动态注册快捷键
  */
 import { globalShortcut, BrowserWindow } from 'electron'
+import { getShortcuts, type ShortcutConfig } from './store'
 
 /** 显示窗口并发送模式切换指令 */
 function showWindowWithMode(win: BrowserWindow, mode: 'save' | 'search') {
@@ -19,21 +21,41 @@ function showWindowWithMode(win: BrowserWindow, mode: 'save' | 'search') {
   }
 }
 
-/** 注册全局快捷键 */
+/** 注册全局快捷键（根据用户配置） */
 export function registerShortcuts(getMainWindow: () => BrowserWindow | null) {
-  // Command+Shift+K：显示窗口 → 保存模式（自动读取剪贴板）
-  globalShortcut.register('CommandOrControl+Shift+K', () => {
-    const win = getMainWindow()
-    if (!win) return
-    showWindowWithMode(win, 'save')
-  })
+  const shortcuts = getShortcuts()
 
-  // Command+Shift+S：显示窗口 → 搜索模式（自动聚焦搜索框）
-  globalShortcut.register('CommandOrControl+Shift+S', () => {
-    const win = getMainWindow()
-    if (!win) return
-    showWindowWithMode(win, 'search')
-  })
+  // 注册"唤起保存模式"快捷键
+  if (shortcuts.openSave) {
+    try {
+      globalShortcut.register(shortcuts.openSave, () => {
+        const win = getMainWindow()
+        if (!win) return
+        showWindowWithMode(win, 'save')
+      })
+    } catch (e) {
+      console.error(`注册快捷键 ${shortcuts.openSave} 失败:`, e)
+    }
+  }
+
+  // 注册"唤起搜索模式"快捷键
+  if (shortcuts.openSearch) {
+    try {
+      globalShortcut.register(shortcuts.openSearch, () => {
+        const win = getMainWindow()
+        if (!win) return
+        showWindowWithMode(win, 'search')
+      })
+    } catch (e) {
+      console.error(`注册快捷键 ${shortcuts.openSearch} 失败:`, e)
+    }
+  }
+}
+
+/** 重新注册所有全局快捷键（用户修改配置后调用） */
+export function reRegisterShortcuts(getMainWindow: () => BrowserWindow | null) {
+  globalShortcut.unregisterAll()
+  registerShortcuts(getMainWindow)
 }
 
 /** 注销所有全局快捷键 */

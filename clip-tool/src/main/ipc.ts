@@ -10,8 +10,12 @@ import {
   toggleFavorite,
   incrementCopyCount,
   updateSnippet,
+  getShortcuts,
+  saveShortcuts,
   type Snippet,
+  type ShortcutConfig,
 } from './store'
+import { reRegisterShortcuts } from './shortcuts'
 import { readClipboardText, writeClipboardText, detectContentType } from './clipboard'
 
 /** 注册所有 IPC 事件处理器 */
@@ -58,5 +62,17 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   ipcMain.on('window:hide', () => {
     const win = getMainWindow()
     if (win) win.hide()
+  })
+
+  // 获取快捷键配置
+  ipcMain.handle('shortcuts:get', () => {
+    return getShortcuts()
+  })
+
+  // 保存快捷键配置并重新注册
+  ipcMain.handle('shortcuts:save', (_event, config: ShortcutConfig) => {
+    saveShortcuts(config)
+    reRegisterShortcuts(getMainWindow)
+    return getShortcuts()
   })
 }

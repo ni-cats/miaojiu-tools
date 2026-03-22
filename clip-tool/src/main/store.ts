@@ -17,6 +17,12 @@ export interface Snippet {
   isFavorite: boolean
 }
 
+/** 快捷键配置 */
+export interface ShortcutConfig {
+  openSave: string    // 唤起保存模式，默认 CommandOrControl+Shift+K
+  openSearch: string  // 唤起搜索模式，默认 CommandOrControl+Shift+S
+}
+
 interface StoreSchema {
   snippets: Snippet[]
   settings: {
@@ -29,6 +35,13 @@ interface StoreSchema {
     x?: number
     y?: number
   }
+  shortcuts: ShortcutConfig
+}
+
+/** 默认快捷键配置 */
+export const DEFAULT_SHORTCUTS: ShortcutConfig = {
+  openSave: 'CommandOrControl+Shift+K',
+  openSearch: 'CommandOrControl+Shift+S',
 }
 
 const store = new Store<StoreSchema>({
@@ -43,6 +56,7 @@ const store = new Store<StoreSchema>({
       width: 520,
       height: 620,
     },
+    shortcuts: { ...DEFAULT_SHORTCUTS },
   },
 })
 
@@ -129,4 +143,14 @@ export function getWindowBounds() {
 /** 保存窗口大小和位置 */
 export function saveWindowBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
   store.set('windowBounds', bounds)
+}
+
+/** 获取快捷键配置 */
+export function getShortcuts(): ShortcutConfig {
+  return store.get('shortcuts', { ...DEFAULT_SHORTCUTS })
+}
+
+/** 保存快捷键配置 */
+export function saveShortcuts(shortcuts: ShortcutConfig): void {
+  store.set('shortcuts', shortcuts)
 }

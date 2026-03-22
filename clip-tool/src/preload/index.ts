@@ -23,6 +23,11 @@ export interface SnippetData {
   isFavorite: boolean
 }
 
+export interface ShortcutConfig {
+  openSave: string
+  openSearch: string
+}
+
 const api = {
   /** 获取所有片段 */
   getAllSnippets: (): Promise<SnippetData[]> => ipcRenderer.invoke('snippets:getAll'),
@@ -58,6 +63,12 @@ const api = {
       ipcRenderer.removeListener('window:switchMode', handler)
     }
   },
+
+  /** 获取快捷键配置 */
+  getShortcuts: (): Promise<ShortcutConfig> => ipcRenderer.invoke('shortcuts:get'),
+
+  /** 保存快捷键配置 */
+  saveShortcuts: (config: ShortcutConfig): Promise<ShortcutConfig> => ipcRenderer.invoke('shortcuts:save', config),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)
