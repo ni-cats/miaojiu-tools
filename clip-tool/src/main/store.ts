@@ -4,12 +4,15 @@
  */
 import Store from 'electron-store'
 
+/** 内容类型 */
+export type ContentType = 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+
 export interface Snippet {
   id: string
   title: string
   content: string
   tags: string[]
-  type: 'code' | 'text' | 'url'
+  type: ContentType
   language?: string
   createdAt: string
   updatedAt: string
@@ -36,6 +39,7 @@ interface StoreSchema {
     y?: number
   }
   shortcuts: ShortcutConfig
+  customTags: string[]  // 用户自定义的枚举标签列表
 }
 
 /** 默认快捷键配置 */
@@ -57,6 +61,7 @@ const store = new Store<StoreSchema>({
       height: 620,
     },
     shortcuts: { ...DEFAULT_SHORTCUTS },
+    customTags: ['工具函数', '配置', '模板', '笔记', '临时'],
   },
 })
 
@@ -153,4 +158,32 @@ export function getShortcuts(): ShortcutConfig {
 /** 保存快捷键配置 */
 export function saveShortcuts(shortcuts: ShortcutConfig): void {
   store.set('shortcuts', shortcuts)
+}
+
+/** 获取自定义标签列表 */
+export function getCustomTags(): string[] {
+  return store.get('customTags', ['工具函数', '配置', '模板', '笔记', '临时'])
+}
+
+/** 保存自定义标签列表 */
+export function saveCustomTags(tags: string[]): string[] {
+  store.set('customTags', tags)
+  return tags
+}
+
+/** 添加自定义标签 */
+export function addCustomTag(tag: string): string[] {
+  const tags = getCustomTags()
+  if (!tags.includes(tag)) {
+    tags.push(tag)
+    store.set('customTags', tags)
+  }
+  return tags
+}
+
+/** 删除自定义标签 */
+export function removeCustomTag(tag: string): string[] {
+  const tags = getCustomTags().filter((t) => t !== tag)
+  store.set('customTags', tags)
+  return tags
 }

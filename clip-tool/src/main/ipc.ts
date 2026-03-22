@@ -12,6 +12,8 @@ import {
   updateSnippet,
   getShortcuts,
   saveShortcuts,
+  getCustomTags,
+  saveCustomTags,
   type Snippet,
   type ShortcutConfig,
 } from './store'
@@ -74,5 +76,15 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
     saveShortcuts(config)
     reRegisterShortcuts(getMainWindow)
     return getShortcuts()
+  })
+
+  // 获取自定义标签列表
+  ipcMain.handle('customTags:get', () => {
+    return getCustomTags()
+  })
+
+  // 保存自定义标签列表
+  ipcMain.handle('customTags:save', (_event, tags: string[]) => {
+    return saveCustomTags(tags)
   })
 }

@@ -1,6 +1,6 @@
 /**
  * 设置面板组件
- * 支持用户自定义全局快捷键
+ * 支持用户自定义全局快捷键和管理预设标签
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { ShortcutConfig } from '../types'
@@ -113,12 +113,19 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
   const [hasChanges, setHasChanges] = useState(false)
   const originalRef = useRef<ShortcutConfig | null>(null)
 
+  // 标签管理状态
+  const [customTags, setCustomTags] = useState<string[]>([])
+  const [newTagInput, setNewTagInput] = useState('')
+  const [tagSaveStatus, setTagSaveStatus] = useState<string | null>(null)
+
   // 加载当前快捷键配置
   useEffect(() => {
     window.clipToolAPI.getShortcuts().then((config) => {
       setShortcuts(config)
       originalRef.current = { ...config }
     })
+    // 加载自定义标签
+    window.clipToolAPI.getCustomTags().then(setCustomTags)
   }, [])
 
   // 录制快捷键
@@ -193,6 +200,29 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
     )
   }, [])
 
+  // ===== 标签管理 =====
+  const handleAddTag = useCallback(async () => {
+    const tag = newTagInput.trim()
+    if (!tag) return
+    if (customTags.includes(tag)) {
+      setTagSaveStatus('⚠ 标签已存在')
+      setTimeout(() => setTagSaveStatus(null), 2000)
+      return
+    }
+    const updated = [...customTags, tag]
+    const saved = await window.clipToolAPI.saveCustomTags(updated)
+    setCustomTags(saved)
+    setNewTagInput('')
+    setTagSaveStatus('✓ 已添加')
+    setTimeout(() => setTagSaveStatus(null), 2000)
+  }, [newTagInput, customTags])
+
+  const handleRemoveTag = useCallback(async (tag: string) => {
+    const updated = customTags.filter((t) => t !== tag)
+    const saved = await window.clipToolAPI.saveCustomTags(updated)
+    setCustomTags(saved)
+  }, [customTags])
+
   const shortcutItems: {
     key: keyof ShortcutConfig
     label: string
@@ -231,6 +261,66 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
               onClear={() => handleClear(item.key)}
             />
           ))}
+        </div>
+      </div>
+
+      {/* ===== 预设标签管理 ===== */}
+      <div className="settings-section">
+        <div className="settings-section-title">预设标签管理</div>
+        <div className="settings-section-hint">
+          管理保存片段时可快速选择的预设标签
+        </div>
+
+        {/* 添加标签 */}
+        <div className="settings-tag-add-row">
+          <input
+            className="text-input"
+            type="text"
+            value={newTagInput}
+            onChange={(e) => setNewTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newTagInput.trim()) {
+                e.preventDefault()
+                handleAddTag()
+              }
+            }}
+            placeholder="输入新标签名称，回车添加"
+            style={{ flex: 1 }}
+          />
+          <button
+            className="settings-tag-add-btn"
+            onClick={handleAddTag}
+            disabled={!newTagInput.trim()}
+          >
+            添加
+          </button>
+        </div>
+
+        {tagSaveStatus && (
+          <span className={`settings-status ${tagSaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                style={{ fontSize: 12, marginTop: 4 }}>
+            {tagSaveStatus}
+          </span>
+        )}
+
+        {/* 标签列表 */}
+        <div className="settings-tag-list">
+          {customTags.length === 0 ? (
+            <div className="settings-tag-empty">暂无预设标签，请添加</div>
+          ) : (
+            customTags.map((tag) => (
+              <div key={tag} className="settings-tag-item">
+                <span className="settings-tag-name">{tag}</span>
+                <button
+                  className="settings-tag-remove-btn"
+                  onClick={() => handleRemoveTag(tag)}
+                  title="删除标签"
+                >
+                  ✕
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

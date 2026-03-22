@@ -1,10 +1,11 @@
 /**
  * 搜索面板组件
  * 支持键盘上下键选中、⌘C/Enter 复制选中项
+ * 支持按标签、内容类型筛选
  */
 import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect, useCallback } from 'react'
-import { useSearch } from '../hooks/useSearch'
-import type { SnippetData } from '../types'
+import { useSearch, CONTENT_TYPE_MAP } from '../hooks/useSearch'
+import type { SnippetData, ContentType } from '../types'
 import SnippetCard from './SnippetCard'
 import TagFilter from './TagFilter'
 import EmptyState from './EmptyState'
@@ -29,13 +30,19 @@ const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
   ({ snippets, onCopy, onDelete, onToggleFavorite }, ref) => {
     const searchInputRef = useRef<HTMLInputElement>(null)
     const listRef = useRef<HTMLDivElement>(null)
-    const { query, setQuery, selectedTag, setSelectedTag, allTags, results } = useSearch(snippets)
+    const {
+      query, setQuery,
+      selectedTag, setSelectedTag,
+      selectedType, setSelectedType,
+      allTags, allTypes,
+      results,
+    } = useSearch(snippets)
     const [selectedIndex, setSelectedIndex] = useState(0)
 
     // 搜索结果变化时重置选中
     useEffect(() => {
       setSelectedIndex(0)
-    }, [results.length, query, selectedTag])
+    }, [results.length, query, selectedTag, selectedType])
 
     // 滚动选中项到可视区域
     const scrollToSelected = useCallback((index: number) => {
@@ -112,6 +119,27 @@ const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
           )}
         </div>
 
+        {/* 内容类型筛选 */}
+        {allTypes.length > 1 && (
+          <div className="type-filter">
+            <button
+              className={`type-filter-item ${selectedType === null ? 'active' : ''}`}
+              onClick={() => setSelectedType(null)}
+            >
+              全部
+            </button>
+            {allTypes.map((type) => (
+              <button
+                key={type}
+                className={`type-filter-item ${selectedType === type ? 'active' : ''}`}
+                onClick={() => setSelectedType(selectedType === type ? null : type)}
+              >
+                {CONTENT_TYPE_MAP[type]?.icon} {CONTENT_TYPE_MAP[type]?.label || type}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* 标签筛选 */}
         <TagFilter tags={allTags} selectedTag={selectedTag} onSelectTag={setSelectedTag} />
 
@@ -120,8 +148,8 @@ const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
           {results.length === 0 ? (
             <EmptyState
               icon="🔍"
-              title={query ? '没有找到匹配的片段' : '暂无保存的片段'}
-              description={query ? '试试更换关键词搜索' : '使用 ⌘⇧K 保存剪贴板内容'}
+              title={query || selectedTag || selectedType ? '没有找到匹配的片段' : '暂无保存的片段'}
+              description={query || selectedTag || selectedType ? '试试更换筛选条件' : '使用 ⌘⇧K 保存剪贴板内容'}
             />
           ) : (
             results.map((snippet, index) => (

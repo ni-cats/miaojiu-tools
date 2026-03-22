@@ -3,8 +3,11 @@
  */
 import { clipboard } from 'electron'
 
+/** 内容类型 */
+type ContentType = 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+
 /** 内容类型检测 */
-export function detectContentType(content: string): { type: 'code' | 'text' | 'url'; language?: string } {
+export function detectContentType(content: string): { type: ContentType; language?: string } {
   // 检测 URL
   const urlPattern = /^(https?:\/\/|ftp:\/\/|file:\/\/)/i
   if (urlPattern.test(content.trim())) {

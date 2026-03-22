@@ -3,8 +3,19 @@
  * 支持选中状态高亮
  */
 import React from 'react'
-import type { SnippetData } from '../types'
+import type { SnippetData, ContentType } from '../types'
 import { formatTime } from '../utils/formatTime'
+
+/** 内容类型样式映射 */
+const TYPE_LABELS: Record<ContentType, string> = {
+  code: 'code',
+  text: 'text',
+  url: 'url',
+  image: 'image',
+  video: 'video',
+  document: 'doc',
+  other: 'other',
+}
 
 interface SnippetCardProps {
   snippet: SnippetData
@@ -69,7 +80,7 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
         )}
         <span className="snippet-title">{snippet.title}</span>
         <span className={`snippet-type ${snippet.type}`}>
-          {snippet.type}
+          {TYPE_LABELS[snippet.type] || snippet.type}
           {snippet.language && snippet.language !== 'plaintext' ? ` · ${snippet.language}` : ''}
         </span>
       </div>

@@ -6,7 +6,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 export interface ClipboardData {
   content: string
-  type: 'code' | 'text' | 'url'
+  type: 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
   language?: string
 }
 
@@ -15,7 +15,7 @@ export interface SnippetData {
   title: string
   content: string
   tags: string[]
-  type: 'code' | 'text' | 'url'
+  type: 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
   language?: string
   createdAt: string
   updatedAt: string
@@ -69,6 +69,12 @@ const api = {
 
   /** 保存快捷键配置 */
   saveShortcuts: (config: ShortcutConfig): Promise<ShortcutConfig> => ipcRenderer.invoke('shortcuts:save', config),
+
+  /** 获取自定义标签列表 */
+  getCustomTags: (): Promise<string[]> => ipcRenderer.invoke('customTags:get'),
+
+  /** 保存自定义标签列表 */
+  saveCustomTags: (tags: string[]): Promise<string[]> => ipcRenderer.invoke('customTags:save', tags),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

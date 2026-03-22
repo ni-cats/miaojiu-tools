@@ -860,3 +860,235 @@ html, body, #root {
 .settings-status.error {
   color: var(--danger-color);
 }
+
+.settings-status.warning {
+  color: var(--favorite-color);
+}
+
+/* ===== 内容类型筛选 ===== */
+.type-filter {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.type-filter-item {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.type-filter-item:hover {
+  background: var(--bg-hover);
+}
+
+.type-filter-item.active {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}
+
+/* ===== 更多内容类型标签颜色 ===== */
+.snippet-type.image {
+  background: rgba(255, 45, 85, 0.1);
+  color: #ff2d55;
+}
+
+.snippet-type.video {
+  background: rgba(175, 82, 222, 0.1);
+  color: #af52de;
+}
+
+.snippet-type.document {
+  background: rgba(0, 199, 190, 0.1);
+  color: #00c7be;
+}
+
+.snippet-type.other {
+  background: rgba(142, 142, 147, 0.1);
+  color: #8e8e93;
+}
+
+/* ===== 保存面板 - 标签枚举选择 ===== */
+.tag-enum-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tag-enum-item {
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+
+.tag-enum-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.tag-enum-item.active {
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border-color: var(--accent-color);
+}
+
+.tag-custom-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag-add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-color);
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tag-add-btn:hover {
+  background: var(--accent-hover);
+}
+
+.selected-tags-display {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.selected-tag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+.selected-tag-remove {
+  background: none;
+  border: none;
+  color: var(--tag-text);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 2px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.selected-tag-remove:hover {
+  opacity: 1;
+}
+
+/* ===== 设置面板 - 标签管理 ===== */
+.settings-tag-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-tag-add-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+
+.settings-tag-add-btn:hover {
+  background: var(--accent-hover);
+}
+
+.settings-tag-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.settings-tag-empty {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.settings-tag-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.settings-tag-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.settings-tag-remove-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-tag-remove-btn:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--danger-color);
+}

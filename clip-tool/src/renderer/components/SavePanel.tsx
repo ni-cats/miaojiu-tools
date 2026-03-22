@@ -1,6 +1,7 @@
 /**
  * 保存面板组件
  * 极简交互：自动读取剪贴板 → 预览 → Enter 直接保存并关闭
+ * 标签支持从预设枚举中选择，也支持自由输入
  */
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useClipboard } from '../hooks/useClipboard'
@@ -19,8 +20,15 @@ export interface SavePanelRef {
 const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRead }, ref) => {
   const { clipboardData, readClipboard } = useClipboard()
   const [title, setTitle] = useState('')
-  const [tagsInput, setTagsInput] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [customTagInput, setCustomTagInput] = useState('')
+  const [customTags, setCustomTags] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+
+  // 加载自定义标签列表
+  useEffect(() => {
+    window.clipToolAPI.getCustomTags().then(setCustomTags)
+  }, [])
 
   // 组件挂载时和 triggerRead 变化时自动读取剪贴板
   useEffect(() => {
@@ -33,23 +41,45 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       const defaultTitle = clipboardData.content.trim().substring(0, 30).replace(/\n/g, ' ')
       setTitle(defaultTitle)
       setSaved(false)
+      setSelectedTags([])
+      setCustomTagInput('')
     }
   }, [clipboardData])
+
+  // 切换标签选中状态
+  const toggleTag = useCallback((tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    )
+  }, [])
+
+  // 添加自定义标签（手动输入的）
+  const addCustomTagFromInput = useCallback(() => {
+    const tag = customTagInput.trim()
+    if (tag && !selectedTags.includes(tag)) {
+      setSelectedTags((prev) => [...prev, tag])
+    }
+    setCustomTagInput('')
+  }, [customTagInput, selectedTags])
 
   const doSave = useCallback(async () => {
     if (!clipboardData?.content.trim()) return
     if (saved) return // 防止重复保存
 
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0)
+    // 合并预选标签和自定义输入标签
+    const allTags = [...selectedTags]
+    if (customTagInput.trim()) {
+      const extraTags = customTagInput.split(',').map((t) => t.trim()).filter((t) => t.length > 0)
+      extraTags.forEach((t) => {
+        if (!allTags.includes(t)) allTags.push(t)
+      })
+    }
 
     const snippet: SnippetData = {
       id: nanoid(),
       title: title || clipboardData.content.trim().substring(0, 30),
       content: clipboardData.content,
-      tags,
+      tags: allTags,
       type: clipboardData.type,
       language: clipboardData.language,
       createdAt: new Date().toISOString(),
@@ -60,7 +90,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
 
     onSave(snippet)
     setSaved(true)
-  }, [clipboardData, title, tagsInput, onSave, saved])
+  }, [clipboardData, title, selectedTags, customTagInput, onSave, saved])
 
   // 暴露 doSave 给父组件
   useImperativeHandle(ref, () => ({
@@ -117,16 +147,64 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         />
       </div>
 
-      {/* 标签输入 */}
+      {/* 标签选择 - 枚举标签 */}
       <div className="input-group">
-        <div className="input-label">标签（可选，英文逗号分隔）</div>
-        <input
-          className="text-input"
-          type="text"
-          value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
-          placeholder="例如: react, hook, 工具函数"
-        />
+        <div className="input-label">标签（点击选择，也可自由输入）</div>
+        {customTags.length > 0 && (
+          <div className="tag-enum-list">
+            {customTags.map((tag) => (
+              <button
+                key={tag}
+                className={`tag-enum-item ${selectedTags.includes(tag) ? 'active' : ''}`}
+                onClick={() => toggleTag(tag)}
+              >
+                {selectedTags.includes(tag) ? '✓ ' : ''}{tag}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* 自由输入补充标签 */}
+        <div className="tag-custom-input-row">
+          <input
+            className="text-input"
+            type="text"
+            value={customTagInput}
+            onChange={(e) => setCustomTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && customTagInput.trim()) {
+                e.preventDefault()
+                e.stopPropagation()
+                addCustomTagFromInput()
+              }
+            }}
+            placeholder="输入自定义标签，回车添加"
+            style={{ flex: 1 }}
+          />
+          {customTagInput.trim() && (
+            <button
+              className="tag-add-btn"
+              onClick={addCustomTagFromInput}
+            >
+              +
+            </button>
+          )}
+        </div>
+        {/* 已选标签展示 */}
+        {selectedTags.length > 0 && (
+          <div className="selected-tags-display">
+            {selectedTags.map((tag) => (
+              <span key={tag} className="selected-tag-item">
+                {tag}
+                <button
+                  className="selected-tag-remove"
+                  onClick={() => setSelectedTags((prev) => prev.filter((t) => t !== tag))}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 保存按钮（备用） */}
