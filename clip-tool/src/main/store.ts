@@ -23,6 +23,12 @@ interface StoreSchema {
     hideOnBlur: boolean
     maxSnippets: number
   }
+  windowBounds: {
+    width: number
+    height: number
+    x?: number
+    y?: number
+  }
 }
 
 const store = new Store<StoreSchema>({
@@ -32,6 +38,10 @@ const store = new Store<StoreSchema>({
     settings: {
       hideOnBlur: true,
       maxSnippets: 500,
+    },
+    windowBounds: {
+      width: 520,
+      height: 620,
     },
   },
 })
@@ -109,4 +119,14 @@ export function updateSnippet(id: string, data: Partial<Pick<Snippet, 'title' | 
 /** 获取设置 */
 export function getSettings() {
   return store.get('settings')
+}
+
+/** 获取记忆的窗口大小和位置 */
+export function getWindowBounds() {
+  return store.get('windowBounds', { width: 520, height: 620 })
+}
+
+/** 保存窗口大小和位置 */
+export function saveWindowBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
+  store.set('windowBounds', bounds)
 }

@@ -74,6 +74,36 @@ html, body, #root {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
+  position: relative;
+}
+
+/* ===== 窗口拉伸手柄 ===== */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  -webkit-app-region: no-drag;
+  z-index: 9999;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-tertiary);
+  border-bottom: 2px solid var(--text-tertiary);
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+
+.resize-handle:hover::after {
+  opacity: 0.8;
 }
 
 /* ===== 可拖拽区域（窗口标题栏） ===== */

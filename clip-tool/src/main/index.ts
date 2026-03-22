@@ -7,6 +7,7 @@ import path from 'path'
 import { registerShortcuts, unregisterAllShortcuts } from './shortcuts'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
+import { getWindowBounds, saveWindowBounds } from './store'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -15,13 +16,21 @@ function getMainWindow() {
 }
 
 function createMainWindow() {
+  // 读取记忆的窗口大小和位置
+  const savedBounds = getWindowBounds()
+
   mainWindow = new BrowserWindow({
-    width: 520,
-    height: 620,
+    width: savedBounds.width,
+    height: savedBounds.height,
+    ...(savedBounds.x !== undefined && savedBounds.y !== undefined
+      ? { x: savedBounds.x, y: savedBounds.y }
+      : {}),
     show: false,
     frame: false,
     transparent: true,
-    resizable: false,
+    resizable: true,
+    minWidth: 400,
+    minHeight: 400,
     skipTaskbar: true,
     alwaysOnTop: true,
     vibrancy: 'under-window',
@@ -36,8 +45,30 @@ function createMainWindow() {
     },
   })
 
-  // 窗口居中
-  mainWindow.center()
+  // 如果没有保存过位置，窗口居中
+  if (savedBounds.x === undefined || savedBounds.y === undefined) {
+    mainWindow.center()
+  }
+
+  // 监听窗口大小和位置变化，防抖保存
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  const debounceSaveBounds = () => {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const bounds = mainWindow.getBounds()
+        saveWindowBounds({
+          width: bounds.width,
+          height: bounds.height,
+          x: bounds.x,
+          y: bounds.y,
+        })
+      }
+    }, 500)
+  }
+
+  mainWindow.on('resize', debounceSaveBounds)
+  mainWindow.on('move', debounceSaveBounds)
 
   // 加载页面
   // 设置 VITE_DEV_SERVER=1 时连接 Vite dev server，否则加载本地文件

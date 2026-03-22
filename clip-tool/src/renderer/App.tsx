@@ -164,6 +164,31 @@ const App: React.FC = () => {
         handleCopyAndClose(results[index])
       }
     },
+    // ← / → 切换 Tab（使用函数式更新避免闭包陷阱）
+    onSwitchTab: (direction: 'left' | 'right') => {
+      const tabKeys: TabType[] = ['save', 'search', 'favorite']
+      setActiveTab((prev) => {
+        const currentIndex = tabKeys.indexOf(prev)
+        let nextIndex: number
+        if (direction === 'left') {
+          nextIndex = currentIndex <= 0 ? tabKeys.length - 1 : currentIndex - 1
+        } else {
+          nextIndex = currentIndex >= tabKeys.length - 1 ? 0 : currentIndex + 1
+        }
+        const nextTab = tabKeys[nextIndex]
+        // 切换到搜索模式时自动聚焦搜索框
+        if (nextTab === 'search') {
+          setTimeout(() => {
+            searchPanelRef.current?.focusSearch()
+          }, 100)
+        }
+        return nextTab
+      })
+    },
+    // 双击空格关闭窗口
+    onClose: () => {
+      window.clipToolAPI.hideWindow()
+    },
   })
 
   const tabs: { key: TabType; label: string; hint: string }[] = [
@@ -217,6 +242,9 @@ const App: React.FC = () => {
 
       {/* Toast 提示 */}
       {toast && <div className="toast">{toast}</div>}
+
+      {/* 窗口拉伸手柄 */}
+      <div className="resize-handle" />
     </div>
   )
 }
