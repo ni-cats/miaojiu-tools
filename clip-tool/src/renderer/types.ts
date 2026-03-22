@@ -20,6 +20,7 @@ export interface ClipboardData {
   content: string
   type: ContentType
   language?: string
+  isImage?: boolean  // 是否为图片（content 为 base64）
 }
 
 export interface ShortcutConfig {
@@ -33,7 +34,7 @@ export interface ClipToolAPI {
   addSnippet: (snippet: SnippetData) => Promise<SnippetData[]>
   deleteSnippet: (id: string) => Promise<SnippetData[]>
   toggleFavorite: (id: string) => Promise<SnippetData[]>
-  copyToClipboard: (id: string, content: string) => Promise<SnippetData[]>
+  copyToClipboard: (id: string, content: string, contentType?: string) => Promise<SnippetData[]>
   updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags'>>) => Promise<SnippetData[]>
   hideWindow: () => void
   onSwitchMode: (callback: (mode: 'save' | 'search') => void) => (() => void)

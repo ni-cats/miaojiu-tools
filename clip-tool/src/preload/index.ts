@@ -8,6 +8,7 @@ export interface ClipboardData {
   content: string
   type: 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
   language?: string
+  isImage?: boolean  // 是否为图片（content 为 base64）
 }
 
 export interface SnippetData {
@@ -44,9 +45,9 @@ const api = {
   /** 切换收藏 */
   toggleFavorite: (id: string): Promise<SnippetData[]> => ipcRenderer.invoke('snippets:toggleFavorite', id),
 
-  /** 复制到剪贴板 */
-  copyToClipboard: (id: string, content: string): Promise<SnippetData[]> =>
-    ipcRenderer.invoke('snippets:copyToClipboard', id, content),
+  /** 复制到剪贴板（支持图片和文本） */
+  copyToClipboard: (id: string, content: string, contentType?: string): Promise<SnippetData[]> =>
+    ipcRenderer.invoke('snippets:copyToClipboard', id, content, contentType),
 
   /** 更新片段 */
   updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags'>>): Promise<SnippetData[]> =>

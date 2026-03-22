@@ -223,6 +223,40 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
     setCustomTags(saved)
   }, [customTags])
 
+  // ===== 拖拽排序 =====
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+
+  const handleDragStart = useCallback((index: number) => {
+    setDragIndex(index)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIndex(index)
+  }, [])
+
+  const handleDrop = useCallback(async (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+    const updated = [...customTags]
+    const [removed] = updated.splice(dragIndex, 1)
+    updated.splice(index, 0, removed)
+    const saved = await window.clipToolAPI.saveCustomTags(updated)
+    setCustomTags(saved)
+    setDragIndex(null)
+    setDragOverIndex(null)
+  }, [dragIndex, customTags])
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null)
+    setDragOverIndex(null)
+  }, [])
+
   const shortcutItems: {
     key: keyof ShortcutConfig
     label: string
@@ -303,13 +337,25 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
           </span>
         )}
 
-        {/* 标签列表 */}
+        {/* 标签列表（拖拽排序） */}
         <div className="settings-tag-list">
           {customTags.length === 0 ? (
             <div className="settings-tag-empty">暂无预设标签，请添加</div>
           ) : (
-            customTags.map((tag) => (
-              <div key={tag} className="settings-tag-item">
+            customTags.map((tag, index) => (
+              <div
+                key={tag}
+                className={`settings-tag-item${
+                  dragIndex === index ? ' dragging' : ''
+                }${dragOverIndex === index && dragIndex !== index ? ' drag-over' : ''}`}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={() => handleDrop(index)}
+                onDragEnd={handleDragEnd}
+              >
+                <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
+                <span className="settings-tag-index">{index + 1}</span>
                 <span className="settings-tag-name">{tag}</span>
                 <button
                   className="settings-tag-remove-btn"

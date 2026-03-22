@@ -27,7 +27,13 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
 
   // 加载自定义标签列表
   useEffect(() => {
-    window.clipToolAPI.getCustomTags().then(setCustomTags)
+    window.clipToolAPI.getCustomTags().then((tags) => {
+      setCustomTags(tags)
+      // 默认选中「临时」标签
+      if (tags.includes('临时')) {
+        setSelectedTags(['临时'])
+      }
+    })
   }, [])
 
   // 组件挂载时和 triggerRead 变化时自动读取剪贴板
@@ -38,10 +44,16 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
   // 剪贴板内容变化时自动设置默认标题
   useEffect(() => {
     if (clipboardData?.content) {
-      const defaultTitle = clipboardData.content.trim().substring(0, 30).replace(/\n/g, ' ')
-      setTitle(defaultTitle)
+      // 图片类型不取前30字，而是用固定标题
+      if (clipboardData.isImage || clipboardData.type === 'image') {
+        setTitle('图片片段')
+      } else {
+        const defaultTitle = clipboardData.content.trim().substring(0, 30).replace(/\n/g, ' ')
+        setTitle(defaultTitle)
+      }
       setSaved(false)
-      setSelectedTags([])
+      // 重置标签为默认选中「临时」
+      setSelectedTags(customTags.includes('临时') ? ['临时'] : [])
       setCustomTagInput('')
     }
   }, [clipboardData])
@@ -114,7 +126,13 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       <div className="input-group">
         <div className="input-label">📋 剪贴板内容预览</div>
         {hasContent ? (
-          <div className="clipboard-preview">{clipboardData!.content}</div>
+          clipboardData!.isImage || clipboardData!.type === 'image' ? (
+            <div className="clipboard-preview clipboard-image-preview">
+              <img src={clipboardData!.content} alt="剪贴板图片" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6 }} />
+            </div>
+          ) : (
+            <div className="clipboard-preview">{clipboardData!.content}</div>
+          )
         ) : (
           <div className="clipboard-preview" style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: '20px' }}>
             剪贴板为空，请先复制内容
@@ -131,7 +149,11 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
           {clipboardData!.language && (
             <span>检测到语言: {clipboardData!.language}</span>
           )}
-          <span>{clipboardData!.content.split('\n').length} 行</span>
+          {clipboardData!.isImage ? (
+            <span>图片</span>
+          ) : (
+            <span>{clipboardData!.content.split('\n').length} 行</span>
+          )}
         </div>
       )}
 

@@ -18,7 +18,7 @@ import {
   type ShortcutConfig,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
-import { readClipboardText, writeClipboardText, detectContentType } from './clipboard'
+import { readClipboard, writeToClipboard } from './clipboard'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
@@ -27,11 +27,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
     return getAllSnippets()
   })
 
-  // 读取剪贴板内容
+  // 读取剪贴板内容（支持图片和文本）
   ipcMain.handle('clipboard:read', () => {
-    const content = readClipboardText()
-    const detected = detectContentType(content)
-    return { content, ...detected }
+    return readClipboard()
   })
 
   // 保存片段
@@ -49,9 +47,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
     return toggleFavorite(id)
   })
 
-  // 复制到剪贴板并增加计数
-  ipcMain.handle('snippets:copyToClipboard', (_event, id: string, content: string) => {
-    writeClipboardText(content)
+  // 复制到剪贴板并增加计数（支持图片和文本）
+  ipcMain.handle('snippets:copyToClipboard', (_event, id: string, content: string, contentType?: string) => {
+    writeToClipboard(content, contentType || 'text')
     return incrementCopyCount(id)
   })
 

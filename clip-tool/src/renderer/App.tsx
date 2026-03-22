@@ -124,7 +124,7 @@ const App: React.FC = () => {
   // 复制片段到剪贴板
   const handleCopy = useCallback(async (snippet: SnippetData) => {
     try {
-      const updated = await window.clipToolAPI.copyToClipboard(snippet.id, snippet.content)
+      const updated = await window.clipToolAPI.copyToClipboard(snippet.id, snippet.content, snippet.type)
       setSnippets(updated)
       showToast('✓ 已复制到剪贴板')
     } catch (error) {
@@ -135,7 +135,7 @@ const App: React.FC = () => {
   // 复制并关闭窗口
   const handleCopyAndClose = useCallback(async (snippet: SnippetData) => {
     try {
-      const updated = await window.clipToolAPI.copyToClipboard(snippet.id, snippet.content)
+      const updated = await window.clipToolAPI.copyToClipboard(snippet.id, snippet.content, snippet.type)
       setSnippets(updated)
       showToast('✓ 已复制到剪贴板')
       setTimeout(() => {

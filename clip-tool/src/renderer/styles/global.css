@@ -1056,22 +1056,6 @@ html, body, #root {
   color: var(--text-tertiary);
 }
 
-.settings-tag-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--bg-secondary);
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-}
-
-.settings-tag-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
 .settings-tag-remove-btn {
   width: 22px;
   height: 22px;
@@ -1091,4 +1075,112 @@ html, body, #root {
 .settings-tag-remove-btn:hover {
   background: rgba(255, 59, 48, 0.1);
   color: var(--danger-color);
+}
+
+/* ===== 设置 - 标签拖拽排序 ===== */
+.settings-tag-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  cursor: grab;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.settings-tag-item:active {
+  cursor: grabbing;
+}
+
+.settings-tag-item.dragging {
+  opacity: 0.4;
+  background: var(--bg-hover);
+}
+
+.settings-tag-item.drag-over {
+  border-color: var(--accent-color);
+  background: var(--bg-active);
+  transform: scale(1.02);
+}
+
+.settings-tag-drag-handle {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  cursor: grab;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.settings-tag-item:hover .settings-tag-drag-handle {
+  color: var(--text-secondary);
+}
+
+.settings-tag-index {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  min-width: 16px;
+  text-align: center;
+}
+
+.settings-tag-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ===== 图片预览（SnippetCard） ===== */
+.snippet-image-preview {
+  padding: 6px 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.snippet-image-preview img {
+  max-width: 100%;
+  max-height: 80px;
+  border-radius: 6px;
+  object-fit: contain;
+  border: 1px solid var(--border-color);
+}
+
+/* ===== 图片预览（SavePanel 剪贴板预览） ===== */
+.clipboard-image-preview {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.clipboard-image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+/* ===== 视频链接预览（SnippetCard） ===== */
+.snippet-video-preview {
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.snippet-video-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.snippet-video-url {
+  font-size: 12px;
+  color: var(--url-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
 }

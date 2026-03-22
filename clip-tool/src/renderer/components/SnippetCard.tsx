@@ -38,10 +38,17 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
   onToggleFavorite,
   onMouseEnter,
 }) => {
-  const getPreview = (content: string) => {
+  const getPreview = (content: string, type: ContentType) => {
+    // 图片类型不显示文本预览
+    if (type === 'image' && content.startsWith('data:image/')) {
+      return null
+    }
     const lines = content.split('\n').filter((l) => l.trim())
     return lines.slice(0, 2).join('\n')
   }
+
+  const isImageSnippet = snippet.type === 'image' && snippet.content.startsWith('data:image/')
+  const isVideoSnippet = snippet.type === 'video'
 
   return (
     <div
@@ -86,7 +93,18 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
       </div>
 
       {/* 内容预览 */}
-      <div className="snippet-preview">{getPreview(snippet.content)}</div>
+      {isImageSnippet ? (
+        <div className="snippet-image-preview">
+          <img src={snippet.content} alt="图片" />
+        </div>
+      ) : isVideoSnippet ? (
+        <div className="snippet-video-preview">
+          <span className="snippet-video-icon">🎬</span>
+          <span className="snippet-video-url">{snippet.content}</span>
+        </div>
+      ) : (
+        <div className="snippet-preview">{getPreview(snippet.content, snippet.type)}</div>
+      )}
 
       {/* 底部信息 */}
       <div className="snippet-meta">
