@@ -2,7 +2,7 @@
  * IPC 事件处理模块
  * 负责主进程与渲染进程之间的通信
  */
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, shell } from 'electron'
 import {
   getAllSnippets,
   addSnippet,
@@ -32,12 +32,18 @@ import {
   deleteClipboardHistoryItem,
   getClipboardHistoryLimit,
   setClipboardHistoryLimit,
+  getQuickLinks,
+  saveQuickLinks,
+  addQuickLink,
+  deleteQuickLink,
+  updateQuickLink,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
   type StorageMode,
   type ProfileData,
   type ClipboardHistoryItem,
+  type QuickLink,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
@@ -215,5 +221,37 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 设置剪贴板历史保存条数限制
   ipcMain.handle('clipboardHistory:setLimit', (_event, limit: number) => {
     return setClipboardHistoryLimit(limit)
+  })
+
+  // ====== 快速链接 ======
+
+  // 获取快速链接列表
+  ipcMain.handle('quickLinks:get', () => {
+    return getQuickLinks()
+  })
+
+  // 保存快速链接列表
+  ipcMain.handle('quickLinks:save', (_event, links: QuickLink[]) => {
+    return saveQuickLinks(links)
+  })
+
+  // 添加快速链接
+  ipcMain.handle('quickLinks:add', (_event, link: QuickLink) => {
+    return addQuickLink(link)
+  })
+
+  // 删除快速链接
+  ipcMain.handle('quickLinks:delete', (_event, id: string) => {
+    return deleteQuickLink(id)
+  })
+
+  // 更新快速链接
+  ipcMain.handle('quickLinks:update', (_event, id: string, data: Partial<Omit<QuickLink, 'id'>>) => {
+    return updateQuickLink(id, data)
+  })
+
+  // 在默认浏览器中打开 URL
+  ipcMain.handle('shell:openExternal', (_event, url: string) => {
+    return shell.openExternal(url)
   })
 }

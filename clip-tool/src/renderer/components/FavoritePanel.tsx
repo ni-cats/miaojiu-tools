@@ -11,9 +11,10 @@ interface FavoritePanelProps {
   onCopy: (snippet: SnippetData) => void
   onDelete: (id: string) => void
   onToggleFavorite: (id: string) => void
+  onUpdateTags?: (id: string, tags: string[]) => void
 }
 
-const FavoritePanel: React.FC<FavoritePanelProps> = ({ snippets, onCopy, onDelete, onToggleFavorite }) => {
+const FavoritePanel: React.FC<FavoritePanelProps> = ({ snippets, onCopy, onDelete, onToggleFavorite, onUpdateTags }) => {
   const favorites = snippets.filter((s) => s.isFavorite)
 
   if (favorites.length === 0) {
@@ -35,6 +36,7 @@ const FavoritePanel: React.FC<FavoritePanelProps> = ({ snippets, onCopy, onDelet
           onCopy={onCopy}
           onDelete={onDelete}
           onToggleFavorite={onToggleFavorite}
+          onUpdateTags={onUpdateTags}
         />
       ))}
     </div>

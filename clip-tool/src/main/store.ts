@@ -34,8 +34,14 @@ export interface Snippet {
 
 /** 快捷键配置 */
 export interface ShortcutConfig {
-  openSave: string    // 唤起保存模式，默认 CommandOrControl+Shift+K
-  openSearch: string  // 唤起搜索模式，默认 CommandOrControl+Shift+S
+  openSave: string      // 唤起保存模式，默认 CommandOrControl+Shift+K
+  openSearch: string    // 唤起搜索模式，默认 CommandOrControl+Shift+S
+  openEditor: string    // 唤起编辑模式
+  openAi: string        // 唤起 AI 模式
+  openFavorite: string  // 唤起收藏模式
+  openSettings: string  // 唤起设置模式
+  openProfile: string   // 唤起个人中心
+  openLauncher: string  // 唤起导航栏
 }
 
 /** COS 云端存储配置 */
@@ -87,12 +93,30 @@ interface StoreSchema {
   profile: ProfileData  // 个人中心信息
   clipboardHistory: ClipboardHistoryItem[]  // 剪贴板历史
   clipboardHistoryLimit: number  // 剪贴板历史最大保存条数
+  quickLinks: QuickLink[]  // 快速链接列表
+}
+
+/** 快速链接条目 */
+export interface QuickLink {
+  id: string
+  name: string        // 显示名称
+  url: string         // 链接地址
+  icon: string        // Emoji 图标
+  favicon?: string    // 自动解析的 favicon URL
+  category: string    // 分类标签
+  order: number       // 排序序号
 }
 
 /** 默认快捷键配置 */
 export const DEFAULT_SHORTCUTS: ShortcutConfig = {
   openSave: 'CommandOrControl+Shift+K',
   openSearch: 'CommandOrControl+Shift+S',
+  openEditor: '',
+  openAi: '',
+  openFavorite: '',
+  openSettings: '',
+  openProfile: '',
+  openLauncher: '',
 }
 
 const store = new Store<StoreSchema>({
@@ -120,6 +144,7 @@ const store = new Store<StoreSchema>({
     storageMode: 'local' as StorageMode,
     clipboardHistory: [] as ClipboardHistoryItem[],
     clipboardHistoryLimit: 20,
+    quickLinks: [] as QuickLink[],
     profile: {
       nickname: '',
       avatar: '',
@@ -526,4 +551,43 @@ export function setClipboardHistoryLimit(limit: number): number {
   }
 
   return safeLimit
+}
+
+// ====== 快速链接管理 ======
+
+/** 获取所有快速链接 */
+export function getQuickLinks(): QuickLink[] {
+  return store.get('quickLinks', [])
+}
+
+/** 保存所有快速链接 */
+export function saveQuickLinks(links: QuickLink[]): QuickLink[] {
+  store.set('quickLinks', links)
+  return links
+}
+
+/** 添加快速链接 */
+export function addQuickLink(link: QuickLink): QuickLink[] {
+  const links = getQuickLinks()
+  links.push(link)
+  store.set('quickLinks', links)
+  return links
+}
+
+/** 删除快速链接 */
+export function deleteQuickLink(id: string): QuickLink[] {
+  const links = getQuickLinks().filter((l) => l.id !== id)
+  store.set('quickLinks', links)
+  return links
+}
+
+/** 更新快速链接 */
+export function updateQuickLink(id: string, data: Partial<Omit<QuickLink, 'id'>>): QuickLink[] {
+  const links = getQuickLinks()
+  const target = links.find((l) => l.id === id)
+  if (target) {
+    Object.assign(target, data)
+  }
+  store.set('quickLinks', links)
+  return links
 }

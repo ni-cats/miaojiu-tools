@@ -15,6 +15,7 @@ interface SearchPanelProps {
   onCopy: (snippet: SnippetData) => void
   onDelete: (id: string) => void
   onToggleFavorite: (id: string) => void
+  onUpdateTags?: (id: string, tags: string[]) => void
 }
 
 export interface SearchPanelRef {
@@ -27,7 +28,7 @@ export interface SearchPanelRef {
 }
 
 const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
-  ({ snippets, onCopy, onDelete, onToggleFavorite }, ref) => {
+  ({ snippets, onCopy, onDelete, onToggleFavorite, onUpdateTags }, ref) => {
     const searchInputRef = useRef<HTMLInputElement>(null)
     const listRef = useRef<HTMLDivElement>(null)
     const {
@@ -162,6 +163,7 @@ const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
                 onCopy={onCopy}
                 onDelete={onDelete}
                 onToggleFavorite={onToggleFavorite}
+                onUpdateTags={onUpdateTags}
                 onMouseEnter={() => setSelectedIndex(index)}
               />
             ))

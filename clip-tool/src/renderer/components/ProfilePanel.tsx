@@ -162,13 +162,14 @@ const ProfilePanel: React.FC = () => {
               <span className="profile-avatar-hint">点击上传</span>
             </div>
           )}
-          <div className="profile-avatar-overlay">📷</div>
+          {profile.avatar ? (
+            <button className="profile-avatar-remove" onClick={(e) => { e.stopPropagation(); handleRemoveAvatar(); }} title="移除头像">
+              ✕ 删除
+            </button>
+          ) : (
+            <div className="profile-avatar-overlay">📷</div>
+          )}
         </div>
-        {profile.avatar && (
-          <button className="profile-avatar-remove" onClick={handleRemoveAvatar} title="移除头像">
-            ✕
-          </button>
-        )}
         <input
           ref={fileInputRef}
           type="file"

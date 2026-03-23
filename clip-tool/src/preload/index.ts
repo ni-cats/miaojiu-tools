@@ -27,6 +27,12 @@ export interface SnippetData {
 export interface ShortcutConfig {
   openSave: string
   openSearch: string
+  openEditor: string
+  openAi: string
+  openFavorite: string
+  openSettings: string
+  openProfile: string
+  openLauncher: string
 }
 
 export interface CosConfig {
@@ -53,6 +59,15 @@ export interface ProfileData {
   email: string
   createdAt: string
   updatedAt: string
+}
+
+export interface QuickLink {
+  id: string
+  name: string
+  url: string
+  icon: string
+  category: string
+  order: number
 }
 
 const api = {
@@ -83,8 +98,8 @@ const api = {
   hideWindow: (): void => ipcRenderer.send('window:hide'),
 
   /** 监听窗口模式切换（主进程通过全局快捷键触发） */
-  onSwitchMode: (callback: (mode: 'save' | 'search') => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, mode: 'save' | 'search') => callback(mode)
+  onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => callback(mode)
     ipcRenderer.on('window:switchMode', handler)
     return () => {
       ipcRenderer.removeListener('window:switchMode', handler)
@@ -173,6 +188,27 @@ const api = {
   /** 设置剪贴板历史保存条数限制 */
   setClipboardHistoryLimit: (limit: number): Promise<number> =>
     ipcRenderer.invoke('clipboardHistory:setLimit', limit),
+
+  // ====== 快速链接 API ======
+
+  /** 获取快速链接列表 */
+  getQuickLinks: (): Promise<QuickLink[]> => ipcRenderer.invoke('quickLinks:get'),
+
+  /** 保存快速链接列表 */
+  saveQuickLinks: (links: QuickLink[]): Promise<QuickLink[]> => ipcRenderer.invoke('quickLinks:save', links),
+
+  /** 添加快速链接 */
+  addQuickLink: (link: QuickLink): Promise<QuickLink[]> => ipcRenderer.invoke('quickLinks:add', link),
+
+  /** 删除快速链接 */
+  deleteQuickLink: (id: string): Promise<QuickLink[]> => ipcRenderer.invoke('quickLinks:delete', id),
+
+  /** 更新快速链接 */
+  updateQuickLink: (id: string, data: Partial<Omit<QuickLink, 'id'>>): Promise<QuickLink[]> =>
+    ipcRenderer.invoke('quickLinks:update', id, data),
+
+  /** 在默认浏览器中打开 URL */
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

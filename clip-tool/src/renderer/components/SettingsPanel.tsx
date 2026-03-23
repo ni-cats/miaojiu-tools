@@ -217,6 +217,12 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>({
     openSave: '',
     openSearch: '',
+    openEditor: '',
+    openAi: '',
+    openFavorite: '',
+    openSettings: '',
+    openProfile: '',
+    openLauncher: '',
   })
   const [recording, setRecording] = useState<keyof ShortcutConfig | null>(null)
   const [saveStatus, setSaveStatus] = useState<string | null>(null)
@@ -321,6 +327,12 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     const defaults: ShortcutConfig = {
       openSave: 'CommandOrControl+Shift+K',
       openSearch: 'CommandOrControl+Shift+S',
+      openEditor: '',
+      openAi: '',
+      openFavorite: '',
+      openSettings: '',
+      openProfile: '',
+      openLauncher: '',
     }
     setShortcuts(defaults)
     setHasChanges(
@@ -492,6 +504,36 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       key: 'openSearch',
       label: '🔍 唤起搜索',
       description: '打开窗口并进入搜索模式，自动聚焦搜索框',
+    },
+    {
+      key: 'openEditor',
+      label: '✏️ 唤起编辑',
+      description: '打开窗口并进入编辑页面',
+    },
+    {
+      key: 'openAi',
+      label: '🤖 唤起 AI',
+      description: '打开窗口并进入 AI 页面',
+    },
+    {
+      key: 'openFavorite',
+      label: '⭐ 唤起收藏',
+      description: '打开窗口并进入收藏页面',
+    },
+    {
+      key: 'openSettings',
+      label: '⚙ 唤起设置',
+      description: '打开窗口并进入设置页面',
+    },
+    {
+      key: 'openProfile',
+      label: '👤 唤起我的',
+      description: '打开窗口并进入个人中心页面',
+    },
+    {
+      key: 'openLauncher',
+      label: '🚀 唤起导航',
+      description: '打开窗口并进入快速导航页面',
     },
   ]
 

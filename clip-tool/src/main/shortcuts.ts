@@ -5,8 +5,11 @@
 import { globalShortcut, BrowserWindow } from 'electron'
 import { getShortcuts, type ShortcutConfig } from './store'
 
+/** 所有支持通过全局快捷键唤起的模式 */
+type WindowMode = 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher'
+
 /** 显示窗口并发送模式切换指令 */
-function showWindowWithMode(win: BrowserWindow, mode: 'save' | 'search') {
+function showWindowWithMode(win: BrowserWindow, mode: WindowMode) {
   if (win.isVisible()) {
     // 窗口已显示，直接切换模式
     win.webContents.send('window:switchMode', mode)
@@ -21,33 +24,34 @@ function showWindowWithMode(win: BrowserWindow, mode: 'save' | 'search') {
   }
 }
 
+/** 快捷键配置字段到模式的映射 */
+const SHORTCUT_MODE_MAP: { key: keyof ShortcutConfig; mode: WindowMode }[] = [
+  { key: 'openSave', mode: 'save' },
+  { key: 'openSearch', mode: 'search' },
+  { key: 'openEditor', mode: 'editor' },
+  { key: 'openAi', mode: 'ai' },
+  { key: 'openFavorite', mode: 'favorite' },
+  { key: 'openSettings', mode: 'settings' },
+  { key: 'openProfile', mode: 'profile' },
+  { key: 'openLauncher', mode: 'launcher' },
+]
+
 /** 注册全局快捷键（根据用户配置） */
 export function registerShortcuts(getMainWindow: () => BrowserWindow | null) {
   const shortcuts = getShortcuts()
 
-  // 注册"唤起保存模式"快捷键
-  if (shortcuts.openSave) {
-    try {
-      globalShortcut.register(shortcuts.openSave, () => {
-        const win = getMainWindow()
-        if (!win) return
-        showWindowWithMode(win, 'save')
-      })
-    } catch (e) {
-      console.error(`注册快捷键 ${shortcuts.openSave} 失败:`, e)
-    }
-  }
-
-  // 注册"唤起搜索模式"快捷键
-  if (shortcuts.openSearch) {
-    try {
-      globalShortcut.register(shortcuts.openSearch, () => {
-        const win = getMainWindow()
-        if (!win) return
-        showWindowWithMode(win, 'search')
-      })
-    } catch (e) {
-      console.error(`注册快捷键 ${shortcuts.openSearch} 失败:`, e)
+  for (const { key, mode } of SHORTCUT_MODE_MAP) {
+    const accelerator = shortcuts[key]
+    if (accelerator) {
+      try {
+        globalShortcut.register(accelerator, () => {
+          const win = getMainWindow()
+          if (!win) return
+          showWindowWithMode(win, mode)
+        })
+      } catch (e) {
+        console.error(`注册快捷键 ${accelerator}（${key}）失败:`, e)
+      }
     }
   }
 }

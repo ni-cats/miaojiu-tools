@@ -12,10 +12,11 @@ import AiPanel, { type AiPanelRef } from './components/AiPanel'
 import FavoritePanel from './components/FavoritePanel'
 import SettingsPanel, { type SettingsPanelRef } from './components/SettingsPanel'
 import ProfilePanel from './components/ProfilePanel'
+import LauncherPanel, { type LauncherPanelRef } from './components/LauncherPanel'
 import { useShortcuts } from './hooks/useShortcuts'
 import type { SnippetData } from './types'
 
-type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'profile' | 'settings'
+type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'profile' | 'settings' | 'launcher'
 
 /** 将 Electron accelerator 格式转换为短标签显示 */
 function formatHint(accelerator: string): string {
@@ -36,14 +37,21 @@ const App: React.FC = () => {
   const [snippets, setSnippets] = useState<SnippetData[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const [triggerRead, setTriggerRead] = useState(0)
-  const [shortcutHints, setShortcutHints] = useState<{ save: string; search: string }>({
+  const [shortcutHints, setShortcutHints] = useState<Record<string, string>>({
     save: '⌘⇧K',
     search: '⌘⇧S',
+    editor: '',
+    ai: '',
+    favorite: '',
+    settings: '',
+    profile: '',
+    launcher: '',
   })
   const searchPanelRef = useRef<SearchPanelRef>(null)
   const savePanelRef = useRef<SavePanelRef>(null)
   const settingsPanelRef = useRef<SettingsPanelRef>(null)
   const aiPanelRef = useRef<AiPanelRef>(null)
+  const launcherPanelRef = useRef<LauncherPanelRef>(null)
   const [settingsNavFocused, setSettingsNavFocused] = useState(false)
   const [aiCardFocused, setAiCardFocused] = useState(false)
 
@@ -74,6 +82,12 @@ const App: React.FC = () => {
       setShortcutHints({
         save: formatHint(config.openSave),
         search: formatHint(config.openSearch),
+        editor: formatHint(config.openEditor),
+        ai: formatHint(config.openAi),
+        favorite: formatHint(config.openFavorite),
+        settings: formatHint(config.openSettings),
+        profile: formatHint(config.openProfile),
+        launcher: formatHint(config.openLauncher),
       })
     } catch (error) {
       console.error('加载快捷键配置失败:', error)
@@ -93,10 +107,17 @@ const App: React.FC = () => {
         setTriggerRead((prev) => prev + 1)
       } else if (mode === 'search') {
         setActiveTab('search')
-        // 延迟聚焦搜索框，等待 Tab 切换渲染完成
         setTimeout(() => {
           searchPanelRef.current?.focusSearch()
         }, 100)
+      } else if (mode === 'launcher') {
+        setActiveTab('launcher')
+        setTimeout(() => {
+          launcherPanelRef.current?.focusSearch()
+        }, 100)
+      } else {
+        // editor / ai / favorite / settings / profile
+        setActiveTab(mode as TabType)
       }
       // 每次唤起都重新加载数据
       loadSnippets()
@@ -184,6 +205,18 @@ const App: React.FC = () => {
     }
   }, [])
 
+  // 更新标签
+  const handleUpdateTags = useCallback(async (id: string, tags: string[]) => {
+    try {
+      const updated = await window.clipToolAPI.updateSnippet(id, { tags })
+      setSnippets(updated)
+      showToast('✓ 标签已更新')
+    } catch (error) {
+      console.error('更新标签失败:', error)
+      showToast('✕ 更新标签失败')
+    }
+  }, [showToast])
+
   // 注册窗口内快捷键
   useShortcuts({
     activeTab,
@@ -221,7 +254,7 @@ const App: React.FC = () => {
       settingsPanelRef.current?.blurNav()
       setAiCardFocused(false)
       aiPanelRef.current?.blurCards()
-      const tabKeys: TabType[] = ['save', 'editor', 'search', 'ai', 'favorite', 'settings', 'profile']
+      const tabKeys: TabType[] = ['save', 'editor', 'search', 'launcher', 'ai', 'favorite', 'settings', 'profile']
       setActiveTab((prev) => {
         const currentIndex = tabKeys.indexOf(prev)
         let nextIndex: number
@@ -235,6 +268,12 @@ const App: React.FC = () => {
         if (nextTab === 'search') {
           setTimeout(() => {
             searchPanelRef.current?.focusSearch()
+          }, 100)
+        }
+        // 切换到导航栏时自动聚焦搜索框
+        if (nextTab === 'launcher') {
+          setTimeout(() => {
+            launcherPanelRef.current?.focusSearch()
           }, 100)
         }
         return nextTab
@@ -281,12 +320,13 @@ const App: React.FC = () => {
 
   const tabs: { key: TabType; label: string; hint: string }[] = [
     { key: 'save', label: '📋 保存', hint: shortcutHints.save },
-    { key: 'editor', label: '✏️ 编辑', hint: '' },
+    { key: 'editor', label: '✏️ 编辑', hint: shortcutHints.editor },
     { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
-    { key: 'ai', label: '🤖 AI', hint: '' },
-    { key: 'favorite', label: '⭐ 收藏', hint: '' },
-    { key: 'settings', label: '⚙ 设置', hint: '' },
-    { key: 'profile', label: '👤 我的', hint: '' },
+    { key: 'launcher', label: '🚀 导航', hint: shortcutHints.launcher },
+    { key: 'ai', label: '🤖 AI', hint: shortcutHints.ai },
+    { key: 'favorite', label: '⭐ 收藏', hint: shortcutHints.favorite },
+    { key: 'settings', label: '⚙ 设置', hint: shortcutHints.settings },
+    { key: 'profile', label: '👤 我的', hint: shortcutHints.profile },
   ]
 
   return (
@@ -323,6 +363,7 @@ const App: React.FC = () => {
             onCopy={handleCopyAndClose}
             onDelete={handleDelete}
             onToggleFavorite={handleToggleFavorite}
+            onUpdateTags={handleUpdateTags}
           />
         )}
         {activeTab === 'ai' && <AiPanel ref={aiPanelRef} />}
@@ -332,10 +373,12 @@ const App: React.FC = () => {
             onCopy={handleCopy}
             onDelete={handleDelete}
             onToggleFavorite={handleToggleFavorite}
+            onUpdateTags={handleUpdateTags}
           />
         )}
         {activeTab === 'profile' && <ProfilePanel />}
         {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
+        {activeTab === 'launcher' && <LauncherPanel ref={launcherPanelRef} />}
       </div>
 
       {/* Toast 提示 */}

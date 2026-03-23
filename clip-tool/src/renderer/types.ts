@@ -26,6 +26,12 @@ export interface ClipboardData {
 export interface ShortcutConfig {
   openSave: string
   openSearch: string
+  openEditor: string
+  openAi: string
+  openFavorite: string
+  openSettings: string
+  openProfile: string
+  openLauncher: string
 }
 
 /** COS 云端存储配置 */
@@ -58,6 +64,17 @@ export interface ProfileData {
   updatedAt: string
 }
 
+/** 快速链接条目 */
+export interface QuickLink {
+  id: string
+  name: string
+  url: string
+  icon: string
+  favicon?: string    // 自动解析的 favicon URL
+  category: string
+  order: number
+}
+
 export interface ClipToolAPI {
   getAllSnippets: () => Promise<SnippetData[]>
   readClipboard: () => Promise<ClipboardData>
@@ -67,7 +84,7 @@ export interface ClipToolAPI {
   copyToClipboard: (id: string, content: string, contentType?: string) => Promise<SnippetData[]>
   updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags'>>) => Promise<SnippetData[]>
   hideWindow: () => void
-  onSwitchMode: (callback: (mode: 'save' | 'search') => void) => (() => void)
+  onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void) => (() => void)
   getShortcuts: () => Promise<ShortcutConfig>
   saveShortcuts: (config: ShortcutConfig) => Promise<ShortcutConfig>
   getCustomTags: () => Promise<string[]>
@@ -97,6 +114,13 @@ export interface ClipToolAPI {
   deleteClipboardHistoryItem: (id: string) => Promise<ClipboardHistoryItem[]>
   getClipboardHistoryLimit: () => Promise<number>
   setClipboardHistoryLimit: (limit: number) => Promise<number>
+  // 快速链接
+  getQuickLinks: () => Promise<QuickLink[]>
+  saveQuickLinks: (links: QuickLink[]) => Promise<QuickLink[]>
+  addQuickLink: (link: QuickLink) => Promise<QuickLink[]>
+  deleteQuickLink: (id: string) => Promise<QuickLink[]>
+  updateQuickLink: (id: string, data: Partial<Omit<QuickLink, 'id'>>) => Promise<QuickLink[]>
+  openExternal: (url: string) => Promise<void>
 }
 
 declare global {
