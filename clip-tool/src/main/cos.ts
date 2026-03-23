@@ -66,6 +66,27 @@ export function getCosClient(): COS | null {
   return cosClient
 }
 
+/**
+ * 获取或创建 COS 客户端实例（强制模式，不检查 enabled 状态）
+ * 用于个人信息等必须同步的场景
+ */
+export function getCosClientForce(): COS | null {
+  const config = getCosConfig()
+  if (!config.secretId || !config.secretKey) {
+    console.warn('COS 密钥未配置，无法创建客户端')
+    return null
+  }
+
+  if (cosClient) return cosClient
+
+  cosClient = new COS({
+    SecretId: config.secretId,
+    SecretKey: config.secretKey,
+  })
+
+  return cosClient
+}
+
 /** 重置 COS 客户端（密钥变更时调用） */
 export function resetCosClient(): void {
   cosClient = null
@@ -87,6 +108,15 @@ function buildSnippetKey(snippetId: string): string {
 function buildKey(filename: string): string {
   const deviceId = getDeviceId()
   return `devices/${deviceId}/${filename}`
+}
+
+/**
+ * 生成用户个人信息的 COS 对象 Key
+ * 格式：user/{deviceId}/{filename}
+ */
+function buildUserKey(filename: string): string {
+  const deviceId = getDeviceId()
+  return `user/${deviceId}/${filename}`
 }
 
 /**
@@ -370,14 +400,17 @@ export async function downloadCustomTags(): Promise<string[] | null> {
 
 /**
  * 上传个人信息到 COS
+ * 存储路径：user/{deviceId}/profile.json
+ * 不受存储模式影响，只要有密钥就同步
  */
 export async function uploadProfile(profile: unknown): Promise<boolean> {
-  const cos = getCosClient()
+  const cos = getCosClientForce()
   if (!cos) return false
 
-  const key = buildKey('profile.json')
+  const key = buildUserKey('profile.json')
   const body = JSON.stringify(profile, null, 2)
   const { Bucket, Region } = getBucketConfig()
+  console.log('uploadProfile - Key:', key)
 
   return new Promise((resolve) => {
     cos.putObject(
@@ -392,7 +425,7 @@ export async function uploadProfile(profile: unknown): Promise<boolean> {
           console.error('上传个人信息失败:', err)
           resolve(false)
         } else {
-          console.log('个人信息已同步到云端')
+          console.log('个人信息已同步到云端, 路径:', key)
           resolve(true)
         }
       }
@@ -402,13 +435,16 @@ export async function uploadProfile(profile: unknown): Promise<boolean> {
 
 /**
  * 从 COS 下载个人信息
+ * 存储路径：user/{deviceId}/profile.json
+ * 不受存储模式影响，只要有密钥就可以拉取
  */
 export async function downloadProfile(): Promise<unknown | null> {
-  const cos = getCosClient()
+  const cos = getCosClientForce()
   if (!cos) return null
 
-  const key = buildKey('profile.json')
+  const key = buildUserKey('profile.json')
   const { Bucket, Region } = getBucketConfig()
+  console.log('downloadProfile - Key:', key)
 
   return new Promise((resolve) => {
     cos.getObject(

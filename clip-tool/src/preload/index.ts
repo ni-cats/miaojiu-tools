@@ -37,6 +37,15 @@ export interface CosConfig {
 
 export type StorageMode = 'local' | 'cos'
 
+export interface ClipboardHistoryItem {
+  id: string
+  content: string
+  type: 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
+  language?: string
+  isImage?: boolean
+  timestamp: string
+}
+
 export interface ProfileData {
   nickname: string
   avatar: string
@@ -141,6 +150,29 @@ const api = {
 
   /** 从云端拉取个人信息 */
   pullProfile: (): Promise<ProfileData | null> => ipcRenderer.invoke('profile:pull'),
+
+  // ====== 剪贴板历史 API ======
+
+  /** 获取剪贴板历史 */
+  getClipboardHistory: (): Promise<ClipboardHistoryItem[]> => ipcRenderer.invoke('clipboardHistory:get'),
+
+  /** 添加剪贴板历史 */
+  addClipboardHistory: (item: ClipboardHistoryItem): Promise<ClipboardHistoryItem[]> =>
+    ipcRenderer.invoke('clipboardHistory:add', item),
+
+  /** 清空剪贴板历史 */
+  clearClipboardHistory: (): Promise<ClipboardHistoryItem[]> => ipcRenderer.invoke('clipboardHistory:clear'),
+
+  /** 删除单条剪贴板历史 */
+  deleteClipboardHistoryItem: (id: string): Promise<ClipboardHistoryItem[]> =>
+    ipcRenderer.invoke('clipboardHistory:delete', id),
+
+  /** 获取剪贴板历史保存条数限制 */
+  getClipboardHistoryLimit: (): Promise<number> => ipcRenderer.invoke('clipboardHistory:getLimit'),
+
+  /** 设置剪贴板历史保存条数限制 */
+  setClipboardHistoryLimit: (limit: number): Promise<number> =>
+    ipcRenderer.invoke('clipboardHistory:setLimit', limit),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

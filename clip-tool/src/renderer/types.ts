@@ -38,6 +38,16 @@ export interface CosConfig {
 /** 存储模式 */
 export type StorageMode = 'local' | 'cos'
 
+/** 剪贴板历史条目 */
+export interface ClipboardHistoryItem {
+  id: string
+  content: string
+  type: ContentType
+  language?: string
+  isImage?: boolean
+  timestamp: string
+}
+
 /** 个人中心信息 */
 export interface ProfileData {
   nickname: string
@@ -79,6 +89,14 @@ export interface ClipToolAPI {
   saveProfile: (profile: ProfileData) => Promise<ProfileData>
   pullProfile: () => Promise<ProfileData | null>
   pushProfile: () => Promise<boolean>
+  getCosConfig: () => Promise<CosConfig>
+  // 剪贴板历史
+  getClipboardHistory: () => Promise<ClipboardHistoryItem[]>
+  addClipboardHistory: (item: ClipboardHistoryItem) => Promise<ClipboardHistoryItem[]>
+  clearClipboardHistory: () => Promise<ClipboardHistoryItem[]>
+  deleteClipboardHistoryItem: (id: string) => Promise<ClipboardHistoryItem[]>
+  getClipboardHistoryLimit: () => Promise<number>
+  setClipboardHistoryLimit: (limit: number) => Promise<number>
 }
 
 declare global {

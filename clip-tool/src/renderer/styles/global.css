@@ -1582,3 +1582,363 @@ code.profile-info-value {
 .profile-btn.primary:disabled:hover {
   background: var(--accent-color);
 }
+
+/* ===== 编辑面板 ===== */
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 编辑区域 */
+.editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.editor-title-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.editor-title-input {
+  flex: 1;
+}
+
+.editor-save-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  white-space: nowrap;
+}
+
+.editor-save-btn:hover {
+  background: var(--accent-hover);
+}
+
+.editor-save-btn:active {
+  transform: scale(0.97);
+}
+
+.editor-save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor-textarea {
+  width: 100%;
+  min-height: 120px;
+  /* 不限制最大高度，允许向下拉伸占用历史区域空间 */
+  max-height: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.editor-textarea:focus {
+  border-color: var(--accent-color);
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-tertiary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+}
+
+/* 分隔线 */
+.editor-divider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 2;
+}
+
+.editor-divider-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.editor-divider-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-limit-tag {
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.editor-limit-tag:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.editor-limit-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-limit-input {
+  width: 50px;
+  padding: 2px 6px;
+  font-size: 11px;
+  text-align: center;
+  border-radius: 6px;
+}
+
+.editor-limit-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+
+.editor-limit-btn.cancel {
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-color);
+}
+
+.editor-clear-btn {
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.editor-clear-btn:hover {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+/* 历史列表 */
+.editor-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 4px;
+}
+
+.editor-history-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.editor-history-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color);
+  border-radius: 2px;
+}
+
+.editor-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px 16px;
+  color: var(--text-tertiary);
+}
+
+.editor-history-empty-icon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+
+.editor-history-empty-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.editor-history-empty-hint {
+  font-size: 11px;
+}
+
+.editor-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+}
+
+.editor-history-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+
+.editor-history-item:active {
+  background: var(--bg-active);
+}
+
+.editor-history-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor-history-type {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.editor-history-type.code {
+  background: rgba(88, 86, 214, 0.1);
+  color: #5856d6;
+}
+
+.editor-history-type.text {
+  background: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+}
+
+.editor-history-type.url {
+  background: rgba(255, 149, 0, 0.1);
+  color: #ff9500;
+}
+
+.editor-history-type.image {
+  background: rgba(255, 45, 85, 0.1);
+  color: #ff2d55;
+}
+
+.editor-history-type.document {
+  background: rgba(0, 199, 190, 0.1);
+  color: #00c7be;
+}
+
+.editor-history-type.other {
+  background: rgba(142, 142, 147, 0.1);
+  color: #8e8e93;
+}
+
+.editor-history-preview {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.editor-history-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.editor-history-time {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.editor-history-delete {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.editor-history-item:hover .editor-history-delete {
+  opacity: 1;
+}
+
+.editor-history-delete:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--danger-color);
+}
+
+/* 编辑面板 Toast */
+.editor-toast {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 1.7s forwards;
+  pointer-events: none;
+}

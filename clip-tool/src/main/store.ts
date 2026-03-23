@@ -48,6 +48,16 @@ export interface CosConfig {
 /** 存储模式 */
 export type StorageMode = 'local' | 'cos'
 
+/** 剪贴板历史条目 */
+export interface ClipboardHistoryItem {
+  id: string
+  content: string
+  type: 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
+  language?: string
+  isImage?: boolean
+  timestamp: string
+}
+
 /** 个人中心信息 */
 export interface ProfileData {
   nickname: string
@@ -75,6 +85,8 @@ interface StoreSchema {
   cosConfig: CosConfig  // COS 云端存储配置
   storageMode: StorageMode  // 存储模式
   profile: ProfileData  // 个人中心信息
+  clipboardHistory: ClipboardHistoryItem[]  // 剪贴板历史
+  clipboardHistoryLimit: number  // 剪贴板历史最大保存条数
 }
 
 /** 默认快捷键配置 */
@@ -106,6 +118,8 @@ const store = new Store<StoreSchema>({
       }
     })(),
     storageMode: 'local' as StorageMode,
+    clipboardHistory: [] as ClipboardHistoryItem[],
+    clipboardHistoryLimit: 20,
     profile: {
       nickname: '',
       avatar: '',
@@ -401,6 +415,24 @@ export function setStorageMode(mode: StorageMode): StorageMode {
 
 // ====== 个人信息管理 ======
 
+/** 防抖同步个人信息到云端的定时器 */
+let syncProfileTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 防抖同步个人信息到云端（不受存储模式切换影响，只要有密钥就同步） */
+function debounceSyncProfile(): void {
+  const config = getCosConfig()
+  // 个人信息永远同步到 COS，只要有密钥即可，不受 enabled 开关影响
+  if (!config.secretId || !config.secretKey) return
+
+  if (syncProfileTimer) clearTimeout(syncProfileTimer)
+  syncProfileTimer = setTimeout(async () => {
+    const profile = store.get('profile')
+    if (profile) {
+      await uploadProfile(profile)
+    }
+  }, 1000) // 1秒防抖
+}
+
 /** 获取个人信息 */
 export function getProfile(): ProfileData {
   return store.get('profile', {
@@ -413,22 +445,85 @@ export function getProfile(): ProfileData {
   })
 }
 
-/** 保存个人信息 */
+/** 保存个人信息（保存到本地并自动同步到 COS） */
 export function saveProfile(profile: ProfileData): ProfileData {
   store.set('profile', profile)
+  debounceSyncProfile() // 自动同步到云端
   return profile
 }
 
-/** 将个人信息推送到云端 */
+/** 将个人信息推送到云端（不受存储模式影响） */
 export async function pushProfileToCloud(): Promise<boolean> {
   const profile = getProfile()
   return uploadProfile(profile)
 }
 
-/** 从云端拉取个人信息 */
+/** 从云端拉取个人信息（不受存储模式影响） */
 export async function pullProfileFromCloud(): Promise<ProfileData | null> {
   const cloudProfile = await downloadProfile()
   if (cloudProfile === null) return null
   store.set('profile', cloudProfile as ProfileData)
   return cloudProfile as ProfileData
+}
+
+// ====== 剪贴板历史管理 ======
+
+/** 获取剪贴板历史 */
+export function getClipboardHistory(): ClipboardHistoryItem[] {
+  return store.get('clipboardHistory', [])
+}
+
+/** 添加剪贴板历史条目 */
+export function addClipboardHistory(item: ClipboardHistoryItem): ClipboardHistoryItem[] {
+  const history = getClipboardHistory()
+  const limit = getClipboardHistoryLimit()
+
+  // 去重：如果内容相同则不重复添加，只更新时间戳
+  const existingIndex = history.findIndex((h) => h.content === item.content)
+  if (existingIndex >= 0) {
+    history.splice(existingIndex, 1)
+  }
+
+  // 添加到最前面
+  history.unshift(item)
+
+  // 超过限制则裁剪
+  if (history.length > limit) {
+    history.splice(limit)
+  }
+
+  store.set('clipboardHistory', history)
+  return history
+}
+
+/** 清空剪贴板历史 */
+export function clearClipboardHistory(): ClipboardHistoryItem[] {
+  store.set('clipboardHistory', [])
+  return []
+}
+
+/** 删除单条剪贴板历史 */
+export function deleteClipboardHistoryItem(id: string): ClipboardHistoryItem[] {
+  const history = getClipboardHistory().filter((h) => h.id !== id)
+  store.set('clipboardHistory', history)
+  return history
+}
+
+/** 获取剪贴板历史最大保存条数 */
+export function getClipboardHistoryLimit(): number {
+  return store.get('clipboardHistoryLimit', 20)
+}
+
+/** 设置剪贴板历史最大保存条数 */
+export function setClipboardHistoryLimit(limit: number): number {
+  const safeLimit = Math.max(1, Math.min(100, limit))
+  store.set('clipboardHistoryLimit', safeLimit)
+
+  // 如果当前历史超过新限制，裁剪
+  const history = getClipboardHistory()
+  if (history.length > safeLimit) {
+    store.set('clipboardHistory', history.slice(0, safeLimit))
+  }
+
+  return safeLimit
 }

@@ -7,13 +7,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import SavePanel, { type SavePanelRef } from './components/SavePanel'
 import SearchPanel, { type SearchPanelRef } from './components/SearchPanel'
+import EditorPanel from './components/EditorPanel'
 import FavoritePanel from './components/FavoritePanel'
 import SettingsPanel from './components/SettingsPanel'
 import ProfilePanel from './components/ProfilePanel'
 import { useShortcuts } from './hooks/useShortcuts'
 import type { SnippetData } from './types'
 
-type TabType = 'save' | 'search' | 'favorite' | 'profile' | 'settings'
+type TabType = 'save' | 'editor' | 'search' | 'favorite' | 'profile' | 'settings'
 
 /** 将 Electron accelerator 格式转换为短标签显示 */
 function formatHint(accelerator: string): string {
@@ -210,7 +211,7 @@ const App: React.FC = () => {
     },
     // ← / → 切换 Tab（使用函数式更新避免闭包陷阱）
     onSwitchTab: (direction: 'left' | 'right') => {
-      const tabKeys: TabType[] = ['save', 'search', 'favorite', 'settings', 'profile']
+      const tabKeys: TabType[] = ['save', 'editor', 'search', 'favorite', 'settings', 'profile']
       setActiveTab((prev) => {
         const currentIndex = tabKeys.indexOf(prev)
         let nextIndex: number
@@ -237,6 +238,7 @@ const App: React.FC = () => {
 
   const tabs: { key: TabType; label: string; hint: string }[] = [
     { key: 'save', label: '📋 保存', hint: shortcutHints.save },
+    { key: 'editor', label: '✏️ 编辑', hint: '' },
     { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
     { key: 'favorite', label: '⭐ 收藏', hint: '' },
     { key: 'settings', label: '⚙ 设置', hint: '' },
@@ -266,6 +268,9 @@ const App: React.FC = () => {
       <div className="panel-content">
         {activeTab === 'save' && (
           <SavePanel ref={savePanelRef} onSave={handleSaveAndClose} triggerRead={triggerRead} />
+        )}
+        {activeTab === 'editor' && (
+          <EditorPanel onSave={handleSave} />
         )}
         {activeTab === 'search' && (
           <SearchPanel

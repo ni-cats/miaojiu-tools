@@ -26,11 +26,18 @@ import {
   saveProfile,
   pushProfileToCloud,
   pullProfileFromCloud,
+  getClipboardHistory,
+  addClipboardHistory,
+  clearClipboardHistory,
+  deleteClipboardHistoryItem,
+  getClipboardHistoryLimit,
+  setClipboardHistoryLimit,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
   type StorageMode,
   type ProfileData,
+  type ClipboardHistoryItem,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
@@ -176,5 +183,37 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 从云端拉取个人信息
   ipcMain.handle('profile:pull', async () => {
     return pullProfileFromCloud()
+  })
+
+  // ====== 剪贴板历史 ======
+
+  // 获取剪贴板历史
+  ipcMain.handle('clipboardHistory:get', () => {
+    return getClipboardHistory()
+  })
+
+  // 添加剪贴板历史
+  ipcMain.handle('clipboardHistory:add', (_event, item: ClipboardHistoryItem) => {
+    return addClipboardHistory(item)
+  })
+
+  // 清空剪贴板历史
+  ipcMain.handle('clipboardHistory:clear', () => {
+    return clearClipboardHistory()
+  })
+
+  // 删除单条剪贴板历史
+  ipcMain.handle('clipboardHistory:delete', (_event, id: string) => {
+    return deleteClipboardHistoryItem(id)
+  })
+
+  // 获取剪贴板历史保存条数限制
+  ipcMain.handle('clipboardHistory:getLimit', () => {
+    return getClipboardHistoryLimit()
+  })
+
+  // 设置剪贴板历史保存条数限制
+  ipcMain.handle('clipboardHistory:setLimit', (_event, limit: number) => {
+    return setClipboardHistoryLimit(limit)
   })
 }

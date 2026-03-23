@@ -22,6 +22,7 @@ const ProfilePanel: React.FC = () => {
   const [syncing, setSyncing] = useState(false)
   const [storageMode, setStorageMode] = useState<StorageMode>('local')
   const [deviceId, setDeviceId] = useState<string>('')
+  const [hasCosKey, setHasCosKey] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 加载个人信息
@@ -32,6 +33,10 @@ const ProfilePanel: React.FC = () => {
     })
     window.clipToolAPI.getStorageMode().then(setStorageMode)
     window.clipToolAPI.getDeviceId().then(setDeviceId)
+    // 检查是否有 COS 密钥（有密钥就能同步个人信息）
+    window.clipToolAPI.getCosConfig().then((config) => {
+      setHasCosKey(!!config.secretId && !!config.secretKey)
+    })
   }, [])
 
   // 检测是否有变更
@@ -248,7 +253,7 @@ const ProfilePanel: React.FC = () => {
         >
           💾 保存
         </button>
-        {storageMode === 'cos' && (
+        {hasCosKey && (
           <>
             <button
               className="profile-btn"
