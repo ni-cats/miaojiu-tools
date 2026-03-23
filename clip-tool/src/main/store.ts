@@ -10,6 +10,8 @@ import {
   downloadSnippets,
   uploadCustomTags,
   downloadCustomTags,
+  uploadProfile,
+  downloadProfile,
   resetCosClient,
 } from './cos'
 import { getCosYamlConfig } from './config'
@@ -43,6 +45,19 @@ export interface CosConfig {
   enabled: boolean     // 是否启用云端同步
 }
 
+/** 存储模式 */
+export type StorageMode = 'local' | 'cos'
+
+/** 个人中心信息 */
+export interface ProfileData {
+  nickname: string
+  avatar: string        // base64 或空
+  bio: string           // 个人签名/简介
+  email: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface StoreSchema {
   snippets: Snippet[]
   settings: {
@@ -58,6 +73,8 @@ interface StoreSchema {
   shortcuts: ShortcutConfig
   customTags: string[]  // 用户自定义的枚举标签列表
   cosConfig: CosConfig  // COS 云端存储配置
+  storageMode: StorageMode  // 存储模式
+  profile: ProfileData  // 个人中心信息
 }
 
 /** 默认快捷键配置 */
@@ -88,6 +105,15 @@ const store = new Store<StoreSchema>({
         enabled: yamlCfg.enabled,
       }
     })(),
+    storageMode: 'local' as StorageMode,
+    profile: {
+      nickname: '',
+      avatar: '',
+      bio: '',
+      email: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
   },
 })
 
@@ -345,4 +371,64 @@ export function removeCustomTag(tag: string): string[] {
   store.set('customTags', tags)
   debounceSyncTags()
   return tags
+}
+
+// ====== 存储模式管理 ======
+
+/** 获取当前存储模式 */
+export function getStorageMode(): StorageMode {
+  return store.get('storageMode', 'local')
+}
+
+/** 设置存储模式 */
+export function setStorageMode(mode: StorageMode): StorageMode {
+  store.set('storageMode', mode)
+  // 切换到 COS 模式时，同步启用 COS
+  if (mode === 'cos') {
+    const cosConfig = getCosConfig()
+    if (!cosConfig.enabled) {
+      saveCosConfig({ ...cosConfig, enabled: true })
+    }
+  } else {
+    // 切换到本地模式时，关闭自动同步
+    const cosConfig = getCosConfig()
+    if (cosConfig.enabled) {
+      saveCosConfig({ ...cosConfig, enabled: false })
+    }
+  }
+  return mode
+}
+
+// ====== 个人信息管理 ======
+
+/** 获取个人信息 */
+export function getProfile(): ProfileData {
+  return store.get('profile', {
+    nickname: '',
+    avatar: '',
+    bio: '',
+    email: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  })
+}
+
+/** 保存个人信息 */
+export function saveProfile(profile: ProfileData): ProfileData {
+  store.set('profile', profile)
+  return profile
+}
+
+/** 将个人信息推送到云端 */
+export async function pushProfileToCloud(): Promise<boolean> {
+  const profile = getProfile()
+  return uploadProfile(profile)
+}
+
+/** 从云端拉取个人信息 */
+export async function pullProfileFromCloud(): Promise<ProfileData | null> {
+  const cloudProfile = await downloadProfile()
+  if (cloudProfile === null) return null
+  store.set('profile', cloudProfile as ProfileData)
+  return cloudProfile as ProfileData
 }

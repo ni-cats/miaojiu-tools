@@ -35,6 +35,19 @@ export interface CosConfig {
   enabled: boolean
 }
 
+/** 存储模式 */
+export type StorageMode = 'local' | 'cos'
+
+/** 个人中心信息 */
+export interface ProfileData {
+  nickname: string
+  avatar: string        // base64 或空
+  bio: string           // 个人签名/简介
+  email: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ClipToolAPI {
   getAllSnippets: () => Promise<SnippetData[]>
   readClipboard: () => Promise<ClipboardData>
@@ -58,6 +71,14 @@ export interface ClipToolAPI {
   pushSnippets: () => Promise<boolean>
   pullTags: () => Promise<string[] | null>
   pushTags: () => Promise<boolean>
+  // 存储模式
+  getStorageMode: () => Promise<StorageMode>
+  setStorageMode: (mode: StorageMode) => Promise<StorageMode>
+  // 个人中心
+  getProfile: () => Promise<ProfileData>
+  saveProfile: (profile: ProfileData) => Promise<ProfileData>
+  pullProfile: () => Promise<ProfileData | null>
+  pushProfile: () => Promise<boolean>
 }
 
 declare global {

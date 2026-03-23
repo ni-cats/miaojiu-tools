@@ -1301,3 +1301,284 @@ html, body, #root {
 .settings-cos-btn.primary:disabled:hover {
   background: var(--accent-color);
 }
+
+/* ===== 存储模式选择 ===== */
+.settings-storage-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-storage-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-storage-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.settings-storage-option.active {
+  border-color: var(--accent-color);
+  background: var(--bg-active);
+}
+
+.settings-storage-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.settings-storage-info {
+  flex: 1;
+}
+
+.settings-storage-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.settings-storage-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.settings-storage-check {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+/* ===== 个人中心面板 ===== */
+.profile-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* 头像区域 */
+.profile-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 8px;
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.profile-avatar-wrapper:hover {
+  border-color: var(--accent-color);
+  transform: scale(1.05);
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+}
+
+.profile-avatar-icon {
+  font-size: 28px;
+  margin-bottom: 2px;
+}
+
+.profile-avatar-hint {
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
+
+.profile-avatar-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.profile-avatar-wrapper:hover .profile-avatar-overlay {
+  opacity: 1;
+}
+
+.profile-avatar-remove {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--danger-color);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.profile-avatar-remove:hover {
+  background: var(--danger-hover);
+  transform: scale(1.1);
+}
+
+/* 信息编辑区域 */
+.profile-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 64px;
+  flex-shrink: 0;
+}
+
+.profile-field .text-input {
+  flex: 1;
+}
+
+/* 设备信息区域 */
+.profile-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.profile-info-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.profile-info-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.profile-info-value {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+  user-select: all;
+}
+
+code.profile-info-value {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 操作按钮 */
+.profile-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.profile-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.profile-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.profile-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.profile-btn:disabled:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.profile-btn.primary {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}
+
+.profile-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.profile-btn.primary:disabled {
+  opacity: 0.4;
+}
+
+.profile-btn.primary:disabled:hover {
+  background: var(--accent-color);
+}

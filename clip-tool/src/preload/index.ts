@@ -35,6 +35,17 @@ export interface CosConfig {
   enabled: boolean
 }
 
+export type StorageMode = 'local' | 'cos'
+
+export interface ProfileData {
+  nickname: string
+  avatar: string
+  bio: string
+  email: string
+  createdAt: string
+  updatedAt: string
+}
+
 const api = {
   /** 获取所有片段 */
   getAllSnippets: (): Promise<SnippetData[]> => ipcRenderer.invoke('snippets:getAll'),
@@ -108,6 +119,28 @@ const api = {
 
   /** 将本地标签推送到云端 */
   pushTags: (): Promise<boolean> => ipcRenderer.invoke('cos:pushTags'),
+
+  // ====== 存储模式 API ======
+
+  /** 获取存储模式 */
+  getStorageMode: (): Promise<StorageMode> => ipcRenderer.invoke('storage:getMode'),
+
+  /** 设置存储模式 */
+  setStorageMode: (mode: StorageMode): Promise<StorageMode> => ipcRenderer.invoke('storage:setMode', mode),
+
+  // ====== 个人中心 API ======
+
+  /** 获取个人信息 */
+  getProfile: (): Promise<ProfileData> => ipcRenderer.invoke('profile:get'),
+
+  /** 保存个人信息 */
+  saveProfile: (profile: ProfileData): Promise<ProfileData> => ipcRenderer.invoke('profile:save', profile),
+
+  /** 推送个人信息到云端 */
+  pushProfile: (): Promise<boolean> => ipcRenderer.invoke('profile:push'),
+
+  /** 从云端拉取个人信息 */
+  pullProfile: (): Promise<ProfileData | null> => ipcRenderer.invoke('profile:pull'),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

@@ -20,9 +20,17 @@ import {
   pushSnippetsToCloud,
   pullTagsFromCloud,
   pushTagsToCloud,
+  getStorageMode,
+  setStorageMode,
+  getProfile,
+  saveProfile,
+  pushProfileToCloud,
+  pullProfileFromCloud,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
+  type StorageMode,
+  type ProfileData,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
@@ -134,5 +142,39 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 将本地标签推送到云端
   ipcMain.handle('cos:pushTags', async () => {
     return pushTagsToCloud()
+  })
+
+  // ====== 存储模式 ======
+
+  // 获取存储模式
+  ipcMain.handle('storage:getMode', () => {
+    return getStorageMode()
+  })
+
+  // 设置存储模式
+  ipcMain.handle('storage:setMode', (_event, mode: StorageMode) => {
+    return setStorageMode(mode)
+  })
+
+  // ====== 个人中心 ======
+
+  // 获取个人信息
+  ipcMain.handle('profile:get', () => {
+    return getProfile()
+  })
+
+  // 保存个人信息
+  ipcMain.handle('profile:save', (_event, profile: ProfileData) => {
+    return saveProfile(profile)
+  })
+
+  // 推送个人信息到云端
+  ipcMain.handle('profile:push', async () => {
+    return pushProfileToCloud()
+  })
+
+  // 从云端拉取个人信息
+  ipcMain.handle('profile:pull', async () => {
+    return pullProfileFromCloud()
   })
 }

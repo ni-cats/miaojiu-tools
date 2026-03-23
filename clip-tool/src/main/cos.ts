@@ -366,6 +366,81 @@ export async function downloadCustomTags(): Promise<string[] | null> {
   })
 }
 
+// ====== 个人信息操作 ======
+
+/**
+ * 上传个人信息到 COS
+ */
+export async function uploadProfile(profile: unknown): Promise<boolean> {
+  const cos = getCosClient()
+  if (!cos) return false
+
+  const key = buildKey('profile.json')
+  const body = JSON.stringify(profile, null, 2)
+  const { Bucket, Region } = getBucketConfig()
+
+  return new Promise((resolve) => {
+    cos.putObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+        Body: body,
+      },
+      (err, _data) => {
+        if (err) {
+          console.error('上传个人信息失败:', err)
+          resolve(false)
+        } else {
+          console.log('个人信息已同步到云端')
+          resolve(true)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 从 COS 下载个人信息
+ */
+export async function downloadProfile(): Promise<unknown | null> {
+  const cos = getCosClient()
+  if (!cos) return null
+
+  const key = buildKey('profile.json')
+  const { Bucket, Region } = getBucketConfig()
+
+  return new Promise((resolve) => {
+    cos.getObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+      },
+      (err, data) => {
+        if (err) {
+          if (err.statusCode === 404 || err.code === 'NoSuchKey') {
+            console.log('云端暂无个人信息')
+            resolve(null)
+          } else {
+            console.error('下载个人信息失败:', err)
+            resolve(null)
+          }
+        } else {
+          try {
+            const profile = JSON.parse(data.Body as string)
+            console.log('从云端下载了个人信息')
+            resolve(profile)
+          } catch (parseError) {
+            console.error('解析云端个人信息失败:', parseError)
+            resolve(null)
+          }
+        }
+      }
+    )
+  })
+}
+
 /**
  * 测试 COS 连接是否正常
  * 通过 headBucket 接口检测

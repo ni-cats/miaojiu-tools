@@ -3,7 +3,7 @@
  * 支持用户自定义全局快捷键和管理预设标签
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import type { ShortcutConfig, CosConfig } from '../types'
+import type { ShortcutConfig, CosConfig, StorageMode } from '../types'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -129,6 +129,7 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
   const [cosTesting, setCosTesting] = useState(false)
   const [cosSyncing, setCosSyncing] = useState(false)
   const [showSecretKey, setShowSecretKey] = useState(false)
+  const [storageMode, setStorageModeState] = useState<StorageMode>('local')
 
   // 加载当前快捷键配置
   useEffect(() => {
@@ -141,6 +142,8 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
     // 加载 COS 配置和设备 ID
     window.clipToolAPI.getCosConfig().then(setCosConfig)
     window.clipToolAPI.getDeviceId().then(setDeviceId)
+    // 加载存储模式
+    window.clipToolAPI.getStorageMode().then(setStorageModeState)
   }, [])
 
   // 录制快捷键
@@ -270,6 +273,21 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
   const handleDragEnd = useCallback(() => {
     setDragIndex(null)
     setDragOverIndex(null)
+  }, [])
+
+  // ===== 存储模式切换 =====
+  const handleStorageModeChange = useCallback(async (mode: StorageMode) => {
+    try {
+      const saved = await window.clipToolAPI.setStorageMode(mode)
+      setStorageModeState(saved)
+      // 同步更新 COS enabled 状态
+      setCosConfig((prev) => ({ ...prev, enabled: mode === 'cos' }))
+      setCosStatus(mode === 'cos' ? '☁️ 已切换为云端存储模式' : '💾 已切换为本地存储模式')
+      setTimeout(() => setCosStatus(null), 2000)
+    } catch (error) {
+      setCosStatus('✕ 切换存储模式失败')
+      setTimeout(() => setCosStatus(null), 2000)
+    }
   }, [])
 
   // ===== COS 云端存储 =====
@@ -463,11 +481,43 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
         </div>
       </div>
 
-      {/* ===== COS 云端存储配置 ===== */}
+      {/* ===== 存储模式选择 ===== */}
       <div className="settings-section">
-        <div className="settings-section-title">☁️ 云端存储（腾讯云 COS）</div>
+        <div className="settings-section-title">📦 存储模式</div>
         <div className="settings-section-hint">
-          配置腾讯云 COS 密钥后，片段数据将自动同步到云端。设备 ID：<code style={{ fontSize: 11, color: '#8b949e', userSelect: 'all' }}>{deviceId || '获取中...'}</code>
+          选择数据存储方式：本地存储仅保存在当前设备，云端存储支持多设备同步
+        </div>
+        <div className="settings-storage-mode">
+          <div
+            className={`settings-storage-option ${storageMode === 'local' ? 'active' : ''}`}
+            onClick={() => handleStorageModeChange('local')}
+          >
+            <span className="settings-storage-icon">💾</span>
+            <div className="settings-storage-info">
+              <div className="settings-storage-name">本地存储</div>
+              <div className="settings-storage-desc">数据保存在本地，快速且无网络依赖</div>
+            </div>
+            {storageMode === 'local' && <span className="settings-storage-check">✓</span>}
+          </div>
+          <div
+            className={`settings-storage-option ${storageMode === 'cos' ? 'active' : ''}`}
+            onClick={() => handleStorageModeChange('cos')}
+          >
+            <span className="settings-storage-icon">☁️</span>
+            <div className="settings-storage-info">
+              <div className="settings-storage-name">COS 云端存储</div>
+              <div className="settings-storage-desc">数据同步到腾讯云 COS，支持多设备共享</div>
+            </div>
+            {storageMode === 'cos' && <span className="settings-storage-check">✓</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== COS 云端存储配置 ===== */}
+      <div className="settings-section" style={{ opacity: storageMode === 'cos' ? 1 : 0.5, pointerEvents: storageMode === 'cos' ? 'auto' : 'none' }}>
+        <div className="settings-section-title">☁️ 云端存储配置（腾讯云 COS）</div>
+        <div className="settings-section-hint">
+          配置腾讯云 COS 密钥，片段数据将自动同步到云端。设备 ID：<code style={{ fontSize: 11, color: '#8b949e', userSelect: 'all' }}>{deviceId || '获取中...'}</code>
         </div>
 
         {/* SecretId 输入 */}
@@ -506,22 +556,12 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
           </div>
         </div>
 
-        {/* 启用开关 */}
+        {/* 同步状态（由存储模式自动控制） */}
         <div className="settings-cos-field">
-          <label className="settings-cos-label">自动同步</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label className="settings-cos-switch">
-              <input
-                type="checkbox"
-                checked={cosConfig.enabled}
-                onChange={(e) => setCosConfig((prev) => ({ ...prev, enabled: e.target.checked }))}
-              />
-              <span className="settings-cos-slider" />
-            </label>
-            <span style={{ fontSize: 12, color: '#8b949e' }}>
-              {cosConfig.enabled ? '已启用 - 数据变更自动同步' : '未启用'}
-            </span>
-          </div>
+          <label className="settings-cos-label">同步状态</label>
+          <span style={{ fontSize: 12, color: storageMode === 'cos' ? '#34c759' : '#8b949e' }}>
+            {storageMode === 'cos' ? '✓ 已启用 - 数据变更自动同步' : '未启用（请切换为云端存储模式）'}
+          </span>
         </div>
 
         {/* 状态提示 */}
