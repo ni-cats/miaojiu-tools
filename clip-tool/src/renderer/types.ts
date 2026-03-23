@@ -1,7 +1,7 @@
 /** 全局类型声明 */
 
 /** 内容类型 */
-export type ContentType = 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+export type ContentType = 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
 
 export interface SnippetData {
   id: string

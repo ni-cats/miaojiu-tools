@@ -22,7 +22,6 @@ export const CONTENT_TYPE_MAP: Record<ContentType, { label: string; icon: string
   text: { label: '文本', icon: '📝' },
   url: { label: '链接', icon: '🔗' },
   image: { label: '图片', icon: '🖼️' },
-  video: { label: '视频', icon: '🎬' },
   document: { label: '文档', icon: '📄' },
   other: { label: '其他', icon: '📦' },
 }

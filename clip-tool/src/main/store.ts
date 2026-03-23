@@ -5,7 +5,7 @@
 import Store from 'electron-store'
 
 /** 内容类型 */
-export type ContentType = 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+export type ContentType = 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
 
 export interface Snippet {
   id: string

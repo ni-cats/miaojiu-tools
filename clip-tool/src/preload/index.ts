@@ -6,7 +6,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 export interface ClipboardData {
   content: string
-  type: 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+  type: 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
   language?: string
   isImage?: boolean  // 是否为图片（content 为 base64）
 }
@@ -16,7 +16,7 @@ export interface SnippetData {
   title: string
   content: string
   tags: string[]
-  type: 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+  type: 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
   language?: string
   createdAt: string
   updatedAt: string

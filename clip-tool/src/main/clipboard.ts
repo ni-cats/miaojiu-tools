@@ -5,7 +5,7 @@
 import { clipboard, nativeImage } from 'electron'
 
 /** 内容类型 */
-type ContentType = 'code' | 'text' | 'url' | 'image' | 'video' | 'document' | 'other'
+type ContentType = 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
 
 /** 剪贴板读取结果 */
 export interface ClipboardResult {
@@ -17,16 +17,21 @@ export interface ClipboardResult {
 
 /** 内容类型检测 */
 export function detectContentType(content: string): { type: ContentType; language?: string } {
+  const trimmed = content.trim()
+
+  // 检测本地文件路径（以 / 或 ~ 开头）
+  const localPathPattern = /^(\/|~\/)/
+  if (localPathPattern.test(trimmed)) {
+    const imageExtPattern = /\.(jpg|jpeg|png|gif|bmp|webp|svg|ico|tiff)$/i
+    if (imageExtPattern.test(trimmed)) return { type: 'image' }
+
+    const docExtPattern = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|md|csv)$/i
+    if (docExtPattern.test(trimmed)) return { type: 'document' }
+  }
+
   // 检测 URL
   const urlPattern = /^(https?:\/\/|ftp:\/\/|file:\/\/)/i
   if (urlPattern.test(content.trim())) {
-    // 检测视频链接
-    const videoExtPatterns = /\.(mp4|avi|mkv|mov|wmv|flv|webm|m3u8)(\?|$)/i
-    const videoHostPatterns = /(youtube\.com|youtu\.be|bilibili\.com|vimeo\.com|v\.qq\.com|douyin\.com|tiktok\.com)/i
-    if (videoExtPatterns.test(content.trim()) || videoHostPatterns.test(content.trim())) {
-      return { type: 'video' }
-    }
-
     // 检测图片链接
     const imageExtPatterns = /\.(jpg|jpeg|png|gif|bmp|webp|svg|ico|tiff)(\?|$)/i
     if (imageExtPatterns.test(content.trim())) {
@@ -90,8 +95,6 @@ export function readClipboard(): ClipboardResult {
   if (!image.isEmpty()) {
     const pngBuffer = image.toPNG()
     const base64 = `data:image/png;base64,${pngBuffer.toString('base64')}`
-    // 同时检查是否也有文本（有些复制操作同时包含图片和文本）
-    const text = clipboard.readText()
     return {
       content: base64,
       type: 'image',
@@ -100,7 +103,7 @@ export function readClipboard(): ClipboardResult {
   }
 
   // 读取文本
-  const text = readClipboardText()
+  const text = clipboard.readText()
   const detected = detectContentType(text)
   return {
     content: text,
@@ -133,7 +136,7 @@ export function writeToClipboard(content: string, type: string): void {
   if (type === 'image' && content.startsWith('data:image/')) {
     writeClipboardImage(content)
   } else {
-    // video / url / code / text / document / other 都是文本形式
+    // url / code / text / document / other 都是文本形式
     writeClipboardText(content)
   }
 }

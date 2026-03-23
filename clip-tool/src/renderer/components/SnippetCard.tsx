@@ -12,7 +12,6 @@ const TYPE_LABELS: Record<ContentType, string> = {
   text: 'text',
   url: 'url',
   image: 'image',
-  video: 'video',
   document: 'doc',
   other: 'other',
 }
@@ -48,7 +47,6 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
   }
 
   const isImageSnippet = snippet.type === 'image' && snippet.content.startsWith('data:image/')
-  const isVideoSnippet = snippet.type === 'video'
 
   return (
     <div
@@ -96,11 +94,6 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
       {isImageSnippet ? (
         <div className="snippet-image-preview">
           <img src={snippet.content} alt="图片" />
-        </div>
-      ) : isVideoSnippet ? (
-        <div className="snippet-video-preview">
-          <span className="snippet-video-icon">🎬</span>
-          <span className="snippet-video-url">{snippet.content}</span>
         </div>
       ) : (
         <div className="snippet-preview">{getPreview(snippet.content, snippet.type)}</div>
