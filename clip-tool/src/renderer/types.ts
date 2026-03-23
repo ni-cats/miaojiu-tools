@@ -28,6 +28,13 @@ export interface ShortcutConfig {
   openSearch: string
 }
 
+/** COS 云端存储配置 */
+export interface CosConfig {
+  secretId: string
+  secretKey: string
+  enabled: boolean
+}
+
 export interface ClipToolAPI {
   getAllSnippets: () => Promise<SnippetData[]>
   readClipboard: () => Promise<ClipboardData>
@@ -42,6 +49,15 @@ export interface ClipToolAPI {
   saveShortcuts: (config: ShortcutConfig) => Promise<ShortcutConfig>
   getCustomTags: () => Promise<string[]>
   saveCustomTags: (tags: string[]) => Promise<string[]>
+  // COS 云端存储 API
+  getCosConfig: () => Promise<CosConfig>
+  saveCosConfig: (config: CosConfig) => Promise<CosConfig>
+  testCosConnection: () => Promise<{ success: boolean; message: string }>
+  getDeviceId: () => Promise<string>
+  pullSnippets: () => Promise<SnippetData[] | null>
+  pushSnippets: () => Promise<boolean>
+  pullTags: () => Promise<string[] | null>
+  pushTags: () => Promise<boolean>
 }
 
 declare global {

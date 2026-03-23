@@ -8,8 +8,8 @@ let tray: Tray | null = null
 
 /** 创建系统托盘 */
 export function createTray(getMainWindow: () => BrowserWindow | null) {
-  // 使用彩色猫咪图标（不使用 Template 模式，保留原始颜色）
-  const iconPath = path.join(__dirname, '../../resources/iconTemplate@2x.png')
+  // 使用喵九剪贴板彩色图标（不使用 Template 模式，保留原始颜色）
+  const iconPath = path.join(__dirname, '../../resources/icon/tray-icon@2x.png')
 
   let icon: nativeImage
   try {

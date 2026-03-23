@@ -12,7 +12,7 @@ export default defineConfig({
     outDir: path.resolve(__dirname, 'dist/main'),
     emptyOutDir: true,
     rollupOptions: {
-      external: ['electron', 'electron-store', 'path', 'fs', 'os', 'url'],
+      external: ['electron', 'electron-store', 'cos-nodejs-sdk-v5', 'js-yaml', 'path', 'fs', 'os', 'url', 'child_process'],
     },
     minify: false,
   },

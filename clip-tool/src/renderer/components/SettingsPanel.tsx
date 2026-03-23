@@ -3,7 +3,7 @@
  * 支持用户自定义全局快捷键和管理预设标签
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import type { ShortcutConfig } from '../types'
+import type { ShortcutConfig, CosConfig } from '../types'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -103,7 +103,7 @@ const ShortcutItem: React.FC<ShortcutItemProps> = ({
   )
 }
 
-const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortcutsChanged }) => {
+const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?: () => void }> = ({ onShortcutsChanged, onDataChanged }) => {
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>({
     openSave: '',
     openSearch: '',
@@ -118,6 +118,18 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
   const [newTagInput, setNewTagInput] = useState('')
   const [tagSaveStatus, setTagSaveStatus] = useState<string | null>(null)
 
+  // COS 云端存储状态
+  const [cosConfig, setCosConfig] = useState<CosConfig>({
+    secretId: '',
+    secretKey: '',
+    enabled: false,
+  })
+  const [deviceId, setDeviceId] = useState<string>('')
+  const [cosStatus, setCosStatus] = useState<string | null>(null)
+  const [cosTesting, setCosTesting] = useState(false)
+  const [cosSyncing, setCosSyncing] = useState(false)
+  const [showSecretKey, setShowSecretKey] = useState(false)
+
   // 加载当前快捷键配置
   useEffect(() => {
     window.clipToolAPI.getShortcuts().then((config) => {
@@ -126,6 +138,9 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
     })
     // 加载自定义标签
     window.clipToolAPI.getCustomTags().then(setCustomTags)
+    // 加载 COS 配置和设备 ID
+    window.clipToolAPI.getCosConfig().then(setCosConfig)
+    window.clipToolAPI.getDeviceId().then(setDeviceId)
   }, [])
 
   // 录制快捷键
@@ -257,6 +272,84 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
     setDragOverIndex(null)
   }, [])
 
+  // ===== COS 云端存储 =====
+  const handleSaveCosConfig = useCallback(async () => {
+    try {
+      const saved = await window.clipToolAPI.saveCosConfig(cosConfig)
+      setCosConfig(saved)
+      setCosStatus('✓ COS 配置已保存')
+      setTimeout(() => setCosStatus(null), 2000)
+    } catch (error) {
+      console.error('保存 COS 配置失败:', error)
+      setCosStatus('✕ 保存失败')
+      setTimeout(() => setCosStatus(null), 2000)
+    }
+  }, [cosConfig])
+
+  const handleTestConnection = useCallback(async () => {
+    setCosTesting(true)
+    setCosStatus(null)
+    try {
+      // 先保存配置
+      await window.clipToolAPI.saveCosConfig(cosConfig)
+      const result = await window.clipToolAPI.testCosConnection()
+      setCosStatus(result.success ? '✓ 连接成功' : `✕ ${result.message}`)
+      setTimeout(() => setCosStatus(null), 3000)
+    } catch (error) {
+      setCosStatus('✕ 连接测试失败')
+      setTimeout(() => setCosStatus(null), 3000)
+    } finally {
+      setCosTesting(false)
+    }
+  }, [cosConfig])
+
+  const handlePushToCloud = useCallback(async () => {
+    setCosSyncing(true)
+    setCosStatus(null)
+    try {
+      const [snippetOk, tagOk] = await Promise.all([
+        window.clipToolAPI.pushSnippets(),
+        window.clipToolAPI.pushTags(),
+      ])
+      if (snippetOk && tagOk) {
+        setCosStatus('✓ 数据已推送到云端')
+      } else {
+        setCosStatus('⚠ 部分数据推送失败')
+      }
+      setTimeout(() => setCosStatus(null), 3000)
+    } catch (error) {
+      setCosStatus('✕ 推送失败')
+      setTimeout(() => setCosStatus(null), 3000)
+    } finally {
+      setCosSyncing(false)
+    }
+  }, [])
+
+  const handlePullFromCloud = useCallback(async () => {
+    setCosSyncing(true)
+    setCosStatus(null)
+    try {
+      const [snippets, tags] = await Promise.all([
+        window.clipToolAPI.pullSnippets(),
+        window.clipToolAPI.pullTags(),
+      ])
+      if (snippets !== null && tags !== null) {
+        if (tags) setCustomTags(tags)
+        setCosStatus(`✓ 已从云端拉取 ${snippets.length} 条片段`)
+        // 通知父组件刷新数据
+        onDataChanged?.()
+      } else {
+        setCosStatus('⚠ 部分数据拉取失败')
+      }
+      setTimeout(() => setCosStatus(null), 3000)
+    } catch (error) {
+      setCosStatus('✕ 拉取失败')
+      setTimeout(() => setCosStatus(null), 3000)
+    } finally {
+      setCosSyncing(false)
+    }
+  }, [])
+
   const shortcutItems: {
     key: keyof ShortcutConfig
     label: string
@@ -367,6 +460,108 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void }> = ({ onShortc
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* ===== COS 云端存储配置 ===== */}
+      <div className="settings-section">
+        <div className="settings-section-title">☁️ 云端存储（腾讯云 COS）</div>
+        <div className="settings-section-hint">
+          配置腾讯云 COS 密钥后，片段数据将自动同步到云端。设备 ID：<code style={{ fontSize: 11, color: '#8b949e', userSelect: 'all' }}>{deviceId || '获取中...'}</code>
+        </div>
+
+        {/* SecretId 输入 */}
+        <div className="settings-cos-field">
+          <label className="settings-cos-label">SecretId</label>
+          <input
+            className="text-input"
+            type="text"
+            value={cosConfig.secretId}
+            onChange={(e) => setCosConfig((prev) => ({ ...prev, secretId: e.target.value }))}
+            placeholder="输入腾讯云 SecretId"
+            spellCheck={false}
+          />
+        </div>
+
+        {/* SecretKey 输入 */}
+        <div className="settings-cos-field">
+          <label className="settings-cos-label">SecretKey</label>
+          <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+            <input
+              className="text-input"
+              type={showSecretKey ? 'text' : 'password'}
+              value={cosConfig.secretKey}
+              onChange={(e) => setCosConfig((prev) => ({ ...prev, secretKey: e.target.value }))}
+              placeholder="输入腾讯云 SecretKey"
+              style={{ flex: 1 }}
+              spellCheck={false}
+            />
+            <button
+              className="settings-cos-toggle-btn"
+              onClick={() => setShowSecretKey(!showSecretKey)}
+              title={showSecretKey ? '隐藏' : '显示'}
+            >
+              {showSecretKey ? '🙈' : '👁'}
+            </button>
+          </div>
+        </div>
+
+        {/* 启用开关 */}
+        <div className="settings-cos-field">
+          <label className="settings-cos-label">自动同步</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label className="settings-cos-switch">
+              <input
+                type="checkbox"
+                checked={cosConfig.enabled}
+                onChange={(e) => setCosConfig((prev) => ({ ...prev, enabled: e.target.checked }))}
+              />
+              <span className="settings-cos-slider" />
+            </label>
+            <span style={{ fontSize: 12, color: '#8b949e' }}>
+              {cosConfig.enabled ? '已启用 - 数据变更自动同步' : '未启用'}
+            </span>
+          </div>
+        </div>
+
+        {/* 状态提示 */}
+        {cosStatus && (
+          <div className={`settings-status ${cosStatus.startsWith('✓') ? 'success' : cosStatus.startsWith('⚠') ? 'warning' : 'error'}`}
+               style={{ fontSize: 12, marginTop: 4, marginBottom: 4 }}>
+            {cosStatus}
+          </div>
+        )}
+
+        {/* 操作按钮 */}
+        <div className="settings-cos-actions">
+          <button
+            className="settings-cos-btn"
+            onClick={handleSaveCosConfig}
+            disabled={!cosConfig.secretId || !cosConfig.secretKey}
+          >
+            💾 保存配置
+          </button>
+          <button
+            className="settings-cos-btn"
+            onClick={handleTestConnection}
+            disabled={!cosConfig.secretId || !cosConfig.secretKey || cosTesting}
+          >
+            {cosTesting ? '⏳ 测试中...' : '🔗 测试连接'}
+          </button>
+          <button
+            className="settings-cos-btn primary"
+            onClick={handlePushToCloud}
+            disabled={!cosConfig.secretId || !cosConfig.secretKey || cosSyncing}
+          >
+            {cosSyncing ? '⏳ 同步中...' : '⬆️ 推送到云端'}
+          </button>
+          <button
+            className="settings-cos-btn"
+            onClick={handlePullFromCloud}
+            disabled={!cosConfig.secretId || !cosConfig.secretKey || cosSyncing}
+          >
+            {cosSyncing ? '⏳ 同步中...' : '⬇️ 从云端拉取'}
+          </button>
         </div>
       </div>
 

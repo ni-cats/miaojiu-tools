@@ -14,11 +14,19 @@ import {
   saveShortcuts,
   getCustomTags,
   saveCustomTags,
+  getCosConfig,
+  saveCosConfig,
+  pullSnippetsFromCloud,
+  pushSnippetsToCloud,
+  pullTagsFromCloud,
+  pushTagsToCloud,
   type Snippet,
   type ShortcutConfig,
+  type CosConfig,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
+import { testCosConnection, getDeviceId } from './cos'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
@@ -84,5 +92,47 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 保存自定义标签列表
   ipcMain.handle('customTags:save', (_event, tags: string[]) => {
     return saveCustomTags(tags)
+  })
+
+  // ====== COS 云端存储相关 ======
+
+  // 获取 COS 配置
+  ipcMain.handle('cos:getConfig', () => {
+    return getCosConfig()
+  })
+
+  // 保存 COS 配置
+  ipcMain.handle('cos:saveConfig', (_event, config: CosConfig) => {
+    return saveCosConfig(config)
+  })
+
+  // 测试 COS 连接
+  ipcMain.handle('cos:testConnection', async () => {
+    return testCosConnection()
+  })
+
+  // 获取设备 ID
+  ipcMain.handle('cos:getDeviceId', () => {
+    return getDeviceId()
+  })
+
+  // 从云端拉取片段数据（覆盖本地）
+  ipcMain.handle('cos:pullSnippets', async () => {
+    return pullSnippetsFromCloud()
+  })
+
+  // 将本地片段推送到云端
+  ipcMain.handle('cos:pushSnippets', async () => {
+    return pushSnippetsToCloud()
+  })
+
+  // 从云端拉取标签数据（覆盖本地）
+  ipcMain.handle('cos:pullTags', async () => {
+    return pullTagsFromCloud()
+  })
+
+  // 将本地标签推送到云端
+  ipcMain.handle('cos:pushTags', async () => {
+    return pushTagsToCloud()
   })
 }

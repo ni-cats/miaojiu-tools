@@ -1157,3 +1157,147 @@ html, body, #root {
   border-radius: 6px;
   object-fit: contain;
 }
+
+/* ===== COS 云端存储配置 ===== */
+.settings-cos-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.settings-cos-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+
+.settings-cos-field .text-input {
+  flex: 1;
+}
+
+.settings-cos-toggle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+
+.settings-cos-toggle-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+/* COS 开关（iOS 风格 toggle） */
+.settings-cos-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.settings-cos-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-cos-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--text-tertiary);
+  border-radius: 22px;
+  transition: all 0.3s ease;
+}
+
+.settings-cos-slider::before {
+  content: '';
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.settings-cos-switch input:checked + .settings-cos-slider {
+  background-color: var(--accent-color);
+}
+
+.settings-cos-switch input:checked + .settings-cos-slider::before {
+  transform: translateX(18px);
+}
+
+/* COS 操作按钮组 */
+.settings-cos-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.settings-cos-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-cos-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.settings-cos-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-cos-btn:disabled:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.settings-cos-btn.primary {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}
+
+.settings-cos-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.settings-cos-btn.primary:disabled {
+  opacity: 0.4;
+}
+
+.settings-cos-btn.primary:disabled:hover {
+  background: var(--accent-color);
+}

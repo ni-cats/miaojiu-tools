@@ -40,11 +40,21 @@ const App: React.FC = () => {
   const searchPanelRef = useRef<SearchPanelRef>(null)
   const savePanelRef = useRef<SavePanelRef>(null)
 
-  // 加载所有片段
+  // 加载所有片段（如果 COS 启用，先从云端拉取再展示）
   const loadSnippets = useCallback(async () => {
     try {
-      const data = await window.clipToolAPI.getAllSnippets()
-      setSnippets(data)
+      // 先展示本地数据，避免等待云端请求导致空白
+      const localData = await window.clipToolAPI.getAllSnippets()
+      setSnippets(localData)
+
+      // 异步拉取云端数据（如果启用了 COS）
+      const cosConfig = await window.clipToolAPI.getCosConfig()
+      if (cosConfig.enabled) {
+        const cloudData = await window.clipToolAPI.pullSnippets()
+        if (cloudData !== null) {
+          setSnippets(cloudData)
+        }
+      }
     } catch (error) {
       console.error('加载片段失败:', error)
     }
@@ -272,7 +282,7 @@ const App: React.FC = () => {
             onToggleFavorite={handleToggleFavorite}
           />
         )}
-        {activeTab === 'settings' && <SettingsPanel onShortcutsChanged={loadShortcutHints} />}
+        {activeTab === 'settings' && <SettingsPanel onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
       </div>
 
       {/* Toast 提示 */}

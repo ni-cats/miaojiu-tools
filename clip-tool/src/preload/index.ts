@@ -29,6 +29,12 @@ export interface ShortcutConfig {
   openSearch: string
 }
 
+export interface CosConfig {
+  secretId: string
+  secretKey: string
+  enabled: boolean
+}
+
 const api = {
   /** 获取所有片段 */
   getAllSnippets: (): Promise<SnippetData[]> => ipcRenderer.invoke('snippets:getAll'),
@@ -76,6 +82,32 @@ const api = {
 
   /** 保存自定义标签列表 */
   saveCustomTags: (tags: string[]): Promise<string[]> => ipcRenderer.invoke('customTags:save', tags),
+
+  // ====== COS 云端存储 API ======
+
+  /** 获取 COS 配置 */
+  getCosConfig: (): Promise<CosConfig> => ipcRenderer.invoke('cos:getConfig'),
+
+  /** 保存 COS 配置 */
+  saveCosConfig: (config: CosConfig): Promise<CosConfig> => ipcRenderer.invoke('cos:saveConfig', config),
+
+  /** 测试 COS 连接 */
+  testCosConnection: (): Promise<{ success: boolean; message: string }> => ipcRenderer.invoke('cos:testConnection'),
+
+  /** 获取设备 ID */
+  getDeviceId: (): Promise<string> => ipcRenderer.invoke('cos:getDeviceId'),
+
+  /** 从云端拉取片段数据 */
+  pullSnippets: (): Promise<SnippetData[] | null> => ipcRenderer.invoke('cos:pullSnippets'),
+
+  /** 将本地片段推送到云端 */
+  pushSnippets: (): Promise<boolean> => ipcRenderer.invoke('cos:pushSnippets'),
+
+  /** 从云端拉取标签数据 */
+  pullTags: (): Promise<string[] | null> => ipcRenderer.invoke('cos:pullTags'),
+
+  /** 将本地标签推送到云端 */
+  pushTags: (): Promise<boolean> => ipcRenderer.invoke('cos:pushTags'),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

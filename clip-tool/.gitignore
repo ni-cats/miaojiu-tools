@@ -3,3 +3,6 @@ dist/
 release/
 .DS_Store
 *.log
+
+# 敏感配置文件（含 COS 密钥等）
+resources/config.yaml
