@@ -2,8 +2,9 @@
  * 设置面板组件
  * 支持用户自定义全局快捷键和管理预设标签
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
 import type { ShortcutConfig, CosConfig, StorageMode } from '../types'
+import { getTagColor } from '../utils/tagColor'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -103,7 +104,116 @@ const ShortcutItem: React.FC<ShortcutItemProps> = ({
   )
 }
 
-const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?: () => void }> = ({ onShortcutsChanged, onDataChanged }) => {
+/** 设置面板子页面类型 */
+type SettingsSection = 'shortcuts' | 'tags' | 'storage' | 'hotkeys' | 'plugins'
+
+/** 设置导航按钮配置 */
+const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
+  { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
+  { key: 'tags', icon: '🏷️', label: '标签' },
+  { key: 'storage', icon: '📦', label: '存储' },
+  { key: 'hotkeys', icon: '💡', label: '窗口键' },
+  { key: 'plugins', icon: '🧩', label: '插件' },
+]
+
+/** 预留插件列表 */
+interface PluginItem {
+  id: string
+  icon: string
+  name: string
+  description: string
+  status: 'coming' | 'beta' | 'active'
+}
+
+const PLUGIN_LIST: PluginItem[] = [
+  {
+    id: 'format-json',
+    icon: '📐',
+    name: 'JSON 格式化',
+    description: '自动检测并格式化剪贴板中的 JSON 内容，支持压缩和美化',
+    status: 'coming',
+  },
+  {
+    id: 'translate',
+    icon: '🌐',
+    name: '即时翻译',
+    description: '自动翻译剪贴板内容，支持中英日韩等多语言互译',
+    status: 'coming',
+  },
+  {
+    id: 'markdown-preview',
+    icon: '📖',
+    name: 'Markdown 预览',
+    description: '实时预览剪贴板中的 Markdown 内容，支持代码高亮',
+    status: 'coming',
+  },
+  {
+    id: 'sensitive-mask',
+    icon: '🔒',
+    name: '敏感信息脱敏',
+    description: '自动识别并遮盖密码、密钥、手机号等敏感信息',
+    status: 'coming',
+  },
+  {
+    id: 'ocr',
+    icon: '👁',
+    name: 'OCR 文字识别',
+    description: '从剪贴板图片中提取文字内容，支持多语言识别',
+    status: 'coming',
+  },
+  {
+    id: 'workflow',
+    icon: '⚡',
+    name: '自动化工作流',
+    description: '根据剪贴板内容自动触发预设动作，如格式转换、存储等',
+    status: 'coming',
+  },
+]
+
+const pluginStatusLabels: Record<PluginItem['status'], { text: string; className: string }> = {
+  coming: { text: '即将推出', className: 'plugin-status-coming' },
+  beta: { text: '测试中', className: 'plugin-status-beta' },
+  active: { text: '已启用', className: 'plugin-status-active' },
+}
+
+/** SettingsPanel 暴露给外部的方法 */
+export interface SettingsPanelRef {
+  /** 左右切换设置子标签页 */
+  switchNav: (direction: 'left' | 'right') => void
+  /** 聚焦到设置子标签页导航栏 */
+  focusNav: () => void
+  /** 取消导航栏聚焦 */
+  blurNav: () => void
+}
+
+const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void }>(({ onShortcutsChanged, onDataChanged }, ref) => {
+  // 当前激活的子页面
+  const [activeSection, setActiveSection] = useState<SettingsSection>('shortcuts')
+  // 导航栏是否处于键盘聚焦状态
+  const [navFocused, setNavFocused] = useState(false)
+
+  // 暴露给外部的方法
+  useImperativeHandle(ref, () => ({
+    switchNav: (direction: 'left' | 'right') => {
+      setActiveSection((prev) => {
+        const currentIndex = SETTINGS_NAV.findIndex((n) => n.key === prev)
+        let nextIndex: number
+        if (direction === 'left') {
+          nextIndex = currentIndex <= 0 ? SETTINGS_NAV.length - 1 : currentIndex - 1
+        } else {
+          nextIndex = currentIndex >= SETTINGS_NAV.length - 1 ? 0 : currentIndex + 1
+        }
+        return SETTINGS_NAV[nextIndex].key
+      })
+    },
+    focusNav: () => {
+      setNavFocused(true)
+    },
+    blurNav: () => {
+      setNavFocused(false)
+    },
+  }))
+
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>({
     openSave: '',
     openSearch: '',
@@ -385,8 +495,11 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
     },
   ]
 
-  return (
-    <div className="settings-panel">
+  // ===== 渲染各子页面 =====
+
+  /** 快捷键设置子页面 */
+  const renderShortcutsPage = () => (
+    <>
       <div className="settings-section">
         <div className="settings-section-title">全局快捷键</div>
         <div className="settings-section-hint">
@@ -409,79 +522,107 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
         </div>
       </div>
 
-      {/* ===== 预设标签管理 ===== */}
-      <div className="settings-section">
-        <div className="settings-section-title">预设标签管理</div>
-        <div className="settings-section-hint">
-          管理保存片段时可快速选择的预设标签
-        </div>
-
-        {/* 添加标签 */}
-        <div className="settings-tag-add-row">
-          <input
-            className="text-input"
-            type="text"
-            value={newTagInput}
-            onChange={(e) => setNewTagInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newTagInput.trim()) {
-                e.preventDefault()
-                handleAddTag()
-              }
-            }}
-            placeholder="输入新标签名称，回车添加"
-            style={{ flex: 1 }}
-          />
-          <button
-            className="settings-tag-add-btn"
-            onClick={handleAddTag}
-            disabled={!newTagInput.trim()}
-          >
-            添加
-          </button>
-        </div>
-
-        {tagSaveStatus && (
-          <span className={`settings-status ${tagSaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
-                style={{ fontSize: 12, marginTop: 4 }}>
-            {tagSaveStatus}
+      {/* 操作区域 */}
+      <div className="settings-footer">
+        {saveStatus && (
+          <span className={`settings-status ${saveStatus.startsWith('✓') ? 'success' : 'error'}`}>
+            {saveStatus}
           </span>
         )}
-
-        {/* 标签列表（拖拽排序） */}
-        <div className="settings-tag-list">
-          {customTags.length === 0 ? (
-            <div className="settings-tag-empty">暂无预设标签，请添加</div>
-          ) : (
-            customTags.map((tag, index) => (
-              <div
-                key={tag}
-                className={`settings-tag-item${
-                  dragIndex === index ? ' dragging' : ''
-                }${dragOverIndex === index && dragIndex !== index ? ' drag-over' : ''}`}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={() => handleDrop(index)}
-                onDragEnd={handleDragEnd}
-              >
-                <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
-                <span className="settings-tag-index">{index + 1}</span>
-                <span className="settings-tag-name">{tag}</span>
-                <button
-                  className="settings-tag-remove-btn"
-                  onClick={() => handleRemoveTag(tag)}
-                  title="删除标签"
-                >
-                  ✕
-                </button>
-              </div>
-            ))
-          )}
+        <div className="settings-footer-actions">
+          <button className="settings-reset-btn" onClick={handleReset}>
+            恢复默认
+          </button>
+          <button
+            className="settings-save-btn"
+            onClick={handleSave}
+            disabled={!hasChanges}
+          >
+            保存设置
+          </button>
         </div>
       </div>
+    </>
+  )
 
-      {/* ===== 存储模式选择 ===== */}
+  /** 标签管理子页面 */
+  const renderTagsPage = () => (
+    <div className="settings-section">
+      <div className="settings-section-title">预设标签管理</div>
+      <div className="settings-section-hint">
+        管理保存片段时可快速选择的预设标签
+      </div>
+
+      {/* 添加标签 */}
+      <div className="settings-tag-add-row">
+        <input
+          className="text-input"
+          type="text"
+          value={newTagInput}
+          onChange={(e) => setNewTagInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && newTagInput.trim()) {
+              e.preventDefault()
+              handleAddTag()
+            }
+          }}
+          placeholder="输入新标签名称，回车添加"
+          style={{ flex: 1 }}
+        />
+        <button
+          className="settings-tag-add-btn"
+          onClick={handleAddTag}
+          disabled={!newTagInput.trim()}
+        >
+          添加
+        </button>
+      </div>
+
+      {tagSaveStatus && (
+        <span className={`settings-status ${tagSaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
+              style={{ fontSize: 12, marginTop: 4 }}>
+          {tagSaveStatus}
+        </span>
+      )}
+
+      {/* 标签列表（拖拽排序） */}
+      <div className="settings-tag-list">
+        {customTags.length === 0 ? (
+          <div className="settings-tag-empty">暂无预设标签，请添加</div>
+        ) : (
+          customTags.map((tag, index) => (
+            <div
+              key={tag}
+              className={`settings-tag-item${
+                dragIndex === index ? ' dragging' : ''
+              }${dragOverIndex === index && dragIndex !== index ? ' drag-over' : ''}`}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={() => handleDrop(index)}
+              onDragEnd={handleDragEnd}
+            >
+              <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
+              <span className="settings-tag-index">{index + 1}</span>
+              <span className="settings-tag-name" style={{ color: getTagColor(tag).text }}>{tag}</span>
+              <button
+                className="settings-tag-remove-btn"
+                onClick={() => handleRemoveTag(tag)}
+                title="删除标签"
+              >
+                ✕
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+
+  /** 存储设置子页面 */
+  const renderStoragePage = () => (
+    <>
+      {/* 存储模式选择 */}
       <div className="settings-section">
         <div className="settings-section-title">📦 存储模式</div>
         <div className="settings-section-hint">
@@ -513,7 +654,7 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
         </div>
       </div>
 
-      {/* ===== COS 云端存储配置 ===== */}
+      {/* COS 云端存储配置 */}
       <div className="settings-section" style={{ opacity: storageMode === 'cos' ? 1 : 0.5, pointerEvents: storageMode === 'cos' ? 'auto' : 'none' }}>
         <div className="settings-section-title">☁️ 云端存储配置（腾讯云 COS）</div>
         <div className="settings-section-hint">
@@ -604,64 +745,116 @@ const SettingsPanel: React.FC<{ onShortcutsChanged?: () => void; onDataChanged?:
           </button>
         </div>
       </div>
+    </>
+  )
 
-      {/* 窗口内快捷键说明（只读展示） */}
-      <div className="settings-section">
-        <div className="settings-section-title">窗口内快捷键</div>
-        <div className="settings-builtin-list">
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">Enter</span>
-            <span className="settings-builtin-desc">保存模式下保存并关闭</span>
-          </div>
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">⌘C / Enter</span>
-            <span className="settings-builtin-desc">搜索模式下复制选中项</span>
-          </div>
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">← / →</span>
-            <span className="settings-builtin-desc">切换 Tab 页面</span>
-          </div>
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">↑ / ↓</span>
-            <span className="settings-builtin-desc">搜索结果导航</span>
-          </div>
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">空格 × 2</span>
-            <span className="settings-builtin-desc">快速关闭窗口</span>
-          </div>
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">Esc</span>
-            <span className="settings-builtin-desc">关闭窗口</span>
-          </div>
-          <div className="settings-builtin-item">
-            <span className="settings-builtin-label">⌘ 1~9</span>
-            <span className="settings-builtin-desc">快速复制第 N 项</span>
-          </div>
-        </div>
+  /** 窗口内快捷键子页面 */
+  const renderHotkeysPage = () => (
+    <div className="settings-section">
+      <div className="settings-section-title">窗口内快捷键</div>
+      <div className="settings-section-hint">
+        以下快捷键在窗口激活时生效，不可自定义
       </div>
-
-      {/* 操作区域 */}
-      <div className="settings-footer">
-        {saveStatus && (
-          <span className={`settings-status ${saveStatus.startsWith('✓') ? 'success' : 'error'}`}>
-            {saveStatus}
-          </span>
-        )}
-        <div className="settings-footer-actions">
-          <button className="settings-reset-btn" onClick={handleReset}>
-            恢复默认
-          </button>
-          <button
-            className="settings-save-btn"
-            onClick={handleSave}
-            disabled={!hasChanges}
-          >
-            保存设置
-          </button>
+      <div className="settings-builtin-list">
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">Enter</span>
+          <span className="settings-builtin-desc">保存模式下保存并关闭</span>
+        </div>
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">⌘C / Enter</span>
+          <span className="settings-builtin-desc">搜索模式下复制选中项</span>
+        </div>
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">← / →</span>
+          <span className="settings-builtin-desc">切换 Tab 页面</span>
+        </div>
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">↑ / ↓</span>
+          <span className="settings-builtin-desc">搜索结果导航</span>
+        </div>
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">空格 × 2</span>
+          <span className="settings-builtin-desc">快速关闭窗口</span>
+        </div>
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">Esc</span>
+          <span className="settings-builtin-desc">关闭窗口</span>
+        </div>
+        <div className="settings-builtin-item">
+          <span className="settings-builtin-label">⌘ 1~9</span>
+          <span className="settings-builtin-desc">快速复制第 N 项</span>
         </div>
       </div>
     </div>
   )
-}
+
+  /** 插件子页面（预留功能） */
+  const renderPluginsPage = () => (
+    <div className="settings-section">
+      <div className="settings-section-title">🧩 插件市场</div>
+      <div className="settings-section-hint">
+        通过插件扩展 ClipTool 的能力，以下插件正在开发中
+      </div>
+      <div className="plugin-grid">
+        {PLUGIN_LIST.map((plugin) => {
+          const status = pluginStatusLabels[plugin.status]
+          return (
+            <div key={plugin.id} className="plugin-card">
+              <div className="plugin-card-header">
+                <span className="plugin-card-icon">{plugin.icon}</span>
+                <span className={`plugin-card-status ${status.className}`}>{status.text}</span>
+              </div>
+              <div className="plugin-card-name">{plugin.name}</div>
+              <div className="plugin-card-desc">{plugin.description}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 底部提示 */}
+      <div className="plugin-footer">
+        <span className="plugin-footer-text">🔧 更多插件持续开发中，敬请期待...</span>
+      </div>
+    </div>
+  )
+
+  /** 根据当前激活的子页面渲染内容 */
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'shortcuts': return renderShortcutsPage()
+      case 'tags': return renderTagsPage()
+      case 'storage': return renderStoragePage()
+      case 'hotkeys': return renderHotkeysPage()
+      case 'plugins': return renderPluginsPage()
+      default: return null
+    }
+  }
+
+  return (
+    <div className="settings-panel">
+      {/* 横向导航按钮栏 */}
+      <div className={`settings-nav-bar ${navFocused ? 'nav-focused' : ''}`}>
+        {SETTINGS_NAV.map((nav) => (
+          <button
+            key={nav.key}
+            className={`settings-nav-btn ${activeSection === nav.key ? 'active' : ''}`}
+            onClick={() => {
+              setActiveSection(nav.key)
+              setNavFocused(false)
+            }}
+          >
+            <span className="settings-nav-icon">{nav.icon}</span>
+            <span className="settings-nav-label">{nav.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* 子页面内容区域 */}
+      <div className="settings-page-content">
+        {renderContent()}
+      </div>
+    </div>
+  )
+})
 
 export default SettingsPanel

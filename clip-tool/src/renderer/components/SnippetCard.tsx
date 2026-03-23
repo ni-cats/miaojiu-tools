@@ -5,6 +5,7 @@
 import React from 'react'
 import type { SnippetData, ContentType } from '../types'
 import { formatTime } from '../utils/formatTime'
+import { getTagStyle } from '../utils/tagColor'
 
 /** 内容类型样式映射 */
 const TYPE_LABELS: Record<ContentType, string> = {
@@ -109,7 +110,7 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
       {snippet.tags.length > 0 && (
         <div className="snippet-tags">
           {snippet.tags.map((tag) => (
-            <span key={tag} className="tag">{tag}</span>
+            <span key={tag} className="tag" style={getTagStyle(tag)}>{tag}</span>
           ))}
         </div>
       )}

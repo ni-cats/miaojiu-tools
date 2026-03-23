@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRe
 import { useClipboard } from '../hooks/useClipboard'
 import { nanoid } from 'nanoid'
 import type { SnippetData } from '../types'
+import { getTagColor } from '../utils/tagColor'
 
 interface SavePanelProps {
   onSave: (snippet: SnippetData) => void
@@ -179,6 +180,11 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
                 key={tag}
                 className={`tag-enum-item ${selectedTags.includes(tag) ? 'active' : ''}`}
                 onClick={() => toggleTag(tag)}
+                style={selectedTags.includes(tag) ? {
+                  background: getTagColor(tag).bg,
+                  color: getTagColor(tag).text,
+                  borderColor: getTagColor(tag).text,
+                } : undefined}
               >
                 {selectedTags.includes(tag) ? '✓ ' : ''}{tag}
               </button>
@@ -215,11 +221,15 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         {selectedTags.length > 0 && (
           <div className="selected-tags-display">
             {selectedTags.map((tag) => (
-              <span key={tag} className="selected-tag-item">
+              <span key={tag} className="selected-tag-item" style={{
+                background: getTagColor(tag).bg,
+                color: getTagColor(tag).text,
+              }}>
                 {tag}
                 <button
                   className="selected-tag-remove"
                   onClick={() => setSelectedTags((prev) => prev.filter((t) => t !== tag))}
+                  style={{ color: getTagColor(tag).text }}
                 >
                   ×
                 </button>

@@ -8,13 +8,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import SavePanel, { type SavePanelRef } from './components/SavePanel'
 import SearchPanel, { type SearchPanelRef } from './components/SearchPanel'
 import EditorPanel from './components/EditorPanel'
+import AiPanel, { type AiPanelRef } from './components/AiPanel'
 import FavoritePanel from './components/FavoritePanel'
-import SettingsPanel from './components/SettingsPanel'
+import SettingsPanel, { type SettingsPanelRef } from './components/SettingsPanel'
 import ProfilePanel from './components/ProfilePanel'
 import { useShortcuts } from './hooks/useShortcuts'
 import type { SnippetData } from './types'
 
-type TabType = 'save' | 'editor' | 'search' | 'favorite' | 'profile' | 'settings'
+type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'profile' | 'settings'
 
 /** 将 Electron accelerator 格式转换为短标签显示 */
 function formatHint(accelerator: string): string {
@@ -41,6 +42,10 @@ const App: React.FC = () => {
   })
   const searchPanelRef = useRef<SearchPanelRef>(null)
   const savePanelRef = useRef<SavePanelRef>(null)
+  const settingsPanelRef = useRef<SettingsPanelRef>(null)
+  const aiPanelRef = useRef<AiPanelRef>(null)
+  const [settingsNavFocused, setSettingsNavFocused] = useState(false)
+  const [aiCardFocused, setAiCardFocused] = useState(false)
 
   // 加载所有片段（如果 COS 启用，先从云端拉取再展示）
   const loadSnippets = useCallback(async () => {
@@ -211,7 +216,12 @@ const App: React.FC = () => {
     },
     // ← / → 切换 Tab（使用函数式更新避免闭包陷阱）
     onSwitchTab: (direction: 'left' | 'right') => {
-      const tabKeys: TabType[] = ['save', 'editor', 'search', 'favorite', 'settings', 'profile']
+      // 切换顶部 Tab 时重置子导航聚焦
+      setSettingsNavFocused(false)
+      settingsPanelRef.current?.blurNav()
+      setAiCardFocused(false)
+      aiPanelRef.current?.blurCards()
+      const tabKeys: TabType[] = ['save', 'editor', 'search', 'ai', 'favorite', 'settings', 'profile']
       setActiveTab((prev) => {
         const currentIndex = tabKeys.indexOf(prev)
         let nextIndex: number
@@ -234,12 +244,46 @@ const App: React.FC = () => {
     onClose: () => {
       window.clipToolAPI.hideWindow()
     },
+    // 设置页面：↓ 进入子导航
+    onSettingsNavFocus: () => {
+      setSettingsNavFocused(true)
+      settingsPanelRef.current?.focusNav()
+    },
+    // 设置页面：↑ 退出子导航
+    onSettingsNavBlur: () => {
+      setSettingsNavFocused(false)
+      settingsPanelRef.current?.blurNav()
+    },
+    // 设置页面：←→ 切换子标签页
+    onSettingsNavSwitch: (direction: 'left' | 'right') => {
+      settingsPanelRef.current?.switchNav(direction)
+    },
+    settingsNavFocused,
+    // AI 页面：↓ 进入卡片聚焦
+    onAiCardFocus: () => {
+      setAiCardFocused(true)
+      aiPanelRef.current?.focusCards()
+    },
+    // AI 页面：↑ 退出卡片聚焦
+    onAiCardBlur: () => {
+      setAiCardFocused(false)
+      aiPanelRef.current?.blurCards()
+    },
+    // AI 页面：方向键导航卡片
+    onAiCardNavigate: (direction: 'up' | 'down' | 'left' | 'right') => {
+      const stillFocused = aiPanelRef.current?.navigateCard(direction)
+      if (!stillFocused) {
+        setAiCardFocused(false)
+      }
+    },
+    aiCardFocused,
   })
 
   const tabs: { key: TabType; label: string; hint: string }[] = [
     { key: 'save', label: '📋 保存', hint: shortcutHints.save },
     { key: 'editor', label: '✏️ 编辑', hint: '' },
     { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
+    { key: 'ai', label: '🤖 AI', hint: '' },
     { key: 'favorite', label: '⭐ 收藏', hint: '' },
     { key: 'settings', label: '⚙ 设置', hint: '' },
     { key: 'profile', label: '👤 我的', hint: '' },
@@ -281,6 +325,7 @@ const App: React.FC = () => {
             onToggleFavorite={handleToggleFavorite}
           />
         )}
+        {activeTab === 'ai' && <AiPanel ref={aiPanelRef} />}
         {activeTab === 'favorite' && (
           <FavoritePanel
             snippets={snippets}
@@ -290,7 +335,7 @@ const App: React.FC = () => {
           />
         )}
         {activeTab === 'profile' && <ProfilePanel />}
-        {activeTab === 'settings' && <SettingsPanel onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
+        {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
       </div>
 
       {/* Toast 提示 */}

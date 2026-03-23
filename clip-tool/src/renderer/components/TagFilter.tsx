@@ -2,6 +2,7 @@
  * 标签筛选组件
  */
 import React from 'react'
+import { getTagColor } from '../utils/tagColor'
 
 interface TagFilterProps {
   tags: string[]
@@ -25,6 +26,13 @@ const TagFilter: React.FC<TagFilterProps> = ({ tags, selectedTag, onSelectTag })
           key={tag}
           className={`tag-filter-item ${selectedTag === tag ? 'active' : ''}`}
           onClick={() => onSelectTag(selectedTag === tag ? null : tag)}
+          style={selectedTag === tag ? {
+            background: getTagColor(tag).text,
+            borderColor: getTagColor(tag).text,
+          } : {
+            color: getTagColor(tag).text,
+            borderColor: getTagColor(tag).bg,
+          }}
         >
           {tag}
         </button>

@@ -15,6 +15,14 @@ interface ShortcutHandlers {
   onSwitchTab?: (direction: 'left' | 'right') => void  // ←→ 切换 Tab
   onClose?: () => void              // 双击空格关闭窗口
   activeTab?: string                // 当前激活的 Tab
+  onSettingsNavFocus?: () => void   // ↓ 进入设置子导航
+  onSettingsNavBlur?: () => void    // ↑ 退出设置子导航
+  onSettingsNavSwitch?: (direction: 'left' | 'right') => void  // ←→ 切换设置子标签页
+  settingsNavFocused?: boolean      // 设置子导航是否处于聚焦状态
+  onAiCardNavigate?: (direction: 'up' | 'down' | 'left' | 'right') => void  // AI 卡片导航
+  onAiCardFocus?: () => void        // ↓ 进入 AI 卡片聚焦
+  onAiCardBlur?: () => void         // ↑ 退出 AI 卡片聚焦
+  aiCardFocused?: boolean           // AI 卡片是否处于聚焦状态
 }
 
 export function useShortcuts(handlers: ShortcutHandlers) {
@@ -74,12 +82,18 @@ export function useShortcuts(handlers: ShortcutHandlers) {
         return
       }
 
-      // ← / →：切换 Tab（非输入框聚焦时，或输入框内容为空时）
+      // ← / →：子导航聚焦时切换子标签页/卡片，否则切换顶部 Tab
       if (e.key === 'ArrowLeft') {
         const canSwitch = !isInputFocused || (isInputFocused && (target as HTMLInputElement).value === '')
         if (canSwitch) {
           e.preventDefault()
-          h.onSwitchTab?.('left')
+          if (h.activeTab === 'settings' && h.settingsNavFocused) {
+            h.onSettingsNavSwitch?.('left')
+          } else if (h.activeTab === 'ai' && h.aiCardFocused) {
+            h.onAiCardNavigate?.('left')
+          } else {
+            h.onSwitchTab?.('left')
+          }
           return
         }
       }
@@ -87,21 +101,55 @@ export function useShortcuts(handlers: ShortcutHandlers) {
         const canSwitch = !isInputFocused || (isInputFocused && (target as HTMLInputElement).value === '')
         if (canSwitch) {
           e.preventDefault()
-          h.onSwitchTab?.('right')
+          if (h.activeTab === 'settings' && h.settingsNavFocused) {
+            h.onSettingsNavSwitch?.('right')
+          } else if (h.activeTab === 'ai' && h.aiCardFocused) {
+            h.onAiCardNavigate?.('right')
+          } else {
+            h.onSwitchTab?.('right')
+          }
           return
         }
       }
 
-      // ↑ / ↓：在搜索 Tab 下切换选中项
-      if (e.key === 'ArrowUp' && h.activeTab === 'search') {
-        e.preventDefault()
-        h.onArrowUp?.()
-        return
+      // ↑ / ↓：设置/AI Tab 下控制子导航聚焦，搜索 Tab 下切换选中项
+      if (e.key === 'ArrowDown') {
+        if (h.activeTab === 'settings' && !isInputFocused) {
+          e.preventDefault()
+          h.onSettingsNavFocus?.()
+          return
+        }
+        if (h.activeTab === 'ai' && !isInputFocused) {
+          e.preventDefault()
+          if (h.aiCardFocused) {
+            h.onAiCardNavigate?.('down')
+          } else {
+            h.onAiCardFocus?.()
+          }
+          return
+        }
+        if (h.activeTab === 'search') {
+          e.preventDefault()
+          h.onArrowDown?.()
+          return
+        }
       }
-      if (e.key === 'ArrowDown' && h.activeTab === 'search') {
-        e.preventDefault()
-        h.onArrowDown?.()
-        return
+      if (e.key === 'ArrowUp') {
+        if (h.activeTab === 'settings' && h.settingsNavFocused && !isInputFocused) {
+          e.preventDefault()
+          h.onSettingsNavBlur?.()
+          return
+        }
+        if (h.activeTab === 'ai' && h.aiCardFocused && !isInputFocused) {
+          e.preventDefault()
+          h.onAiCardNavigate?.('up')
+          return
+        }
+        if (h.activeTab === 'search') {
+          e.preventDefault()
+          h.onArrowUp?.()
+          return
+        }
       }
 
       // Command+1~9：快速复制
