@@ -186,27 +186,20 @@ export function getCosConfig(): CosConfig {
     enabled: false,
   })
 
-  // 确定最终使用的密钥
-  const finalSecretId = storedConfig.secretId || yamlCfg.secretId
-  const finalSecretKey = storedConfig.secretKey || yamlCfg.secretKey
+  // 密钥优先级：YAML 配置文件 > store 持久化数据
+  // YAML 是密钥的 source of truth（方便更新密钥后立即生效）
+  // store 中的密钥仅在 YAML 未配置时作为备选（如用户通过设置界面手动配置）
+  const finalSecretId = yamlCfg.secretId || storedConfig.secretId
+  const finalSecretKey = yamlCfg.secretKey || storedConfig.secretKey
 
-  // 判断 enabled：
-  // 1. 如果 store 中有自己的密钥（非来自 YAML），使用 store 的 enabled
-  // 2. 如果 store 中无密钥，但 YAML 有密钥，使用 YAML 的 enabled
-  // 3. 特殊情况：YAML 有密钥且 enabled=true，但 store 中 enabled=false 且密钥和 YAML 相同
-  //    说明密钥是初始化时从 YAML 带过来的，此时应该以 YAML 的 enabled 为准
-  let finalEnabled = storedConfig.enabled
-  if (!storedConfig.secretId && yamlCfg.secretId) {
-    // store 无密钥，使用 YAML 的 enabled
-    finalEnabled = yamlCfg.enabled
-  } else if (storedConfig.secretId === yamlCfg.secretId && yamlCfg.enabled && !storedConfig.enabled) {
-    // 密钥和 YAML 相同但 store 的 enabled 被关闭了，仍然以 YAML 为准
-    // （这种情况通常是首次初始化存储了 YAML 密钥，后来 enabled 被意外修改）
-    finalEnabled = yamlCfg.enabled
-  }
+  // enabled 逻辑：
+  // 1. 如果 YAML 有密钥，以 YAML 的 enabled 为准
+  // 2. 如果 YAML 无密钥但 store 有，使用 store 的 enabled
+  const finalEnabled = yamlCfg.secretId ? yamlCfg.enabled : storedConfig.enabled
 
   console.log('getCosConfig - finalSecretId:', finalSecretId ? finalSecretId.substring(0, 8) + '...' : '(空)',
-    'enabled:', finalEnabled, '(store:', storedConfig.enabled, 'yaml:', yamlCfg.enabled, ')')
+    'enabled:', finalEnabled, '(store:', storedConfig.enabled, 'yaml:', yamlCfg.enabled, ')',
+    'source:', yamlCfg.secretId ? 'YAML' : 'store')
 
   return {
     secretId: finalSecretId,
