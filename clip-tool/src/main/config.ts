@@ -16,9 +16,18 @@ export interface CosYamlConfig {
   enabled: boolean
 }
 
+/** 混元大模型配置结构 */
+export interface HunyuanYamlConfig {
+  secretId: string
+  secretKey: string
+  model: string
+  enabled: boolean
+}
+
 /** 完整配置结构 */
 interface AppConfig {
   cos: CosYamlConfig
+  hunyuan: HunyuanYamlConfig
 }
 
 /** 默认 COS 配置（未读取到配置文件时使用） */
@@ -27,6 +36,14 @@ const DEFAULT_COS_CONFIG: CosYamlConfig = {
   region: 'ap-guangzhou',
   secretId: '',
   secretKey: '',
+  enabled: false,
+}
+
+/** 默认混元大模型配置 */
+const DEFAULT_HUNYUAN_CONFIG: HunyuanYamlConfig = {
+  secretId: '',
+  secretKey: '',
+  model: 'hunyuan-lite',
   enabled: false,
 }
 
@@ -65,13 +82,17 @@ export function loadAppConfig(): AppConfig {
         ...DEFAULT_COS_CONFIG,
         ...(parsed?.cos || {}),
       },
+      hunyuan: {
+        ...DEFAULT_HUNYUAN_CONFIG,
+        ...(parsed?.hunyuan || {}),
+      },
     }
 
     console.log('已加载配置文件:', configPath)
     return cachedConfig
   } catch (error) {
     console.warn('读取配置文件失败，使用默认配置:', error)
-    cachedConfig = { cos: { ...DEFAULT_COS_CONFIG } }
+    cachedConfig = { cos: { ...DEFAULT_COS_CONFIG }, hunyuan: { ...DEFAULT_HUNYUAN_CONFIG } }
     return cachedConfig
   }
 }
@@ -81,6 +102,13 @@ export function loadAppConfig(): AppConfig {
  */
 export function getCosYamlConfig(): CosYamlConfig {
   return loadAppConfig().cos
+}
+
+/**
+ * 获取混元大模型相关的 YAML 配置
+ */
+export function getHunyuanYamlConfig(): HunyuanYamlConfig {
+  return loadAppConfig().hunyuan
 }
 
 /**

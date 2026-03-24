@@ -209,6 +209,39 @@ const api = {
 
   /** 在默认浏览器中打开 URL */
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
+
+  // ====== 混元大模型 API ======
+
+  /** 检查混元是否可用 */
+  isHunyuanAvailable: (): Promise<boolean> => ipcRenderer.invoke('hunyuan:isAvailable'),
+
+  /** 发送消息给混元大模型 */
+  chatWithHunyuan: (messages: { Role: string; Content: string }[]): Promise<string> =>
+    ipcRenderer.invoke('hunyuan:chat', messages),
+
+  /** 监听混元流式响应 */
+  onHunyuanStream: (
+    callback: (data: { type: 'delta' | 'done' | 'error'; content: string; fullContent?: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { type: 'delta' | 'done' | 'error'; content: string; fullContent?: string }
+    ) => callback(data)
+    ipcRenderer.on('hunyuan:stream', handler)
+    return () => {
+      ipcRenderer.removeListener('hunyuan:stream', handler)
+    }
+  },
+
+  // ====== AI 模型配置 API ======
+
+  /** 获取 AI 模型配置列表 */
+  getAiModels: (): Promise<{ provider: string; secretId: string; secretKey: string; model: string; enabled: boolean }[]> =>
+    ipcRenderer.invoke('aiModels:get'),
+
+  /** 保存 AI 模型配置列表 */
+  saveAiModels: (models: { provider: string; secretId: string; secretKey: string; model: string; enabled: boolean }[]): Promise<{ provider: string; secretId: string; secretKey: string; model: string; enabled: boolean }[]> =>
+    ipcRenderer.invoke('aiModels:save', models),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

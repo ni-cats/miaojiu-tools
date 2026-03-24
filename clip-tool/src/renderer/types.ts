@@ -64,6 +64,13 @@ export interface ProfileData {
   updatedAt: string
 }
 
+/** 快速链接参数定义 */
+export interface QuickLinkParam {
+  name: string         // 参数名（占位符名称）
+  label: string        // 显示标签
+  defaultValue: string // 默认值
+}
+
 /** 快速链接条目 */
 export interface QuickLink {
   id: string
@@ -73,6 +80,16 @@ export interface QuickLink {
   favicon?: string    // 自动解析的 favicon URL
   category: string
   order: number
+  params?: QuickLinkParam[]  // URL 参数定义
+}
+
+/** AI 模型配置 */
+export interface AiModelConfig {
+  provider: 'hunyuan' | 'deepseek'
+  secretId: string
+  secretKey: string
+  model: string
+  enabled: boolean
 }
 
 export interface ClipToolAPI {
@@ -121,6 +138,15 @@ export interface ClipToolAPI {
   deleteQuickLink: (id: string) => Promise<QuickLink[]>
   updateQuickLink: (id: string, data: Partial<Omit<QuickLink, 'id'>>) => Promise<QuickLink[]>
   openExternal: (url: string) => Promise<void>
+  // 混元大模型
+  isHunyuanAvailable: () => Promise<boolean>
+  chatWithHunyuan: (messages: { Role: string; Content: string }[]) => Promise<string>
+  onHunyuanStream: (
+    callback: (data: { type: 'delta' | 'done' | 'error'; content: string; fullContent?: string }) => void
+  ) => (() => void)
+  // AI 模型配置
+  getAiModels: () => Promise<AiModelConfig[]>
+  saveAiModels: (models: AiModelConfig[]) => Promise<AiModelConfig[]>
 }
 
 declare global {

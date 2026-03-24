@@ -85,7 +85,6 @@ function createMainWindow() {
     // 延迟隐藏，避免点击托盘图标/Dock图标时窗口立即隐藏
     setTimeout(() => {
       if (mainWindow && !mainWindow.isFocused()) {
-        lastVisibleTime = Date.now()
         mainWindow.hide()
       }
     }, 200)
@@ -116,21 +115,12 @@ app.on('window-all-closed', () => {
   }
 })
 
-// 记录窗口上次可见的时间，用于判断 Dock 点击时的切换行为
-let lastVisibleTime = 0
-
 app.on('activate', () => {
   if (mainWindow === null) {
     createMainWindow()
   }
-  // 点击 Dock 图标时切换窗口显示/隐藏
+  // 从 Launchpad 或 Dock 点击时，始终显示窗口
   if (mainWindow) {
-    const now = Date.now()
-    // 如果窗口刚刚因为 blur 隐藏（200ms 内），说明用户点击 Dock 前窗口是可见的，不再显示
-    if (now - lastVisibleTime < 300) {
-      // 窗口刚刚是可见状态，用户点击 Dock 意图是关闭，不做操作（blur 已经隐藏了）
-      return
-    }
     mainWindow.show()
     mainWindow.focus()
   }

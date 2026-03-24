@@ -45,6 +45,9 @@ export function getDeviceId(): string {
  * 获取或创建 COS 客户端实例
  * 使用 store 中保存的 SecretId/SecretKey
  */
+/** 记录当前客户端使用的密钥指纹，用于检测密钥变更 */
+let cosClientKeyFingerprint = ''
+
 export function getCosClient(): COS | null {
   const config = getCosConfig()
   console.log('getCosClient - secretId:', config.secretId ? config.secretId.substring(0, 8) + '...' : '(空)', 'enabled:', config.enabled)
@@ -54,14 +57,17 @@ export function getCosClient(): COS | null {
   }
 
   // 如果密钥变更，重新创建客户端
-  if (cosClient) {
+  const fingerprint = config.secretId + ':' + config.secretKey
+  if (cosClient && cosClientKeyFingerprint === fingerprint) {
     return cosClient
   }
 
+  // 密钥变更或首次创建
   cosClient = new COS({
     SecretId: config.secretId,
     SecretKey: config.secretKey,
   })
+  cosClientKeyFingerprint = fingerprint
 
   return cosClient
 }
@@ -77,12 +83,14 @@ export function getCosClientForce(): COS | null {
     return null
   }
 
-  if (cosClient) return cosClient
+  const fingerprint = config.secretId + ':' + config.secretKey
+  if (cosClient && cosClientKeyFingerprint === fingerprint) return cosClient
 
   cosClient = new COS({
     SecretId: config.secretId,
     SecretKey: config.secretKey,
   })
+  cosClientKeyFingerprint = fingerprint
 
   return cosClient
 }
@@ -90,6 +98,7 @@ export function getCosClientForce(): COS | null {
 /** 重置 COS 客户端（密钥变更时调用） */
 export function resetCosClient(): void {
   cosClient = null
+  cosClientKeyFingerprint = ''
 }
 
 /**
@@ -298,10 +307,12 @@ export async function downloadSnippets(): Promise<unknown[] | null> {
                 resolve(null)
               } else {
                 try {
-                  const snippet = JSON.parse(data.Body as string)
+                  // COS SDK getObject 返回的 Body 可能是 Buffer，需要 toString()
+                  const bodyStr = typeof data.Body === 'string' ? data.Body : (data.Body as Buffer).toString('utf-8')
+                  const snippet = JSON.parse(bodyStr)
                   resolve(snippet)
                 } catch (parseError) {
-                  console.error(`解析片段数据失败 [${key}]:`, parseError)
+                  console.error(`解析片段数据失败 [${key}]:`, parseError, 'Body type:', typeof data.Body, 'Body:', String(data.Body).substring(0, 200))
                   resolve(null)
                 }
               }
@@ -383,7 +394,8 @@ export async function downloadCustomTags(): Promise<string[] | null> {
           }
         } else {
           try {
-            const tags = JSON.parse(data.Body as string)
+            const bodyStr = typeof data.Body === 'string' ? data.Body : (data.Body as Buffer).toString('utf-8')
+            const tags = JSON.parse(bodyStr)
             console.log(`从云端下载了 ${tags.length} 个标签`)
             resolve(tags)
           } catch (parseError) {
@@ -464,7 +476,8 @@ export async function downloadProfile(): Promise<unknown | null> {
           }
         } else {
           try {
-            const profile = JSON.parse(data.Body as string)
+            const bodyStr = typeof data.Body === 'string' ? data.Body : (data.Body as Buffer).toString('utf-8')
+            const profile = JSON.parse(bodyStr)
             console.log('从云端下载了个人信息')
             resolve(profile)
           } catch (parseError) {
@@ -498,7 +511,16 @@ export async function testCosConnection(): Promise<{ success: boolean; message: 
       (err, _data) => {
         if (err) {
           console.error('COS 连接测试失败:', err)
-          resolve({ success: false, message: `连接失败: ${err.message || err.code}` })
+          // 提供更友好的错误信息
+          let msg = `连接失败: ${err.message || err.code}`
+          if (err.code === 'InvalidAccessKeyId' || (err.statusCode === 403 && String(err.message).includes('Access Key'))) {
+            msg = '密钥无效：SecretId 不存在，请检查密钥是否正确或是否已被禁用'
+          } else if (err.code === 'SignatureDoesNotMatch') {
+            msg = '密钥无效：SecretKey 不正确，请检查密钥配置'
+          } else if (err.statusCode === 403) {
+            msg = '权限不足：密钥可能已过期或无此存储桶的访问权限'
+          }
+          resolve({ success: false, message: msg })
         } else {
           resolve({ success: true, message: '连接成功' })
         }

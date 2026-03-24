@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRe
 import { useClipboard } from '../hooks/useClipboard'
 import { nanoid } from 'nanoid'
 import type { SnippetData } from '../types'
-import { getTagColor } from '../utils/tagColor'
+import { getTagColor, registerTags } from '../utils/tagColor'
 
 interface SavePanelProps {
   onSave: (snippet: SnippetData) => void
@@ -30,6 +30,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
   useEffect(() => {
     window.clipToolAPI.getCustomTags().then((tags) => {
       setCustomTags(tags)
+      registerTags(tags)
       // 默认选中「临时」标签
       if (tags.includes('临时')) {
         setSelectedTags(['临时'])

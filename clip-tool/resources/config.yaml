@@ -1,0 +1,22 @@
+# ClipTool 应用配置文件
+# 请勿将此文件提交到公开仓库，建议加入 .gitignore
+
+# 腾讯云 COS 云端存储配置
+cos:
+  # 存储桶名称
+  bucket: "miaojiu-tools-1327699824"
+  # 存储桶所在地域
+  region: "ap-guangzhou"
+  # API 密钥（建议使用子账号密钥，遵循最小权限原则）
+  secretId: "AKIDseCWaPzJPGsFNMHRM6bhaEeqmTv98sOg"
+  secretKey: "SvCxVqxpTs1vaQ1NVO2SeoqgNrY2HI4b"
+  # 是否默认启用云端同步
+  enabled: true
+
+# 腾讯混元大模型配置
+hunyuan:
+  # API 密钥
+  secretId: "AKIDseCWaPzJPGsFNMHRM6bhaEeqmTv98sOg"
+  secretKey: "SvCxVqxpTs1vaQ1NVO2SeoqgNrY2HI4b"
+  # 是否启用
+  enabled: true

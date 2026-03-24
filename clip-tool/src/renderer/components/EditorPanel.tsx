@@ -19,8 +19,10 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
   const [editingLimit, setEditingLimit] = useState(false)
   const [limitInput, setLimitInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editorSectionRef = useRef<HTMLDivElement>(null)
+  const historyListRef = useRef<HTMLDivElement>(null)
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastClipboardRef = useRef<string>('')
 
@@ -197,8 +199,50 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
           ref={textareaRef}
           className="editor-textarea"
           value={editorContent}
-          onChange={(e) => setEditorContent(e.target.value)}
-          placeholder="在这里编辑内容...&#10;可以直接输入，也可以点击下方历史记录填充"
+          onChange={(e) => {
+            setEditorContent(e.target.value)
+            // 输入内容后取消历史选中
+            if (e.target.value.trim()) {
+              setSelectedHistoryIndex(-1)
+            }
+          }}
+          onKeyDown={(e) => {
+            // 编辑框为空时，上下键选择剪贴板历史
+            if (!editorContent.trim() && history.length > 0) {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSelectedHistoryIndex((prev) => {
+                  const next = Math.min(prev + 1, history.length - 1)
+                  // 滚动到可见区域
+                  setTimeout(() => {
+                    const list = historyListRef.current
+                    const item = list?.children[next] as HTMLElement
+                    if (item) item.scrollIntoView({ block: 'nearest' })
+                  }, 0)
+                  return next
+                })
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSelectedHistoryIndex((prev) => {
+                  const next = Math.max(prev - 1, -1)
+                  if (next >= 0) {
+                    setTimeout(() => {
+                      const list = historyListRef.current
+                      const item = list?.children[next] as HTMLElement
+                      if (item) item.scrollIntoView({ block: 'nearest' })
+                    }, 0)
+                  }
+                  return next
+                })
+              } else if (e.key === 'Enter' && selectedHistoryIndex >= 0) {
+                e.preventDefault()
+                const item = history[selectedHistoryIndex]
+                if (item) handleHistoryClick(item)
+                setSelectedHistoryIndex(-1)
+              }
+            }
+          }}
+          placeholder="在这里编辑内容...&#10;可以直接输入，也可以点击下方历史记录填充&#10;编辑框为空时可用 ↑↓ 键选择剪贴板历史"
           spellCheck={false}
         />
       </div>
@@ -245,7 +289,7 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
       </div>
 
       {/* 下方：剪贴板历史列表 */}
-      <div className="editor-history-list">
+      <div className="editor-history-list" ref={historyListRef}>
         {history.length === 0 ? (
           <div className="editor-history-empty">
             <span className="editor-history-empty-icon">📋</span>
@@ -253,11 +297,14 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
             <span className="editor-history-empty-hint">复制内容后会自动记录在这里</span>
           </div>
         ) : (
-          history.map((item) => (
+          history.map((item, index) => (
             <div
               key={item.id}
-              className="editor-history-item"
-              onClick={() => handleHistoryClick(item)}
+              className={`editor-history-item${selectedHistoryIndex === index ? ' selected' : ''}`}
+              onClick={() => {
+                handleHistoryClick(item)
+                setSelectedHistoryIndex(-1)
+              }}
               title={item.isImage ? '点击复制图片地址' : '点击填充到编辑框'}
             >
               <div className="editor-history-item-content">

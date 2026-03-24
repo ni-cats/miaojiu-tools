@@ -48,17 +48,8 @@ export function createTray(getMainWindow: () => BrowserWindow | null) {
 
   tray.setContextMenu(contextMenu)
 
-  // 点击托盘图标显示/隐藏窗口
-  tray.on('click', () => {
-    const win = getMainWindow()
-    if (!win) return
-    if (win.isVisible()) {
-      win.hide()
-    } else {
-      win.show()
-      win.focus()
-    }
-  })
+  // macOS 上托盘图标仅展示右键菜单，不切换窗口
+  // 窗口的显示/隐藏由 Dock 图标和快捷键控制
 
   return tray
 }

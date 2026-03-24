@@ -37,6 +37,8 @@ import {
   addQuickLink,
   deleteQuickLink,
   updateQuickLink,
+  getAiModels,
+  saveAiModels,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
@@ -44,10 +46,12 @@ import {
   type ProfileData,
   type ClipboardHistoryItem,
   type QuickLink,
+  type AiModelConfig,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
+import { chatWithHunyuan, isHunyuanAvailable, type ChatMessage } from './hunyuan'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
@@ -253,5 +257,30 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 在默认浏览器中打开 URL
   ipcMain.handle('shell:openExternal', (_event, url: string) => {
     return shell.openExternal(url)
+  })
+
+  // ====== 混元大模型 ======
+
+  // 检查混元是否可用
+  ipcMain.handle('hunyuan:isAvailable', () => {
+    return isHunyuanAvailable()
+  })
+
+  // 发送消息给混元大模型（流式）
+  ipcMain.handle('hunyuan:chat', async (_event, messages: ChatMessage[]) => {
+    const win = getMainWindow()
+    return chatWithHunyuan(messages, win)
+  })
+
+  // ====== AI 模型配置 ======
+
+  // 获取 AI 模型配置列表
+  ipcMain.handle('aiModels:get', () => {
+    return getAiModels()
+  })
+
+  // 保存 AI 模型配置列表
+  ipcMain.handle('aiModels:save', (_event, models: AiModelConfig[]) => {
+    return saveAiModels(models)
   })
 }

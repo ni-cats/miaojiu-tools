@@ -3,8 +3,8 @@
  * 支持用户自定义全局快捷键和管理预设标签
  */
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
-import type { ShortcutConfig, CosConfig, StorageMode } from '../types'
-import { getTagColor } from '../utils/tagColor'
+import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig } from '../types'
+import { getTagColor, registerTags } from '../utils/tagColor'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -105,14 +105,18 @@ const ShortcutItem: React.FC<ShortcutItemProps> = ({
 }
 
 /** 设置面板子页面类型 */
-type SettingsSection = 'shortcuts' | 'tags' | 'storage' | 'hotkeys' | 'plugins'
+type SettingsSection = 'save' | 'editor' | 'search' | 'launcher' | 'ai' | 'favorite' | 'profile' | 'shortcuts' | 'plugins'
 
 /** 设置导航按钮配置 */
 const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
+  { key: 'save', icon: '📋', label: '保存' },
+  { key: 'editor', icon: '✏️', label: '编辑' },
+  { key: 'search', icon: '🔍', label: '搜索' },
+  { key: 'launcher', icon: '🚀', label: '导航' },
+  { key: 'ai', icon: '🤖', label: 'AI' },
+  { key: 'favorite', icon: '⭐', label: '收藏' },
+  { key: 'profile', icon: '💾', label: '存储' },
   { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
-  { key: 'tags', icon: '🏷️', label: '标签' },
-  { key: 'storage', icon: '📦', label: '存储' },
-  { key: 'hotkeys', icon: '💡', label: '窗口键' },
   { key: 'plugins', icon: '🧩', label: '插件' },
 ]
 
@@ -188,7 +192,7 @@ export interface SettingsPanelRef {
 
 const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void }>(({ onShortcutsChanged, onDataChanged }, ref) => {
   // 当前激活的子页面
-  const [activeSection, setActiveSection] = useState<SettingsSection>('shortcuts')
+  const [activeSection, setActiveSection] = useState<SettingsSection>('save')
   // 导航栏是否处于键盘聚焦状态
   const [navFocused, setNavFocused] = useState(false)
 
@@ -234,6 +238,12 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [newTagInput, setNewTagInput] = useState('')
   const [tagSaveStatus, setTagSaveStatus] = useState<string | null>(null)
 
+  // 编辑 — 剪贴板历史条数
+  const [editorHistoryLimit, setEditorHistoryLimit] = useState(20)
+  const [editingEditorLimit, setEditingEditorLimit] = useState(false)
+  const [editorLimitInput, setEditorLimitInput] = useState('')
+  const [editorLimitStatus, setEditorLimitStatus] = useState<string | null>(null)
+
   // COS 云端存储状态
   const [cosConfig, setCosConfig] = useState<CosConfig>({
     secretId: '',
@@ -247,6 +257,11 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [showSecretKey, setShowSecretKey] = useState(false)
   const [storageMode, setStorageModeState] = useState<StorageMode>('local')
 
+  // AI 模型配置状态
+  const [aiModels, setAiModels] = useState<AiModelConfig[]>([])
+  const [aiStatus, setAiStatus] = useState<string | null>(null)
+  const [showAiSecretKeys, setShowAiSecretKeys] = useState<Record<number, boolean>>({})
+
   // 加载当前快捷键配置
   useEffect(() => {
     window.clipToolAPI.getShortcuts().then((config) => {
@@ -254,12 +269,22 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       originalRef.current = { ...config }
     })
     // 加载自定义标签
-    window.clipToolAPI.getCustomTags().then(setCustomTags)
+    window.clipToolAPI.getCustomTags().then((tags) => {
+      setCustomTags(tags)
+      registerTags(tags)
+    })
+    // 加载剪贴板历史条数限制
+    window.clipToolAPI.getClipboardHistoryLimit().then((limit) => {
+      setEditorHistoryLimit(limit)
+      setEditorLimitInput(String(limit))
+    })
     // 加载 COS 配置和设备 ID
     window.clipToolAPI.getCosConfig().then(setCosConfig)
     window.clipToolAPI.getDeviceId().then(setDeviceId)
     // 加载存储模式
     window.clipToolAPI.getStorageMode().then(setStorageModeState)
+    // 加载 AI 模型配置
+    window.clipToolAPI.getAiModels().then(setAiModels)
   }, [])
 
   // 录制快捷键
@@ -352,6 +377,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     const updated = [...customTags, tag]
     const saved = await window.clipToolAPI.saveCustomTags(updated)
     setCustomTags(saved)
+    registerTags(saved)
     setNewTagInput('')
     setTagSaveStatus('✓ 已添加')
     setTimeout(() => setTagSaveStatus(null), 2000)
@@ -361,6 +387,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     const updated = customTags.filter((t) => t !== tag)
     const saved = await window.clipToolAPI.saveCustomTags(updated)
     setCustomTags(saved)
+    registerTags(saved)
   }, [customTags])
 
   // ===== 拖拽排序 =====
@@ -388,6 +415,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     updated.splice(index, 0, removed)
     const saved = await window.clipToolAPI.saveCustomTags(updated)
     setCustomTags(saved)
+    registerTags(saved)
     setDragIndex(null)
     setDragOverIndex(null)
   }, [dragIndex, customTags])
@@ -539,11 +567,11 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
   // ===== 渲染各子页面 =====
 
-  /** 快捷键设置子页面 */
+  /** 快捷键设置子页面（合并全局快捷键 + 窗口内快捷键） */
   const renderShortcutsPage = () => (
     <>
       <div className="settings-section">
-        <div className="settings-section-title">全局快捷键</div>
+        <div className="settings-section-title">⌨️ 全局快捷键</div>
         <div className="settings-section-hint">
           点击按键区域后按下新的快捷键组合，按 Esc 取消录制
         </div>
@@ -584,13 +612,51 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
           </button>
         </div>
       </div>
+
+      {/* 窗口内快捷键说明 */}
+      <div className="settings-section" style={{ marginTop: 8 }}>
+        <div className="settings-section-title">💡 窗口内快捷键</div>
+        <div className="settings-section-hint">
+          以下快捷键在窗口激活时生效，不可自定义
+        </div>
+        <div className="settings-builtin-list">
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">Enter</span>
+            <span className="settings-builtin-desc">保存模式下保存并关闭</span>
+          </div>
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">⌘C / Enter</span>
+            <span className="settings-builtin-desc">搜索模式下复制选中项</span>
+          </div>
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">← / →</span>
+            <span className="settings-builtin-desc">切换 Tab 页面</span>
+          </div>
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">↑ / ↓</span>
+            <span className="settings-builtin-desc">搜索结果导航 / 编辑页选择剪贴板历史</span>
+          </div>
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">空格 × 2</span>
+            <span className="settings-builtin-desc">快速关闭窗口</span>
+          </div>
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">Esc</span>
+            <span className="settings-builtin-desc">关闭窗口</span>
+          </div>
+          <div className="settings-builtin-item">
+            <span className="settings-builtin-label">⌘ 1~9</span>
+            <span className="settings-builtin-desc">快速复制第 N 项</span>
+          </div>
+        </div>
+      </div>
     </>
   )
 
-  /** 标签管理子页面 */
-  const renderTagsPage = () => (
+  /** 保存设置子页面（预设标签管理） */
+  const renderSavePage = () => (
     <div className="settings-section">
-      <div className="settings-section-title">预设标签管理</div>
+      <div className="settings-section-title">📋 保存 — 预设标签管理</div>
       <div className="settings-section-hint">
         管理保存片段时可快速选择的预设标签
       </div>
@@ -661,12 +727,86 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     </div>
   )
 
+  /** 编辑设置子页面（剪贴板历史条数配置） */
+  const renderEditorPage = () => {
+    const handleSaveEditorLimit = async () => {
+      const num = parseInt(editorLimitInput, 10)
+      if (isNaN(num) || num < 1 || num > 100) {
+        setEditorLimitStatus('⚠ 请输入 1~100 之间的数字')
+        setTimeout(() => setEditorLimitStatus(null), 2000)
+        return
+      }
+      const saved = await window.clipToolAPI.setClipboardHistoryLimit(num)
+      setEditorHistoryLimit(saved)
+      setEditingEditorLimit(false)
+      setEditorLimitStatus(`✓ 已设置最多保存 ${saved} 条`)
+      setTimeout(() => setEditorLimitStatus(null), 2000)
+    }
+
+    return (
+      <div className="settings-section">
+        <div className="settings-section-title">✏️ 编辑设置</div>
+        <div className="settings-section-hint">
+          配置编辑页面的行为参数
+        </div>
+
+        <div className="settings-editor-config">
+          <div className="settings-config-item">
+            <div className="settings-config-info">
+              <div className="settings-config-label">📋 剪贴板历史最大条数</div>
+              <div className="settings-config-desc">控制编辑页面下方剪贴板历史列表保存的最大条数，超出后自动移除旧记录</div>
+            </div>
+            <div className="settings-config-action">
+              {editingEditorLimit ? (
+                <div className="editor-limit-edit">
+                  <input
+                    className="text-input editor-limit-input"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={editorLimitInput}
+                    onChange={(e) => setEditorLimitInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEditorLimit()
+                      if (e.key === 'Escape') setEditingEditorLimit(false)
+                    }}
+                    autoFocus
+                  />
+                  <button className="editor-limit-btn" onClick={handleSaveEditorLimit}>✓</button>
+                  <button className="editor-limit-btn cancel" onClick={() => setEditingEditorLimit(false)}>✕</button>
+                </div>
+              ) : (
+                <button
+                  className="editor-limit-tag"
+                  onClick={() => {
+                    setEditorLimitInput(String(editorHistoryLimit))
+                    setEditingEditorLimit(true)
+                  }}
+                  title="点击修改"
+                >
+                  {editorHistoryLimit} 条
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {editorLimitStatus && (
+          <span className={`settings-status ${editorLimitStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
+            {editorLimitStatus}
+          </span>
+        )}
+      </div>
+    )
+  }
+
   /** 存储设置子页面 */
   const renderStoragePage = () => (
     <>
       {/* 存储模式选择 */}
       <div className="settings-section">
-        <div className="settings-section-title">📦 存储模式</div>
+        <div className="settings-section-title">💾 存储配置 — 存储模式</div>
         <div className="settings-section-hint">
           选择数据存储方式：本地存储仅保存在当前设备，云端存储支持多设备同步
         </div>
@@ -790,46 +930,6 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     </>
   )
 
-  /** 窗口内快捷键子页面 */
-  const renderHotkeysPage = () => (
-    <div className="settings-section">
-      <div className="settings-section-title">窗口内快捷键</div>
-      <div className="settings-section-hint">
-        以下快捷键在窗口激活时生效，不可自定义
-      </div>
-      <div className="settings-builtin-list">
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">Enter</span>
-          <span className="settings-builtin-desc">保存模式下保存并关闭</span>
-        </div>
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">⌘C / Enter</span>
-          <span className="settings-builtin-desc">搜索模式下复制选中项</span>
-        </div>
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">← / →</span>
-          <span className="settings-builtin-desc">切换 Tab 页面</span>
-        </div>
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">↑ / ↓</span>
-          <span className="settings-builtin-desc">搜索结果导航</span>
-        </div>
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">空格 × 2</span>
-          <span className="settings-builtin-desc">快速关闭窗口</span>
-        </div>
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">Esc</span>
-          <span className="settings-builtin-desc">关闭窗口</span>
-        </div>
-        <div className="settings-builtin-item">
-          <span className="settings-builtin-label">⌘ 1~9</span>
-          <span className="settings-builtin-desc">快速复制第 N 项</span>
-        </div>
-      </div>
-    </div>
-  )
-
   /** 插件子页面（预留功能） */
   const renderPluginsPage = () => (
     <div className="settings-section">
@@ -860,17 +960,228 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     </div>
   )
 
+  /** AI 模型配置子页面 */
+  const renderAiConfigPage = () => {
+    /** 模型提供商列表 */
+    const AI_PROVIDERS: { key: AiModelConfig['provider']; name: string; icon: string; models: string[]; needSecretId: boolean }[] = [
+      {
+        key: 'hunyuan',
+        name: '腾讯混元',
+        icon: '🤖',
+        models: ['hunyuan-lite', 'hunyuan-standard', 'hunyuan-pro'],
+        needSecretId: true,  // 混元需要 SecretId + SecretKey
+      },
+      {
+        key: 'deepseek',
+        name: 'DeepSeek',
+        icon: '🧠',
+        models: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
+        needSecretId: false, // DeepSeek 只需要 API Key
+      },
+    ]
+
+    const handleAddModel = (provider: AiModelConfig['provider']) => {
+      const providerInfo = AI_PROVIDERS.find((p) => p.key === provider)
+      if (!providerInfo) return
+      // 检查是否已添加该提供商
+      if (aiModels.some((m) => m.provider === provider)) {
+        setAiStatus(`⚠ ${providerInfo.name} 已添加`)
+        setTimeout(() => setAiStatus(null), 2000)
+        return
+      }
+      const newModel: AiModelConfig = {
+        provider,
+        secretId: '',
+        secretKey: '',
+        model: providerInfo.models[0],
+        enabled: false,
+      }
+      const updated = [...aiModels, newModel]
+      setAiModels(updated)
+    }
+
+    const handleRemoveModel = async (index: number) => {
+      const updated = aiModels.filter((_, i) => i !== index)
+      const saved = await window.clipToolAPI.saveAiModels(updated)
+      setAiModels(saved)
+      setAiStatus('✓ 已删除')
+      setTimeout(() => setAiStatus(null), 2000)
+    }
+
+    const handleUpdateModel = (index: number, data: Partial<AiModelConfig>) => {
+      const updated = [...aiModels]
+      updated[index] = { ...updated[index], ...data }
+      // 启用一个模型时，禁用其他模型
+      if (data.enabled) {
+        updated.forEach((m, i) => {
+          if (i !== index) m.enabled = false
+        })
+      }
+      setAiModels(updated)
+    }
+
+    const handleSaveAiModels = async () => {
+      const saved = await window.clipToolAPI.saveAiModels(aiModels)
+      setAiModels(saved)
+      setAiStatus('✓ AI 配置已保存')
+      setTimeout(() => setAiStatus(null), 2000)
+    }
+
+    const toggleShowAiKey = (index: number) => {
+      setShowAiSecretKeys((prev) => ({ ...prev, [index]: !prev[index] }))
+    }
+
+    return (
+      <div className="settings-section">
+        <div className="settings-section-title">🤖 AI 模型配置</div>
+        <div className="settings-section-hint">
+          配置 AI 大模型的密钥信息，启用后可在 AI 页面中使用对话功能。同一时间只能启用一个模型。
+        </div>
+
+        {/* 添加模型按钮 */}
+        <div className="ai-provider-add-row">
+          {AI_PROVIDERS.map((provider) => {
+            const alreadyAdded = aiModels.some((m) => m.provider === provider.key)
+            return (
+              <button
+                key={provider.key}
+                className={`ai-provider-add-btn ${alreadyAdded ? 'added' : ''}`}
+                onClick={() => handleAddModel(provider.key)}
+                disabled={alreadyAdded}
+              >
+                <span>{provider.icon}</span>
+                <span>{alreadyAdded ? `${provider.name} ✓` : `+ ${provider.name}`}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* 已配置的模型列表 */}
+        {aiModels.map((model, index) => {
+          const providerInfo = AI_PROVIDERS.find((p) => p.key === model.provider)
+          if (!providerInfo) return null
+          return (
+            <div key={index} className="ai-model-card">
+              <div className="ai-model-card-header">
+                <div className="ai-model-card-title">
+                  <span>{providerInfo.icon}</span>
+                  <span>{providerInfo.name}</span>
+                </div>
+                <div className="ai-model-card-actions">
+                  {/* 启用开关 */}
+                  <label className="settings-cos-switch" title={model.enabled ? '已启用' : '未启用'}>
+                    <input
+                      type="checkbox"
+                      checked={model.enabled}
+                      onChange={(e) => handleUpdateModel(index, { enabled: e.target.checked })}
+                    />
+                    <span className="settings-cos-slider"></span>
+                  </label>
+                  <button
+                    className="settings-tag-remove-btn"
+                    onClick={() => handleRemoveModel(index)}
+                    title="删除"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* SecretId（仅混元需要） */}
+              {providerInfo.needSecretId && (
+                <div className="settings-cos-field">
+                  <label className="settings-cos-label">SecretId</label>
+                  <input
+                    className="text-input"
+                    type="text"
+                    value={model.secretId}
+                    onChange={(e) => handleUpdateModel(index, { secretId: e.target.value })}
+                    placeholder="输入 SecretId"
+                    spellCheck={false}
+                  />
+                </div>
+              )}
+
+              {/* SecretKey / API Key */}
+              <div className="settings-cos-field">
+                <label className="settings-cos-label">{providerInfo.needSecretId ? 'SecretKey' : 'API Key'}</label>
+                <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                  <input
+                    className="text-input"
+                    type={showAiSecretKeys[index] ? 'text' : 'password'}
+                    value={model.secretKey}
+                    onChange={(e) => handleUpdateModel(index, { secretKey: e.target.value })}
+                    placeholder={`输入 ${providerInfo.needSecretId ? 'SecretKey' : 'API Key'}`}
+                    style={{ flex: 1 }}
+                    spellCheck={false}
+                  />
+                  <button
+                    className="settings-cos-toggle-btn"
+                    onClick={() => toggleShowAiKey(index)}
+                    title={showAiSecretKeys[index] ? '隐藏' : '显示'}
+                  >
+                    {showAiSecretKeys[index] ? '🙈' : '👁'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {aiModels.length === 0 && (
+          <div className="settings-placeholder" style={{ padding: '20px 0' }}>
+            <span className="settings-placeholder-icon">🤖</span>
+            <span className="settings-placeholder-text">点击上方按钮添加 AI 模型</span>
+          </div>
+        )}
+
+        {/* 状态提示和保存按钮 */}
+        {aiModels.length > 0 && (
+          <div className="settings-cos-actions" style={{ marginTop: 8 }}>
+            <button
+              className="settings-cos-btn primary"
+              onClick={handleSaveAiModels}
+            >
+              💾 保存配置
+            </button>
+            {aiStatus && (
+              <span className={`settings-status ${aiStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                    style={{ fontSize: 12 }}>
+                {aiStatus}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   /** 根据当前激活的子页面渲染内容 */
   const renderContent = () => {
     switch (activeSection) {
+      case 'save': return renderSavePage()
+      case 'editor': return renderEditorPage()
+      case 'search': return renderPlaceholderPage('🔍', '搜索', '搜索功能目前无额外配置项')
+      case 'launcher': return renderPlaceholderPage('🚀', '导航', '导航功能目前无额外配置项')
+      case 'ai': return renderAiConfigPage()
+      case 'favorite': return renderPlaceholderPage('⭐', '收藏', '收藏功能目前无额外配置项')
+      case 'profile': return renderStoragePage()
       case 'shortcuts': return renderShortcutsPage()
-      case 'tags': return renderTagsPage()
-      case 'storage': return renderStoragePage()
-      case 'hotkeys': return renderHotkeysPage()
       case 'plugins': return renderPluginsPage()
       default: return null
     }
   }
+
+  /** 占位页（暂无配置项的页面） */
+  const renderPlaceholderPage = (icon: string, title: string, desc: string) => (
+    <div className="settings-section">
+      <div className="settings-section-title">{icon} {title} 设置</div>
+      <div className="settings-placeholder">
+        <span className="settings-placeholder-icon">{icon}</span>
+        <span className="settings-placeholder-text">{desc}</span>
+      </div>
+    </div>
+  )
 
   return (
     <div className="settings-panel">

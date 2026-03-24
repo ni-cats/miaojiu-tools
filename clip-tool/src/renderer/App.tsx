@@ -14,6 +14,7 @@ import SettingsPanel, { type SettingsPanelRef } from './components/SettingsPanel
 import ProfilePanel from './components/ProfilePanel'
 import LauncherPanel, { type LauncherPanelRef } from './components/LauncherPanel'
 import { useShortcuts } from './hooks/useShortcuts'
+import { registerTags } from './utils/tagColor'
 import type { SnippetData } from './types'
 
 type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'profile' | 'settings' | 'launcher'
@@ -66,9 +67,16 @@ const App: React.FC = () => {
       const cosConfig = await window.clipToolAPI.getCosConfig()
       if (cosConfig.enabled) {
         const cloudData = await window.clipToolAPI.pullSnippets()
-        if (cloudData !== null) {
-          setSnippets(cloudData)
+        if (cloudData !== null && cloudData.length > 0) {
+          // 合并：以云端数据为主，本地独有的片段也保留
+          const cloudIds = new Set(cloudData.map((s) => s.id))
+          const localOnly = localData.filter((s) => !cloudIds.has(s.id))
+          const merged = [...cloudData, ...localOnly].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          setSnippets(merged)
         }
+        // 如果云端返回空数组，保留本地数据不覆盖
       }
     } catch (error) {
       console.error('加载片段失败:', error)
@@ -97,6 +105,8 @@ const App: React.FC = () => {
   useEffect(() => {
     loadSnippets()
     loadShortcutHints()
+    // 初始化标签颜色映射
+    window.clipToolAPI.getCustomTags().then(registerTags)
   }, [loadSnippets, loadShortcutHints])
 
   // 监听主进程发来的模式切换（全局快捷键触发）
@@ -378,7 +388,13 @@ const App: React.FC = () => {
         )}
         {activeTab === 'profile' && <ProfilePanel />}
         {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
-        {activeTab === 'launcher' && <LauncherPanel ref={launcherPanelRef} />}
+        {activeTab === 'launcher' && <LauncherPanel ref={launcherPanelRef} onSwitchToAi={(query) => {
+          setActiveTab('ai')
+          // 将搜索词存入剪贴板以便在 AI 中使用
+          if (query) {
+            navigator.clipboard.writeText(query)
+          }
+        }} />}
       </div>
 
       {/* Toast 提示 */}

@@ -94,17 +94,35 @@ interface StoreSchema {
   clipboardHistory: ClipboardHistoryItem[]  // 剪贴板历史
   clipboardHistoryLimit: number  // 剪贴板历史最大保存条数
   quickLinks: QuickLink[]  // 快速链接列表
+  aiModels: AiModelConfig[]  // AI 模型配置列表
+}
+
+/** AI 模型配置 */
+export interface AiModelConfig {
+  provider: 'hunyuan' | 'deepseek'  // 模型提供商
+  secretId: string                   // API 密钥 ID（混元）或 API Key（DeepSeek）
+  secretKey: string                  // API 密钥（混元）
+  model: string                      // 模型名称
+  enabled: boolean                   // 是否启用
+}
+
+/** 快速链接参数定义 */
+export interface QuickLinkParam {
+  name: string         // 参数名（占位符名称）
+  label: string        // 显示标签
+  defaultValue: string // 默认值
 }
 
 /** 快速链接条目 */
 export interface QuickLink {
   id: string
   name: string        // 显示名称
-  url: string         // 链接地址
+  url: string         // 链接地址，支持 {参数名} 占位符
   icon: string        // Emoji 图标
   favicon?: string    // 自动解析的 favicon URL
   category: string    // 分类标签
   order: number       // 排序序号
+  params?: QuickLinkParam[]  // URL 参数定义
 }
 
 /** 默认快捷键配置 */
@@ -145,6 +163,7 @@ const store = new Store<StoreSchema>({
     clipboardHistory: [] as ClipboardHistoryItem[],
     clipboardHistoryLimit: 20,
     quickLinks: [] as QuickLink[],
+    aiModels: [] as AiModelConfig[],
     profile: {
       nickname: '',
       avatar: '',
@@ -167,12 +186,32 @@ export function getCosConfig(): CosConfig {
     enabled: false,
   })
 
-  // 优先使用 YAML 配置文件中的密钥（如果存在）
-  // 这样即使 electron-store 中的密钥为空（首次运行遗留的默认值），也能正确工作
+  // 确定最终使用的密钥
+  const finalSecretId = storedConfig.secretId || yamlCfg.secretId
+  const finalSecretKey = storedConfig.secretKey || yamlCfg.secretKey
+
+  // 判断 enabled：
+  // 1. 如果 store 中有自己的密钥（非来自 YAML），使用 store 的 enabled
+  // 2. 如果 store 中无密钥，但 YAML 有密钥，使用 YAML 的 enabled
+  // 3. 特殊情况：YAML 有密钥且 enabled=true，但 store 中 enabled=false 且密钥和 YAML 相同
+  //    说明密钥是初始化时从 YAML 带过来的，此时应该以 YAML 的 enabled 为准
+  let finalEnabled = storedConfig.enabled
+  if (!storedConfig.secretId && yamlCfg.secretId) {
+    // store 无密钥，使用 YAML 的 enabled
+    finalEnabled = yamlCfg.enabled
+  } else if (storedConfig.secretId === yamlCfg.secretId && yamlCfg.enabled && !storedConfig.enabled) {
+    // 密钥和 YAML 相同但 store 的 enabled 被关闭了，仍然以 YAML 为准
+    // （这种情况通常是首次初始化存储了 YAML 密钥，后来 enabled 被意外修改）
+    finalEnabled = yamlCfg.enabled
+  }
+
+  console.log('getCosConfig - finalSecretId:', finalSecretId ? finalSecretId.substring(0, 8) + '...' : '(空)',
+    'enabled:', finalEnabled, '(store:', storedConfig.enabled, 'yaml:', yamlCfg.enabled, ')')
+
   return {
-    secretId: storedConfig.secretId || yamlCfg.secretId,
-    secretKey: storedConfig.secretKey || yamlCfg.secretKey,
-    enabled: storedConfig.secretId ? storedConfig.enabled : yamlCfg.enabled,
+    secretId: finalSecretId,
+    secretKey: finalSecretKey,
+    enabled: finalEnabled,
   }
 }
 
@@ -579,6 +618,25 @@ export function deleteQuickLink(id: string): QuickLink[] {
   const links = getQuickLinks().filter((l) => l.id !== id)
   store.set('quickLinks', links)
   return links
+}
+
+// ====== AI 模型配置管理 ======
+
+/** 获取 AI 模型配置列表 */
+export function getAiModels(): AiModelConfig[] {
+  return store.get('aiModels', [])
+}
+
+/** 保存 AI 模型配置列表 */
+export function saveAiModels(models: AiModelConfig[]): AiModelConfig[] {
+  store.set('aiModels', models)
+  return models
+}
+
+/** 获取当前启用的 AI 模型配置 */
+export function getActiveAiModel(): AiModelConfig | null {
+  const models = getAiModels()
+  return models.find((m) => m.enabled) || null
 }
 
 /** 更新快速链接 */
