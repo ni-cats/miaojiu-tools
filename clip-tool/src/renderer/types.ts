@@ -147,6 +147,16 @@ export interface ClipToolAPI {
   // AI 模型配置
   getAiModels: () => Promise<AiModelConfig[]>
   saveAiModels: (models: AiModelConfig[]) => Promise<AiModelConfig[]>
+  // 导航分类管理
+  getLauncherCategories: () => Promise<string[]>
+  saveLauncherCategories: (categories: string[]) => Promise<string[]>
+  // AI 标题
+  getAiTitleEnabled: () => Promise<boolean>
+  setAiTitleEnabled: (enabled: boolean) => Promise<boolean>
+  generateAiTitle: (content: string, contentType: string) => Promise<string | null>
+  // 设置批量推拉
+  pushSettings: () => Promise<boolean>
+  pullSettings: () => Promise<Record<string, unknown> | null>
 }
 
 declare global {

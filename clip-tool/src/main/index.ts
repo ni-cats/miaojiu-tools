@@ -7,7 +7,7 @@ import path from 'path'
 import { registerShortcuts, unregisterAllShortcuts } from './shortcuts'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
-import { getWindowBounds, saveWindowBounds } from './store'
+import { getWindowBounds, saveWindowBounds, pushSettingsToCloud, getCosConfig } from './store'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -102,6 +102,16 @@ app.whenReady().then(() => {
   createTray(getMainWindow)
   registerShortcuts(getMainWindow)
   registerIpcHandlers(getMainWindow)
+
+  // 启动时自动将本地设置和导航数据同步到云端
+  const cosConfig = getCosConfig()
+  if (cosConfig.enabled) {
+    pushSettingsToCloud().then((ok) => {
+      console.log(`[启动同步] 本地数据推送到云端: ${ok ? '成功' : '失败'}`)
+    }).catch((err) => {
+      console.error('[启动同步] 推送失败:', err)
+    })
+  }
 })
 
 app.on('will-quit', () => {
@@ -119,9 +129,10 @@ app.on('activate', () => {
   if (mainWindow === null) {
     createMainWindow()
   }
-  // 从 Launchpad 或 Dock 点击时，始终显示窗口
+  // 从 Launchpad 或 Dock 点击时，显示窗口并默认进入保存模式
   if (mainWindow) {
     mainWindow.show()
     mainWindow.focus()
+    mainWindow.webContents.send('switch-mode', 'save')
   }
 })

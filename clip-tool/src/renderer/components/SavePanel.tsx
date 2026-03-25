@@ -25,8 +25,11 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
   const [customTagInput, setCustomTagInput] = useState('')
   const [customTags, setCustomTags] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  // AI 生成标题状态
+  const [aiTitleEnabled, setAiTitleEnabled] = useState(false)
+  const [aiTitleLoading, setAiTitleLoading] = useState(false)
 
-  // 加载自定义标签列表
+  // 加载自定义标签列表和 AI 标题配置
   useEffect(() => {
     window.clipToolAPI.getCustomTags().then((tags) => {
       setCustomTags(tags)
@@ -36,6 +39,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         setSelectedTags(['临时'])
       }
     })
+    window.clipToolAPI.getAiTitleEnabled().then(setAiTitleEnabled)
   }, [])
 
   // 组件挂载时和 triggerRead 变化时自动读取剪贴板
@@ -57,6 +61,20 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       // 重置标签为默认选中「临时」
       setSelectedTags(customTags.includes('临时') ? ['临时'] : [])
       setCustomTagInput('')
+
+      // 如果启用了 AI 生成标题，异步调用
+      if (aiTitleEnabled && !clipboardData.isImage && clipboardData.type !== 'image') {
+        setAiTitleLoading(true)
+        window.clipToolAPI.generateAiTitle(clipboardData.content, clipboardData.type).then((generatedTitle) => {
+          if (generatedTitle) {
+            setTitle(generatedTitle)
+          }
+        }).catch(() => {
+          // AI 生成失败，保留默认标题
+        }).finally(() => {
+          setAiTitleLoading(false)
+        })
+      }
     }
   }, [clipboardData])
 
@@ -161,7 +179,11 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
 
       {/* 标题输入 */}
       <div className="input-group">
-        <div className="input-label">标题（可选，Enter 保存）</div>
+        <div className="input-label">
+          标题（可选，Enter 保存）
+          {aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)' }}>✨ AI 生成中...</span>}
+          {aiTitleEnabled && !aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)' }}>🤖 AI 标题</span>}
+        </div>
         <input
           className="text-input"
           type="text"

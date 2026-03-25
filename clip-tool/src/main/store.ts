@@ -13,6 +13,12 @@ import {
   uploadProfile,
   downloadProfile,
   resetCosClient,
+  uploadSetting,
+  uploadAllSettings,
+  downloadAllSettings,
+  uploadLauncherConfig,
+  uploadAllLauncherConfigs,
+  downloadAllLauncherConfigs,
 } from './cos'
 import { getCosYamlConfig } from './config'
 
@@ -94,7 +100,9 @@ interface StoreSchema {
   clipboardHistory: ClipboardHistoryItem[]  // 剪贴板历史
   clipboardHistoryLimit: number  // 剪贴板历史最大保存条数
   quickLinks: QuickLink[]  // 快速链接列表
+  launcherCategories: string[]  // 导航分类列表
   aiModels: AiModelConfig[]  // AI 模型配置列表
+  aiTitleEnabled: boolean  // 是否启用 AI 生成标题
 }
 
 /** AI 模型配置 */
@@ -163,7 +171,9 @@ const store = new Store<StoreSchema>({
     clipboardHistory: [] as ClipboardHistoryItem[],
     clipboardHistoryLimit: 20,
     quickLinks: [] as QuickLink[],
+    launcherCategories: ['常用', '工作', '文档', '工具', '社交', '其他'] as string[],
     aiModels: [] as AiModelConfig[],
+    aiTitleEnabled: false,
     profile: {
       nickname: '',
       avatar: '',
@@ -262,7 +272,62 @@ function debounceSyncTags(): void {
   syncTagsTimer = setTimeout(async () => {
     const tags = store.get('customTags', [])
     await uploadCustomTags(tags)
+    // 同时同步到 settings 目录
+    await uploadSetting('customTags', tags)
   }, 1000)
+}
+
+// ====== 设置同步辅助函数 ======
+
+/** 所有需要同步的设置项名称（settings 目录） */
+const SYNC_SETTING_NAMES = [
+  'shortcuts',
+  'customTags',
+  'clipboardHistoryLimit',
+  'aiModels',
+  'aiTitleEnabled',
+  'launcherCategories',
+] as const
+
+/** 所有需要同步的导航配置项名称（launcher 目录） */
+const SYNC_LAUNCHER_NAMES = [
+  'quickLinks',
+] as const
+
+/** 防抖同步设置到云端的定时器（按设置名分别防抖） */
+const syncSettingTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
+
+/** 防抖同步单个设置项到云端 */
+function debounceSyncSetting(settingName: string, data: unknown): void {
+  const config = getCosConfig()
+  if (!config.enabled) return
+
+  const existing = syncSettingTimers.get(settingName)
+  if (existing) clearTimeout(existing)
+
+  const timer = setTimeout(async () => {
+    syncSettingTimers.delete(settingName)
+    await uploadSetting(settingName, data)
+  }, 1000) // 1秒防抖
+  syncSettingTimers.set(settingName, timer)
+}
+
+/** 防抖同步导航配置到云端的定时器（按配置名分别防抖） */
+const syncLauncherTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
+
+/** 防抖同步单个导航配置到云端（launcher 目录） */
+function debounceSyncLauncher(configName: string, data: unknown): void {
+  const config = getCosConfig()
+  if (!config.enabled) return
+
+  const existing = syncLauncherTimers.get(configName)
+  if (existing) clearTimeout(existing)
+
+  const timer = setTimeout(async () => {
+    syncLauncherTimers.delete(configName)
+    await uploadLauncherConfig(configName, data)
+  }, 1000) // 1秒防抖
+  syncLauncherTimers.set(configName, timer)
 }
 
 // ====== 片段 CRUD ======
@@ -370,10 +435,19 @@ export async function pushSnippetsToCloud(): Promise<boolean> {
 
 /**
  * 从云端拉取标签数据并覆盖本地
+ * 如果云端标签为空但本地有标签，保留本地标签（防止误清空）
  */
 export async function pullTagsFromCloud(): Promise<string[] | null> {
   const cloudTags = await downloadCustomTags()
   if (cloudTags === null) return null
+  // 防护：如果云端标签为空但本地有标签，保留本地标签
+  if (cloudTags.length === 0) {
+    const localTags = store.get('customTags', [])
+    if (localTags.length > 0) {
+      console.warn('[pullTagsFromCloud] 云端标签为空但本地有标签，保留本地标签:', localTags)
+      return localTags
+    }
+  }
   store.set('customTags', cloudTags)
   return cloudTags
 }
@@ -411,6 +485,7 @@ export function getShortcuts(): ShortcutConfig {
 /** 保存快捷键配置 */
 export function saveShortcuts(shortcuts: ShortcutConfig): void {
   store.set('shortcuts', shortcuts)
+  debounceSyncSetting('shortcuts', shortcuts)
 }
 
 /** 获取自定义标签列表 */
@@ -420,8 +495,15 @@ export function getCustomTags(): string[] {
 
 /** 保存自定义标签列表 */
 export function saveCustomTags(tags: string[]): string[] {
+  // 防护：如果传入空数组但当前已有标签数据，打印警告（不阻止保存，因为用户可能有意清空）
+  if (tags.length === 0) {
+    const current = store.get('customTags', [])
+    if (current.length > 0) {
+      console.warn('[saveCustomTags] 警告：将覆盖现有标签为空数组！当前标签:', current)
+    }
+  }
   store.set('customTags', tags)
-  debounceSyncTags()
+  debounceSyncTags() // 同步到旧路径（兼容）+ settings 目录
   return tags
 }
 
@@ -573,7 +655,7 @@ export function getClipboardHistoryLimit(): number {
 
 /** 设置剪贴板历史最大保存条数 */
 export function setClipboardHistoryLimit(limit: number): number {
-  const safeLimit = Math.max(1, Math.min(100, limit))
+  const safeLimit = Math.max(1, Math.min(500, limit))
   store.set('clipboardHistoryLimit', safeLimit)
 
   // 如果当前历史超过新限制，裁剪
@@ -582,6 +664,7 @@ export function setClipboardHistoryLimit(limit: number): number {
     store.set('clipboardHistory', history.slice(0, safeLimit))
   }
 
+  debounceSyncSetting('clipboardHistoryLimit', safeLimit)
   return safeLimit
 }
 
@@ -595,6 +678,7 @@ export function getQuickLinks(): QuickLink[] {
 /** 保存所有快速链接 */
 export function saveQuickLinks(links: QuickLink[]): QuickLink[] {
   store.set('quickLinks', links)
+  debounceSyncLauncher('quickLinks', links)
   return links
 }
 
@@ -603,6 +687,7 @@ export function addQuickLink(link: QuickLink): QuickLink[] {
   const links = getQuickLinks()
   links.push(link)
   store.set('quickLinks', links)
+  debounceSyncLauncher('quickLinks', links)
   return links
 }
 
@@ -610,6 +695,7 @@ export function addQuickLink(link: QuickLink): QuickLink[] {
 export function deleteQuickLink(id: string): QuickLink[] {
   const links = getQuickLinks().filter((l) => l.id !== id)
   store.set('quickLinks', links)
+  debounceSyncLauncher('quickLinks', links)
   return links
 }
 
@@ -623,6 +709,7 @@ export function getAiModels(): AiModelConfig[] {
 /** 保存 AI 模型配置列表 */
 export function saveAiModels(models: AiModelConfig[]): AiModelConfig[] {
   store.set('aiModels', models)
+  debounceSyncSetting('aiModels', models)
   return models
 }
 
@@ -640,5 +727,130 @@ export function updateQuickLink(id: string, data: Partial<Omit<QuickLink, 'id'>>
     Object.assign(target, data)
   }
   store.set('quickLinks', links)
+  debounceSyncLauncher('quickLinks', links)
   return links
+}
+
+// ====== 导航分类管理 ======
+
+/** 获取导航分类列表 */
+export function getLauncherCategories(): string[] {
+  return store.get('launcherCategories', ['常用', '工作', '文档', '工具', '社交', '其他'])
+}
+
+/** 保存导航分类列表 */
+export function saveLauncherCategories(categories: string[]): string[] {
+  store.set('launcherCategories', categories)
+  debounceSyncSetting('launcherCategories', categories)
+  return categories
+}
+
+// ====== AI 标题配置管理 ======
+
+/** 获取是否启用 AI 生成标题 */
+export function getAiTitleEnabled(): boolean {
+  return store.get('aiTitleEnabled', false)
+}
+
+/** 设置是否启用 AI 生成标题 */
+export function setAiTitleEnabled(enabled: boolean): boolean {
+  store.set('aiTitleEnabled', enabled)
+  debounceSyncSetting('aiTitleEnabled', enabled)
+  return enabled
+}
+
+// ====== 设置批量推拉 ======
+
+/**
+ * 获取所有需要同步的设置数据（用于推送到云端 settings 目录）
+ */
+export function getAllSyncSettings(): Record<string, unknown> {
+  return {
+    shortcuts: getShortcuts(),
+    customTags: getCustomTags(),
+    clipboardHistoryLimit: getClipboardHistoryLimit(),
+    aiModels: getAiModels(),
+    aiTitleEnabled: getAiTitleEnabled(),
+    launcherCategories: getLauncherCategories(),
+  }
+}
+
+/**
+ * 获取所有需要同步的导航配置数据（用于推送到云端 launcher 目录）
+ */
+export function getAllSyncLauncherConfigs(): Record<string, unknown> {
+  return {
+    quickLinks: getQuickLinks(),
+  }
+}
+
+/**
+ * 将所有设置和导航配置推送到云端
+ */
+export async function pushSettingsToCloud(): Promise<boolean> {
+  const settings = getAllSyncSettings()
+  const launcherConfigs = getAllSyncLauncherConfigs()
+  const [settingsOk, launcherOk] = await Promise.all([
+    uploadAllSettings(settings),
+    uploadAllLauncherConfigs(launcherConfigs),
+  ])
+  return settingsOk && launcherOk
+}
+
+/**
+ * 从云端拉取所有设置和导航配置并覆盖本地
+ * 同时拉取 settings 目录和 launcher 目录
+ */
+export async function pullSettingsFromCloud(): Promise<Record<string, unknown> | null> {
+  const settingNames = [...SYNC_SETTING_NAMES]
+  const launcherNames = [...SYNC_LAUNCHER_NAMES]
+
+  // 并行拉取 settings 和 launcher 目录
+  const [cloudSettings, cloudLauncherConfigs] = await Promise.all([
+    downloadAllSettings(settingNames),
+    downloadAllLauncherConfigs(launcherNames),
+  ])
+
+  const totalCount = Object.keys(cloudSettings).length + Object.keys(cloudLauncherConfigs).length
+  if (totalCount === 0) {
+    console.log('[pullSettingsFromCloud] 云端暂无设置和导航数据')
+    return null
+  }
+
+  // 逐项覆盖本地设置数据
+  if (cloudSettings.shortcuts) {
+    store.set('shortcuts', cloudSettings.shortcuts as ShortcutConfig)
+  }
+  if (cloudSettings.customTags) {
+    const tags = cloudSettings.customTags as string[]
+    // 防护：如果云端标签为空但本地有标签，保留本地标签
+    if (tags.length > 0 || getCustomTags().length === 0) {
+      store.set('customTags', tags)
+    } else {
+      console.warn('[pullSettingsFromCloud] 云端标签为空但本地有标签，保留本地标签')
+    }
+  }
+  if (cloudSettings.clipboardHistoryLimit !== undefined) {
+    store.set('clipboardHistoryLimit', cloudSettings.clipboardHistoryLimit as number)
+  }
+  if (cloudSettings.aiModels) {
+    store.set('aiModels', cloudSettings.aiModels as AiModelConfig[])
+  }
+  if (cloudSettings.aiTitleEnabled !== undefined) {
+    store.set('aiTitleEnabled', cloudSettings.aiTitleEnabled as boolean)
+  }
+  // settings 目录中的 launcherCategories
+  if (cloudSettings.launcherCategories) {
+    store.set('launcherCategories', cloudSettings.launcherCategories as string[])
+  }
+
+  // 逐项覆盖本地导航配置（launcher 目录）
+  if (cloudLauncherConfigs.quickLinks) {
+    store.set('quickLinks', cloudLauncherConfigs.quickLinks as QuickLink[])
+  }
+
+  // 合并结果返回
+  const merged = { ...cloudSettings, ...cloudLauncherConfigs }
+  console.log(`[pullSettingsFromCloud] 从云端拉取了 ${Object.keys(cloudSettings).length} 项设置 + ${Object.keys(cloudLauncherConfigs).length} 项导航配置`)
+  return merged
 }

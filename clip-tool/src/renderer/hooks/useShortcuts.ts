@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react'
 interface ShortcutHandlers {
   onEnterSave?: () => void          // Enter 直接保存并关闭
   onCopySelected?: () => void       // Command+C 复制选中项
-  onEscape?: () => void             // Escape 隐藏窗口
+  onEscape?: () => boolean | void   // Escape 隐藏窗口，返回 true 表示已被子组件消费
   onArrowUp?: () => void            // ↑ 选上一条
   onArrowDown?: () => void          // ↓ 选下一条
   onQuickCopy?: (index: number) => void  // Command+1~9 快速复制
@@ -39,10 +39,13 @@ export function useShortcuts(handlers: ShortcutHandlers) {
       const target = e.target as HTMLElement
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
 
-      // Escape：隐藏窗口
+      // Escape：先让子组件处理，未被消费则隐藏窗口
       if (e.key === 'Escape') {
         e.preventDefault()
-        h.onEscape?.()
+        const consumed = h.onEscape?.()
+        if (!consumed) {
+          h.onClose?.()
+        }
         return
       }
 
@@ -113,6 +116,9 @@ export function useShortcuts(handlers: ShortcutHandlers) {
       }
 
       // ↑ / ↓：设置/AI Tab 下控制子导航聚焦，搜索 Tab 下切换选中项
+      // 注意：launcher Tab 的 ↑↓ 由 LauncherPanel 内部搜索框的 onKeyDown 处理
+      // 编辑 Tab 的 ↑↓ 由 EditorPanel 内部 textarea 的 onKeyDown 处理
+      // 收藏 Tab 的 ↑↓ 由 FavoritePanel 内部事件处理
       if (e.key === 'ArrowDown') {
         if (h.activeTab === 'settings' && !isInputFocused) {
           e.preventDefault()
@@ -133,6 +139,7 @@ export function useShortcuts(handlers: ShortcutHandlers) {
           h.onArrowDown?.()
           return
         }
+        // launcher、editor、favorite 不在此处拦截
       }
       if (e.key === 'ArrowUp') {
         if (h.activeTab === 'settings' && h.settingsNavFocused && !isInputFocused) {
@@ -150,6 +157,7 @@ export function useShortcuts(handlers: ShortcutHandlers) {
           h.onArrowUp?.()
           return
         }
+        // launcher、editor、favorite 不在此处拦截
       }
 
       // Command+1~9：快速复制

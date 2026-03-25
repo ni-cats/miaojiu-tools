@@ -242,6 +242,34 @@ const api = {
   /** 保存 AI 模型配置列表 */
   saveAiModels: (models: { provider: string; secretId: string; secretKey: string; model: string; enabled: boolean }[]): Promise<{ provider: string; secretId: string; secretKey: string; model: string; enabled: boolean }[]> =>
     ipcRenderer.invoke('aiModels:save', models),
+
+  // ====== 导航分类 API ======
+
+  /** 获取导航分类列表 */
+  getLauncherCategories: (): Promise<string[]> => ipcRenderer.invoke('launcherCategories:get'),
+
+  /** 保存导航分类列表 */
+  saveLauncherCategories: (categories: string[]): Promise<string[]> => ipcRenderer.invoke('launcherCategories:save', categories),
+
+  // ====== AI 标题 API ======
+
+  /** 获取是否启用 AI 生成标题 */
+  getAiTitleEnabled: (): Promise<boolean> => ipcRenderer.invoke('aiTitle:getEnabled'),
+
+  /** 设置是否启用 AI 生成标题 */
+  setAiTitleEnabled: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('aiTitle:setEnabled', enabled),
+
+  /** 使用 AI 生成标题 */
+  generateAiTitle: (content: string, contentType: string): Promise<string | null> =>
+    ipcRenderer.invoke('aiTitle:generate', content, contentType),
+
+  // ====== 设置批量推拉 API ======
+
+  /** 将所有设置推送到云端 */
+  pushSettings: (): Promise<boolean> => ipcRenderer.invoke('settings:push'),
+
+  /** 从云端拉取所有设置 */
+  pullSettings: (): Promise<Record<string, unknown> | null> => ipcRenderer.invoke('settings:pull'),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

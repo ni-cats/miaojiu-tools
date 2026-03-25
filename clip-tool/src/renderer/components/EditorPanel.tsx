@@ -16,8 +16,6 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
   const [title, setTitle] = useState('')
   const [history, setHistory] = useState<ClipboardHistoryItem[]>([])
   const [historyLimit, setHistoryLimit] = useState(20)
-  const [editingLimit, setEditingLimit] = useState(false)
-  const [limitInput, setLimitInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -49,7 +47,6 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
     window.clipToolAPI.getClipboardHistory().then(setHistory)
     window.clipToolAPI.getClipboardHistoryLimit().then((limit) => {
       setHistoryLimit(limit)
-      setLimitInput(String(limit))
     })
   }, [])
 
@@ -140,22 +137,6 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
     setHistory(updated)
     showToast('已清空')
   }, [showToast])
-
-  // 修改保存条数限制
-  const handleSaveLimit = useCallback(async () => {
-    const num = parseInt(limitInput, 10)
-    if (isNaN(num) || num < 1 || num > 100) {
-      showToast('⚠ 请输入 1~100 之间的数字')
-      return
-    }
-    const saved = await window.clipToolAPI.setClipboardHistoryLimit(num)
-    setHistoryLimit(saved)
-    setEditingLimit(false)
-    // 重新加载历史（可能被裁剪了）
-    const updated = await window.clipToolAPI.getClipboardHistory()
-    setHistory(updated)
-    showToast(`✓ 已设置最多保存 ${saved} 条`)
-  }, [limitInput, showToast])
 
   // 格式化时间
   const formatTime = (timestamp: string) => {
@@ -251,35 +232,9 @@ const EditorPanel: React.FC<EditorPanelProps> = ({ onSave }) => {
       <div className="editor-divider">
         <span className="editor-divider-label">📋 剪贴板历史</span>
         <div className="editor-divider-actions">
-          {editingLimit ? (
-            <div className="editor-limit-edit">
-              <input
-                className="text-input editor-limit-input"
-                type="number"
-                min={1}
-                max={100}
-                value={limitInput}
-                onChange={(e) => setLimitInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveLimit()
-                  if (e.key === 'Escape') setEditingLimit(false)
-                }}
-              />
-              <button className="editor-limit-btn" onClick={handleSaveLimit}>✓</button>
-              <button className="editor-limit-btn cancel" onClick={() => setEditingLimit(false)}>✕</button>
-            </div>
-          ) : (
-            <button
-              className="editor-limit-tag"
-              onClick={() => {
-                setLimitInput(String(historyLimit))
-                setEditingLimit(true)
-              }}
-              title="点击修改保存条数"
-            >
-              最多 {historyLimit} 条
-            </button>
-          )}
+          <span className="editor-limit-tag" title="在设置-编辑页面修改">
+            最多 {historyLimit} 条
+          </span>
           {history.length > 0 && (
             <button className="editor-clear-btn" onClick={handleClearHistory}>
               清空

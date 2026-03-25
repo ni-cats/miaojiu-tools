@@ -39,6 +39,12 @@ import {
   updateQuickLink,
   getAiModels,
   saveAiModels,
+  getLauncherCategories,
+  saveLauncherCategories,
+  getAiTitleEnabled,
+  setAiTitleEnabled,
+  pushSettingsToCloud,
+  pullSettingsFromCloud,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
@@ -51,7 +57,7 @@ import {
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
-import { chatWithHunyuan, isHunyuanAvailable, type ChatMessage } from './hunyuan'
+import { chatWithHunyuan, isHunyuanAvailable, generateTitle, type ChatMessage } from './hunyuan'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
@@ -282,5 +288,46 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 保存 AI 模型配置列表
   ipcMain.handle('aiModels:save', (_event, models: AiModelConfig[]) => {
     return saveAiModels(models)
+  })
+
+  // ====== 导航分类管理 ======
+
+  // 获取导航分类列表
+  ipcMain.handle('launcherCategories:get', () => {
+    return getLauncherCategories()
+  })
+
+  // 保存导航分类列表
+  ipcMain.handle('launcherCategories:save', (_event, categories: string[]) => {
+    return saveLauncherCategories(categories)
+  })
+
+  // ====== AI 标题配置 ======
+
+  // 获取是否启用 AI 生成标题
+  ipcMain.handle('aiTitle:getEnabled', () => {
+    return getAiTitleEnabled()
+  })
+
+  // 设置是否启用 AI 生成标题
+  ipcMain.handle('aiTitle:setEnabled', (_event, enabled: boolean) => {
+    return setAiTitleEnabled(enabled)
+  })
+
+  // 使用 AI 生成标题
+  ipcMain.handle('aiTitle:generate', async (_event, content: string, contentType: string) => {
+    return generateTitle(content, contentType)
+  })
+
+  // ====== 设置批量推拉 ======
+
+  // 将所有设置推送到云端
+  ipcMain.handle('settings:push', async () => {
+    return pushSettingsToCloud()
+  })
+
+  // 从云端拉取所有设置
+  ipcMain.handle('settings:pull', async () => {
+    return pullSettingsFromCloud()
   })
 }

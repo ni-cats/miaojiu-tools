@@ -120,6 +120,24 @@ function buildKey(filename: string): string {
 }
 
 /**
+ * 生成设置文件的 COS 对象 Key
+ * 格式：devices/{deviceId}/settings/{filename}
+ */
+function buildSettingsKey(filename: string): string {
+  const deviceId = getDeviceId()
+  return `devices/${deviceId}/settings/${filename}`
+}
+
+/**
+ * 生成导航配置的 COS 对象 Key
+ * 格式：devices/{deviceId}/launcher/{filename}
+ */
+function buildLauncherKey(filename: string): string {
+  const deviceId = getDeviceId()
+  return `devices/${deviceId}/launcher/${filename}`
+}
+
+/**
  * 生成用户个人信息的 COS 对象 Key
  * 格式：user/{deviceId}/{filename}
  */
@@ -488,6 +506,236 @@ export async function downloadProfile(): Promise<unknown | null> {
       }
     )
   })
+}
+
+// ====== 设置文件操作（统一存储到 settings/ 目录） ======
+
+/**
+ * 上传单个设置项到 COS
+ * 存储路径：devices/{deviceId}/settings/{settingName}.json
+ */
+export async function uploadSetting(settingName: string, data: unknown): Promise<boolean> {
+  const cos = getCosClient()
+  if (!cos) return false
+
+  const key = buildSettingsKey(`${settingName}.json`)
+  const body = JSON.stringify(data, null, 2)
+  const { Bucket, Region } = getBucketConfig()
+
+  return new Promise((resolve) => {
+    cos.putObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+        Body: body,
+      },
+      (err, _data) => {
+        if (err) {
+          console.error(`上传设置 [${settingName}] 失败:`, err)
+          resolve(false)
+        } else {
+          console.log(`设置 [${settingName}] 已同步到云端`)
+          resolve(true)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 从 COS 下载单个设置项
+ * 存储路径：devices/{deviceId}/settings/{settingName}.json
+ */
+export async function downloadSetting<T>(settingName: string): Promise<T | null> {
+  const cos = getCosClient()
+  if (!cos) return null
+
+  const key = buildSettingsKey(`${settingName}.json`)
+  const { Bucket, Region } = getBucketConfig()
+
+  return new Promise((resolve) => {
+    cos.getObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+      },
+      (err, data) => {
+        if (err) {
+          if (err.statusCode === 404 || err.code === 'NoSuchKey') {
+            console.log(`云端暂无设置 [${settingName}]`)
+            resolve(null)
+          } else {
+            console.error(`下载设置 [${settingName}] 失败:`, err)
+            resolve(null)
+          }
+        } else {
+          try {
+            const bodyStr = typeof data.Body === 'string' ? data.Body : (data.Body as Buffer).toString('utf-8')
+            const parsed = JSON.parse(bodyStr) as T
+            console.log(`从云端下载了设置 [${settingName}]`)
+            resolve(parsed)
+          } catch (parseError) {
+            console.error(`解析云端设置 [${settingName}] 失败:`, parseError)
+            resolve(null)
+          }
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 批量上传所有设置到 COS
+ * 将所有设置项打包上传到 devices/{deviceId}/settings/ 目录
+ */
+export async function uploadAllSettings(settings: Record<string, unknown>): Promise<boolean> {
+  const entries = Object.entries(settings)
+  console.log(`开始批量上传 ${entries.length} 项设置...`)
+  const results = await Promise.all(
+    entries.map(([name, data]) => uploadSetting(name, data))
+  )
+  const successCount = results.filter(Boolean).length
+  console.log(`批量上传设置完成: ${successCount}/${entries.length} 成功`)
+  return successCount === entries.length
+}
+
+/**
+ * 从 COS 批量下载所有设置
+ * 返回设置名到数据的映射
+ */
+export async function downloadAllSettings(settingNames: string[]): Promise<Record<string, unknown>> {
+  console.log(`开始批量下载 ${settingNames.length} 项设置...`)
+  const results: Record<string, unknown> = {}
+  const downloads = await Promise.all(
+    settingNames.map(async (name) => {
+      const data = await downloadSetting(name)
+      return { name, data }
+    })
+  )
+  for (const { name, data } of downloads) {
+    if (data !== null) {
+      results[name] = data
+    }
+  }
+  console.log(`批量下载设置完成: ${Object.keys(results).length}/${settingNames.length} 成功`)
+  return results
+}
+
+// ====== 导航配置操作（存储到 launcher/ 目录） ======
+
+/**
+ * 上传导航配置到 COS
+ * 存储路径：devices/{deviceId}/launcher/{configName}.json
+ */
+export async function uploadLauncherConfig(configName: string, data: unknown): Promise<boolean> {
+  const cos = getCosClient()
+  if (!cos) return false
+
+  const key = buildLauncherKey(`${configName}.json`)
+  const body = JSON.stringify(data, null, 2)
+  const { Bucket, Region } = getBucketConfig()
+
+  return new Promise((resolve) => {
+    cos.putObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+        Body: body,
+      },
+      (err, _data) => {
+        if (err) {
+          console.error(`上传导航配置 [${configName}] 失败:`, err)
+          resolve(false)
+        } else {
+          console.log(`导航配置 [${configName}] 已同步到云端`)
+          resolve(true)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 从 COS 下载导航配置
+ * 存储路径：devices/{deviceId}/launcher/{configName}.json
+ */
+export async function downloadLauncherConfig<T>(configName: string): Promise<T | null> {
+  const cos = getCosClient()
+  if (!cos) return null
+
+  const key = buildLauncherKey(`${configName}.json`)
+  const { Bucket, Region } = getBucketConfig()
+
+  return new Promise((resolve) => {
+    cos.getObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+      },
+      (err, data) => {
+        if (err) {
+          if (err.statusCode === 404 || err.code === 'NoSuchKey') {
+            console.log(`云端暂无导航配置 [${configName}]`)
+            resolve(null)
+          } else {
+            console.error(`下载导航配置 [${configName}] 失败:`, err)
+            resolve(null)
+          }
+        } else {
+          try {
+            const bodyStr = typeof data.Body === 'string' ? data.Body : (data.Body as Buffer).toString('utf-8')
+            const parsed = JSON.parse(bodyStr) as T
+            console.log(`从云端下载了导航配置 [${configName}]`)
+            resolve(parsed)
+          } catch (parseError) {
+            console.error(`解析云端导航配置 [${configName}] 失败:`, parseError)
+            resolve(null)
+          }
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 批量上传所有导航配置到 COS
+ * 将所有配置项打包上传到 devices/{deviceId}/launcher/ 目录
+ */
+export async function uploadAllLauncherConfigs(configs: Record<string, unknown>): Promise<boolean> {
+  const entries = Object.entries(configs)
+  console.log(`开始批量上传 ${entries.length} 项导航配置...`)
+  const results = await Promise.all(
+    entries.map(([name, data]) => uploadLauncherConfig(name, data))
+  )
+  const successCount = results.filter(Boolean).length
+  console.log(`批量上传导航配置完成: ${successCount}/${entries.length} 成功`)
+  return successCount === entries.length
+}
+
+/**
+ * 从 COS 批量下载所有导航配置
+ * 返回配置名到数据的映射
+ */
+export async function downloadAllLauncherConfigs(configNames: string[]): Promise<Record<string, unknown>> {
+  console.log(`开始批量下载 ${configNames.length} 项导航配置...`)
+  const results: Record<string, unknown> = {}
+  const downloads = await Promise.all(
+    configNames.map(async (name) => {
+      const data = await downloadLauncherConfig(name)
+      return { name, data }
+    })
+  )
+  for (const { name, data } of downloads) {
+    if (data !== null) {
+      results[name] = data
+    }
+  }
+  console.log(`批量下载导航配置完成: ${Object.keys(results).length}/${configNames.length} 成功`)
+  return results
 }
 
 /**

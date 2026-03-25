@@ -249,6 +249,11 @@ const App: React.FC = () => {
       searchPanelRef.current?.selectDown()
     },
     onEscape: () => {
+      // launcher tab: 先让 LauncherPanel 层层退出子状态
+      if (activeTab === 'launcher') {
+        const consumed = launcherPanelRef.current?.handleEscape()
+        if (consumed) return true
+      }
       window.clipToolAPI.hideWindow()
     },
     onQuickCopy: (index: number) => {
