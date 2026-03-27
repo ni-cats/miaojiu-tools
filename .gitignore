@@ -1,0 +1,11 @@
+# IDE
+.idea/CopilotChatHistory.xml
+
+# Node
+node_modules/
+dist/
+release/
+
+# OS
+.DS_Store
+Thumbs.db
