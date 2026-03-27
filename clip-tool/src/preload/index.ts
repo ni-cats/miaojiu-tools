@@ -273,6 +273,14 @@ const api = {
 
   /** 从云端拉取所有设置 */
   pullSettings: (): Promise<Record<string, unknown> | null> => ipcRenderer.invoke('settings:pull'),
+
+  // ====== 主题 API ======
+
+  /** 获取当前主题 */
+  getTheme: (): Promise<string> => ipcRenderer.invoke('theme:get'),
+
+  /** 设置主题 */
+  setTheme: (theme: string): Promise<string> => ipcRenderer.invoke('theme:set', theme),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

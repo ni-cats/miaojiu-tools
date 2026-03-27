@@ -255,6 +255,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
   const [aiTitleLoading, setAiTitleLoading] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lineNumberRef = useRef<HTMLDivElement>(null)
+  const highlightRef = useRef<HTMLDivElement>(null)
   const formatMenuRef = useRef<HTMLDivElement>(null)
   /** 撤回历史栈（存储格式化前的内容） */
   const undoStackRef = useRef<string[]>([])
@@ -354,10 +355,18 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showFormatMenu])
 
-  // 同步编辑区域和行号的滚动
+  // 同步编辑区域、行号和高亮层的滚动
   const handleTextareaScroll = useCallback(() => {
-    if (textareaRef.current && lineNumberRef.current) {
-      lineNumberRef.current.scrollTop = textareaRef.current.scrollTop
+    if (textareaRef.current) {
+      const scrollTop = textareaRef.current.scrollTop
+      const scrollLeft = textareaRef.current.scrollLeft
+      if (lineNumberRef.current) {
+        lineNumberRef.current.scrollTop = scrollTop
+      }
+      if (highlightRef.current) {
+        highlightRef.current.scrollTop = scrollTop
+        highlightRef.current.scrollLeft = scrollLeft
+      }
     }
   }, [])
 
@@ -622,7 +631,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
             </div>
             <div className="doc-editable-area">
               {/* 高亮层（底层） */}
-              <div className="doc-highlight-layer">
+              <div className="doc-highlight-layer" ref={highlightRef}>
                 {highlightedHtml ? (
                   <div
                     className="doc-highlighted"

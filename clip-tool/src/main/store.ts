@@ -106,6 +106,7 @@ interface StoreSchema {
   launcherCategories: string[]  // 导航分类列表
   aiModels: AiModelConfig[]  // AI 模型配置列表
   aiTitleEnabled: boolean  // 是否启用 AI 生成标题
+  theme: string  // 主题名称
 }
 
 /** AI 模型配置 */
@@ -177,6 +178,7 @@ const store = new Store<StoreSchema>({
     launcherCategories: ['常用', '工作', '文档', '工具', '社交', '其他'] as string[],
     aiModels: [] as AiModelConfig[],
     aiTitleEnabled: false,
+    theme: 'system',
     profile: {
       nickname: '',
       avatar: '',
@@ -800,6 +802,19 @@ export function setAiTitleEnabled(enabled: boolean): boolean {
   store.set('aiTitleEnabled', enabled)
   debounceSyncSetting('aiTitleEnabled', enabled)
   return enabled
+}
+
+// ====== 主题 ======
+
+/** 获取当前主题 */
+export function getTheme(): string {
+  return store.get('theme', 'system')
+}
+
+/** 设置主题 */
+export function setTheme(theme: string): string {
+  store.set('theme', theme)
+  return theme
 }
 
 // ====== 设置批量推拉 ======

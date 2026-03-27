@@ -158,6 +158,9 @@ export interface ClipToolAPI {
   // 设置批量推拉
   pushSettings: () => Promise<boolean>
   pullSettings: () => Promise<Record<string, unknown> | null>
+  // 主题
+  getTheme: () => Promise<string>
+  setTheme: (theme: string) => Promise<string>
 }
 
 declare global {

@@ -44,6 +44,8 @@ import {
   saveLauncherCategories,
   getAiTitleEnabled,
   setAiTitleEnabled,
+  getTheme,
+  setTheme,
   pushSettingsToCloud,
   pullSettingsFromCloud,
   type Snippet,
@@ -323,6 +325,18 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 使用 AI 生成标题
   ipcMain.handle('aiTitle:generate', async (_event, content: string, contentType: string) => {
     return generateTitle(content, contentType)
+  })
+
+  // ====== 主题 ======
+
+  // 获取当前主题
+  ipcMain.handle('theme:get', () => {
+    return getTheme()
+  })
+
+  // 设置主题
+  ipcMain.handle('theme:set', (_event, theme: string) => {
+    return setTheme(theme)
   })
 
   // ====== 设置批量推拉 ======

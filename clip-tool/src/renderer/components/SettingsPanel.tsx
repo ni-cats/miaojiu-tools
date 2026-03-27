@@ -105,7 +105,19 @@ const ShortcutItem: React.FC<ShortcutItemProps> = ({
 }
 
 /** 设置面板子页面类型 */
-type SettingsSection = 'save' | 'editor' | 'search' | 'launcher' | 'ai' | 'favorite' | 'profile' | 'shortcuts' | 'plugins'
+type SettingsSection = 'save' | 'editor' | 'search' | 'launcher' | 'ai' | 'favorite' | 'profile' | 'shortcuts' | 'plugins' | 'appearance'
+
+/** 主题配置 */
+const THEMES: { id: string; name: string; emoji: string; desc: string; dark: boolean }[] = [
+  { id: 'system', name: '跟随系统', emoji: '🖥️', desc: '自动切换亮色/暗色', dark: false },
+  { id: 'light', name: '纯净白', emoji: '☀️', desc: '简洁明亮，护眼舒适', dark: false },
+  { id: 'dark', name: '深邃黑', emoji: '🌙', desc: '深色背景，减少眼疲劳', dark: true },
+  { id: 'ocean', name: '海洋蓝', emoji: '🌊', desc: '深海色调，沉浸专注', dark: true },
+  { id: 'rose', name: '玫瑰粉', emoji: '🌸', desc: '温柔粉调，优雅精致', dark: false },
+  { id: 'forest', name: '森林绿', emoji: '🌿', desc: '自然绿意，清新宁静', dark: true },
+  { id: 'sunset', name: '日落橙', emoji: '🌅', desc: '暖橙色调，活力充沛', dark: false },
+  { id: 'purple', name: '紫罗兰', emoji: '💜', desc: '神秘紫调，创意无限', dark: true },
+]
 
 /** 设置导航按钮配置 */
 const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
@@ -118,6 +130,7 @@ const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
   { key: 'profile', icon: '💾', label: '存储' },
   { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
   { key: 'plugins', icon: '🧩', label: '插件' },
+  { key: 'appearance', icon: '🎨', label: '主题' },
 ]
 
 /** 预留插件列表 */
@@ -247,6 +260,9 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [editorLimitInput, setEditorLimitInput] = useState('')
   const [editorLimitStatus, setEditorLimitStatus] = useState<string | null>(null)
 
+  // 主题状态
+  const [currentTheme, setCurrentTheme] = useState<string>('system')
+
   // COS 云端存储状态
   const [cosConfig, setCosConfig] = useState<CosConfig>({
     secretId: '',
@@ -300,6 +316,8 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     window.clipToolAPI.getLauncherCategories().then(setLauncherCategories)
     // 加载 AI 标题配置
     window.clipToolAPI.getAiTitleEnabled().then(setAiTitleEnabled)
+    // 加载主题
+    window.clipToolAPI.getTheme().then(setCurrentTheme)
   }, [])
 
   // 录制快捷键
@@ -1359,8 +1377,39 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   }
 
   /** 根据当前激活的子页面渲染内容 */
+  /** 外观主题子页面 */
+  const renderAppearancePage = () => (
+    <div className="settings-section">
+      <div className="settings-section-title">🎨 主题选择</div>
+      <div className="settings-section-hint">
+        选择你喜欢的界面主题风格，切换后立即生效
+      </div>
+      <div className="settings-theme-grid">
+        {THEMES.map((theme) => (
+          <div
+            key={theme.id}
+            className={`settings-theme-card ${currentTheme === theme.id ? 'active' : ''} theme-preview-${theme.id}`}
+            onClick={async () => {
+              setCurrentTheme(theme.id)
+              document.documentElement.setAttribute('data-theme', theme.id)
+              await window.clipToolAPI.setTheme(theme.id)
+            }}
+          >
+            <div className="settings-theme-emoji">{theme.emoji}</div>
+            <div className="settings-theme-name">{theme.name}</div>
+            <div className="settings-theme-desc">{theme.desc}</div>
+            {currentTheme === theme.id && (
+              <div className="settings-theme-check">✓</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   const renderContent = () => {
     switch (activeSection) {
+      case 'appearance': return renderAppearancePage()
       case 'save': return renderSavePage()
       case 'editor': return renderEditorPage()
       case 'search': return renderPlaceholderPage('🔍', '搜索', '搜索功能目前无额外配置项')

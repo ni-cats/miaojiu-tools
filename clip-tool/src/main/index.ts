@@ -103,6 +103,14 @@ app.whenReady().then(() => {
   registerShortcuts(getMainWindow)
   registerIpcHandlers(getMainWindow)
 
+  // 首次启动自动显示窗口，让用户知道应用已运行
+  if (mainWindow) {
+    mainWindow.once('ready-to-show', () => {
+      mainWindow?.show()
+      mainWindow?.focus()
+    })
+  }
+
   // 启动时自动将本地设置和导航数据同步到云端
   const cosConfig = getCosConfig()
   if (cosConfig.enabled) {

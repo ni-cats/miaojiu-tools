@@ -11,7 +11,8 @@
     "build:renderer": "vite build",
     "build": "npm run build:main && npm run build:preload && npm run build:renderer",
     "start": "npm run build && npx electron .",
-    "pack": "npm run build && electron-builder --mac",
+    "pack": "bash scripts/build-dmg.sh",
+    "pack:app": "chmod +x resources/安装.command && npm run build && electron-builder --mac",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -47,6 +48,20 @@
         "dmg"
       ],
       "hardenedRuntime": true
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "directories": {
       "output": "release"

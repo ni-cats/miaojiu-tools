@@ -137,6 +137,10 @@ const App: React.FC = () => {
     loadShortcutHints()
     // 初始化标签颜色映射
     window.clipToolAPI.getCustomTags().then(registerTags)
+    // 初始化主题
+    window.clipToolAPI.getTheme().then((theme) => {
+      document.documentElement.setAttribute('data-theme', theme)
+    })
   }, [loadSnippets, loadShortcutHints])
 
   // 监听主进程发来的模式切换（全局快捷键触发）
