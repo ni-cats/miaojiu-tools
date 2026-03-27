@@ -18,6 +18,7 @@ import {
   saveCosConfig,
   pullSnippetsFromCloud,
   pushSnippetsToCloud,
+  pullFavoritesFromCloud,
   pullTagsFromCloud,
   pushTagsToCloud,
   getStorageMode,
@@ -92,8 +93,8 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
     return incrementCopyCount(id)
   })
 
-  // 更新片段
-  ipcMain.handle('snippets:update', (_event, id: string, data: Partial<Pick<Snippet, 'title' | 'tags'>>) => {
+  // 更新片段（标题、标签、内容）
+  ipcMain.handle('snippets:update', (_event, id: string, data: Partial<Pick<Snippet, 'title' | 'tags' | 'content'>>) => {
     return updateSnippet(id, data)
   })
 
@@ -155,6 +156,11 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 将本地片段推送到云端
   ipcMain.handle('cos:pushSnippets', async () => {
     return pushSnippetsToCloud()
+  })
+
+  // 从云端拉取收藏数据（favorites 目录）
+  ipcMain.handle('cos:pullFavorites', async () => {
+    return pullFavoritesFromCloud()
   })
 
   // 从云端拉取标签数据（覆盖本地）

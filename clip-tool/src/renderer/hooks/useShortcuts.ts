@@ -15,6 +15,8 @@ interface ShortcutHandlers {
   onSwitchTab?: (direction: 'left' | 'right') => void  // ←→ 切换 Tab
   onClose?: () => void              // 双击空格关闭窗口
   activeTab?: string                // 当前激活的 Tab
+  onEditorUp?: () => void           // 编辑 Tab ↑ 选上一条
+  onEditorDown?: () => void         // 编辑 Tab ↓ 选下一条
   onSettingsNavFocus?: () => void   // ↓ 进入设置子导航
   onSettingsNavBlur?: () => void    // ↑ 退出设置子导航
   onSettingsNavSwitch?: (direction: 'left' | 'right') => void  // ←→ 切换设置子标签页
@@ -115,11 +117,15 @@ export function useShortcuts(handlers: ShortcutHandlers) {
         }
       }
 
-      // ↑ / ↓：设置/AI Tab 下控制子导航聚焦，搜索 Tab 下切换选中项
+      // ↑ / ↓：设置/AI Tab 下控制子导航聚焦，搜索 Tab 下切换选中项，编辑 Tab 下切换剪贴板历史
       // 注意：launcher Tab 的 ↑↓ 由 LauncherPanel 内部搜索框的 onKeyDown 处理
-      // 编辑 Tab 的 ↑↓ 由 EditorPanel 内部 textarea 的 onKeyDown 处理
       // 收藏 Tab 的 ↑↓ 由 FavoritePanel 内部事件处理
       if (e.key === 'ArrowDown') {
+        if (h.activeTab === 'editor') {
+          e.preventDefault()
+          h.onEditorDown?.()
+          return
+        }
         if (h.activeTab === 'settings' && !isInputFocused) {
           e.preventDefault()
           h.onSettingsNavFocus?.()
@@ -142,6 +148,11 @@ export function useShortcuts(handlers: ShortcutHandlers) {
         // launcher、editor、favorite 不在此处拦截
       }
       if (e.key === 'ArrowUp') {
+        if (h.activeTab === 'editor') {
+          e.preventDefault()
+          h.onEditorUp?.()
+          return
+        }
         if (h.activeTab === 'settings' && h.settingsNavFocused && !isInputFocused) {
           e.preventDefault()
           h.onSettingsNavBlur?.()

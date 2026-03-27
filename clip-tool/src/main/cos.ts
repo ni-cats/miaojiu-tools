@@ -138,6 +138,15 @@ function buildLauncherKey(filename: string): string {
 }
 
 /**
+ * 生成收藏文件的 COS 对象 Key
+ * 格式：devices/{deviceId}/favorites/{filename}
+ */
+function buildFavoriteKey(filename: string): string {
+  const deviceId = getDeviceId()
+  return `devices/${deviceId}/favorites/${filename}`
+}
+
+/**
  * 生成用户个人信息的 COS 对象 Key
  * 格式：user/{deviceId}/{filename}
  */
@@ -153,6 +162,15 @@ function buildUserKey(filename: string): string {
 function getSnippetsPrefix(): string {
   const deviceId = getDeviceId()
   return `devices/${deviceId}/snippets/`
+}
+
+/**
+ * 获取收藏目录前缀
+ * 格式：devices/{deviceId}/favorites/
+ */
+function getFavoritesPrefix(): string {
+  const deviceId = getDeviceId()
+  return `devices/${deviceId}/favorites/`
 }
 
 // ====== 单条片段操作 ======
@@ -348,6 +366,194 @@ export async function downloadSnippets(): Promise<unknown[] | null> {
 
   console.log(`从云端下载了 ${snippets.length} 条片段`)
   return snippets
+}
+
+// ====== 收藏操作（单独存储到 favorites/ 目录） ======
+
+/**
+ * 上传单条收藏到 COS
+ * 每条收藏独立存储为 devices/{deviceId}/favorites/{title}.json
+ * 使用片段标题作为文件名（key）
+ */
+export async function uploadFavorite(snippet: unknown): Promise<boolean> {
+  const cos = getCosClient()
+  if (!cos) {
+    console.error('uploadFavorite: COS 客户端为空，跳过上传')
+    return false
+  }
+
+  const snippetObj = snippet as { id: string; title?: string }
+  // 使用标题作为文件名，对特殊字符进行安全处理
+  const safeName = (snippetObj.title || snippetObj.id)
+    .replace(/[/\\:*?"<>|]/g, '_')  // 替换文件名不安全字符
+    .replace(/\s+/g, '_')            // 空格替换为下划线
+    .substring(0, 100)               // 限制长度
+  const key = buildFavoriteKey(`${safeName}.json`)
+  const body = JSON.stringify(snippet, null, 2)
+  const { Bucket, Region } = getBucketConfig()
+  console.log('uploadFavorite - Key:', key, 'title:', snippetObj.title || '(无标题)')
+
+  return new Promise((resolve) => {
+    cos.putObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+        Body: body,
+      },
+      (err, _data) => {
+        if (err) {
+          console.error('上传收藏失败:', err)
+          resolve(false)
+        } else {
+          console.log('收藏已同步到云端:', safeName)
+          resolve(true)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 从 COS 删除单条收藏文件
+ * 根据片段标题定位文件
+ */
+export async function deleteFavoriteFromCloud(snippet: unknown): Promise<boolean> {
+  const cos = getCosClient()
+  if (!cos) {
+    console.error('deleteFavoriteFromCloud: COS 客户端为空，跳过删除')
+    return false
+  }
+
+  const snippetObj = snippet as { id: string; title?: string }
+  const safeName = (snippetObj.title || snippetObj.id)
+    .replace(/[/\\:*?"<>|]/g, '_')
+    .replace(/\s+/g, '_')
+    .substring(0, 100)
+  const key = buildFavoriteKey(`${safeName}.json`)
+  const { Bucket, Region } = getBucketConfig()
+  console.log('deleteFavoriteFromCloud - Key:', key)
+
+  return new Promise((resolve) => {
+    cos.deleteObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+      },
+      (err, _data) => {
+        if (err) {
+          console.error('删除云端收藏失败:', err)
+          resolve(false)
+        } else {
+          console.log('云端收藏已删除:', safeName)
+          resolve(true)
+        }
+      }
+    )
+  })
+}
+
+/**
+ * 从 COS 下载所有收藏数据
+ * 先列出 favorites/ 前缀下的所有文件，再逐个下载并解析
+ */
+export async function downloadFavorites(): Promise<unknown[] | null> {
+  const cos = getCosClient()
+  if (!cos) {
+    console.error('downloadFavorites: COS 客户端为空，跳过下载')
+    return null
+  }
+
+  const prefix = getFavoritesPrefix()
+  const { Bucket, Region } = getBucketConfig()
+  console.log('downloadFavorites - 列出前缀:', prefix)
+
+  // 第一步：列出所有收藏文件
+  const keys = await new Promise<string[]>((resolve) => {
+    const allKeys: string[] = []
+
+    function listNext(marker?: string) {
+      cos!.getBucket(
+        {
+          Bucket,
+          Region,
+          Prefix: prefix,
+          MaxKeys: 1000,
+          Marker: marker || '',
+        },
+        (err, data) => {
+          if (err) {
+            console.error('列出云端收藏文件失败:', err)
+            resolve([])
+            return
+          }
+
+          const fileKeys = (data.Contents || [])
+            .map((item) => item.Key)
+            .filter((key) => key.endsWith('.json'))
+          allKeys.push(...fileKeys)
+
+          // 如果被截断，继续获取下一页
+          if (data.IsTruncated === 'true' && data.NextMarker) {
+            listNext(data.NextMarker)
+          } else {
+            resolve(allKeys)
+          }
+        }
+      )
+    }
+
+    listNext()
+  })
+
+  if (keys.length === 0) {
+    console.log('云端暂无收藏数据')
+    return []
+  }
+
+  console.log(`找到 ${keys.length} 个收藏文件，开始下载...`)
+
+  // 第二步：逐个下载并解析
+  const favorites: unknown[] = []
+  const downloadResults = await Promise.all(
+    keys.map(
+      (key) =>
+        new Promise<unknown | null>((resolve) => {
+          cos!.getObject(
+            {
+              Bucket,
+              Region,
+              Key: key,
+            },
+            (err, data) => {
+              if (err) {
+                console.error(`下载收藏失败 [${key}]:`, err)
+                resolve(null)
+              } else {
+                try {
+                  const bodyStr = typeof data.Body === 'string' ? data.Body : (data.Body as Buffer).toString('utf-8')
+                  const favorite = JSON.parse(bodyStr)
+                  resolve(favorite)
+                } catch (parseError) {
+                  console.error(`解析收藏数据失败 [${key}]:`, parseError)
+                  resolve(null)
+                }
+              }
+            }
+          )
+        })
+    )
+  )
+
+  for (const result of downloadResults) {
+    if (result !== null) {
+      favorites.push(result)
+    }
+  }
+
+  console.log(`从云端下载了 ${favorites.length} 条收藏`)
+  return favorites
 }
 
 // ====== 标签操作（保持单文件模式） ======

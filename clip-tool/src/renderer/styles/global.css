@@ -566,6 +566,8 @@ html, body, #root {
   white-space: pre-wrap;
   word-break: break-all;
   border: 1px solid var(--border-color);
+  user-select: text;
+  cursor: text;
 }
 
 .clipboard-preview::-webkit-scrollbar {
@@ -2493,6 +2495,8 @@ code.profile-info-value {
   word-break: break-word;
   font-size: 12px;
   line-height: 1.6;
+  user-select: text;
+  cursor: text;
 }
 
 /* 打字光标 */
@@ -3607,6 +3611,8 @@ code.profile-info-value {
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-primary);
+  user-select: text;
+  cursor: text;
 }
 
 /* ===== 导航栏分类标签筛选 ===== */
@@ -3798,6 +3804,8 @@ code.profile-info-value {
   word-break: break-all;
   max-height: 100px;
   overflow-y: auto;
+  user-select: text;
+  cursor: text;
 }
 
 .launcher-base64-result-text::-webkit-scrollbar {
@@ -3813,4 +3821,435 @@ code.profile-info-value {
   font-size: 11px;
   color: #ff3b30;
   padding: 4px 0;
+}
+
+/* ===== 片段标题内联编辑 ===== */
+.snippet-title-input {
+  flex: 1;
+  margin-right: 8px;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+  -webkit-app-region: no-drag;
+}
+
+.snippet-title-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
+.snippet-title[title="双击编辑标题"] {
+  cursor: text;
+}
+
+.snippet-title[title="双击编辑标题"]:hover {
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-tertiary);
+}
+
+/* ===== 文档面板 ===== */
+.doc-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+  position: relative;
+}
+
+.doc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.doc-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.doc-title-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.doc-title-input:focus {
+  border-color: var(--accent-color);
+}
+
+.doc-title-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* AI 生成标题按钮 */
+.doc-ai-title-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-color);
+  background: transparent;
+  color: var(--accent-color);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+  white-space: nowrap;
+}
+
+.doc-ai-title-btn:hover:not(:disabled) {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.doc-ai-title-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.doc-ai-title-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.doc-lang-select {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: border-color 0.2s ease;
+}
+
+.doc-lang-select:focus {
+  border-color: var(--accent-color);
+}
+
+/* 格式化按钮和菜单 */
+.doc-format-wrapper {
+  position: relative;
+}
+
+.doc-format-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  overflow: hidden;
+  animation: fadeInUp 0.15s ease;
+}
+
+.doc-format-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.doc-format-item:hover {
+  background: var(--bg-hover);
+}
+
+.doc-format-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.doc-format-lang {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+}
+
+/* 内容区域 */
+.doc-content-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 编辑器 wrapper（行号 + 编辑区） */
+.doc-editor-wrapper {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 行号 */
+.doc-line-numbers {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 12px 8px 12px 4px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.doc-line-numbers pre {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  color: var(--text-tertiary);
+  text-align: right;
+  white-space: pre;
+}
+
+/* 可编辑区域（高亮层 + textarea 覆盖层） */
+.doc-editable-area {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: auto;
+}
+
+/* 高亮层（底层，展示语法高亮） */
+.doc-highlight-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* textarea 覆盖层（顶层，透明，接收输入） */
+.doc-textarea-overlay {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  color: transparent !important;
+  caret-color: var(--text-primary);
+  /* 选中文本时显示半透明高亮 */
+  &::selection {
+    background: rgba(100, 150, 255, 0.3);
+    color: transparent;
+  }
+}
+
+.doc-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  border: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.doc-textarea::placeholder {
+  color: var(--text-tertiary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+}
+
+.doc-highlighted {
+  height: 100%;
+}
+
+.doc-highlighted pre {
+  margin: 0;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  overflow: auto;
+  height: 100%;
+  border-radius: 0;
+}
+
+.doc-highlighted pre code {
+  font-family: inherit;
+}
+
+.doc-plain-preview {
+  margin: 0;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: auto;
+  height: 100%;
+}
+
+/* 空状态 */
+.doc-empty-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  color: var(--text-tertiary);
+  gap: 8px;
+  padding: 40px;
+}
+
+.doc-empty-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.doc-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.doc-empty-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.doc-empty-desc kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+/* 底部状态栏 */
+.doc-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background: var(--bg-primary);
+}
+
+.doc-statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.doc-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-status-item {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.doc-status-lang {
+  font-size: 11px;
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+.doc-action-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.doc-action-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--text-tertiary);
+}
+
+.doc-action-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.doc-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.doc-action-btn.primary {
+  background: var(--accent-color);
+  color: #fff;
+  border-color: var(--accent-color);
+}
+
+.doc-action-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* Toast */
+.doc-toast {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 200;
+  animation: fadeInUp 0.2s ease;
+  pointer-events: none;
 }

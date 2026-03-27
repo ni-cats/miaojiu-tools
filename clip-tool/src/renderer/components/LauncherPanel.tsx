@@ -482,7 +482,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       }
       return
     }
-    // 如果已经展示 AI 结果，按 Esc 关闭
+    // 如果已经展示 AI 结果
     if (showAiResult) {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -491,6 +491,10 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         setAiResult('')
         setAiStreamContent('')
         setAiSearching(false)
+      } else if (e.key === 'Enter' && searchQuery.trim() && !aiSearching) {
+        // 允许多次回车重新搜索
+        e.preventDefault()
+        handleAiSearch(searchQuery.trim())
       }
       return
     }
@@ -920,12 +924,12 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                       >
                         {link.category}
                       </span>
+                      {link.params && link.params.length > 0 && (
+                        <span className="launcher-item-param-badge">参数×{link.params.length}</span>
+                      )}
                     </span>
                       <span className="launcher-item-url">
                         {link.url}
-                        {link.params && link.params.length > 0 && (
-                          <span className="launcher-item-param-badge">参数×{link.params.length}</span>
-                        )}
                       </span>
                     </div>
                     <div className="launcher-item-actions">

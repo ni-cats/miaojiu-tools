@@ -19,6 +19,9 @@ import {
   uploadLauncherConfig,
   uploadAllLauncherConfigs,
   downloadAllLauncherConfigs,
+  uploadFavorite,
+  deleteFavoriteFromCloud,
+  downloadFavorites,
 } from './cos'
 import { getCosYamlConfig } from './config'
 
@@ -196,20 +199,20 @@ export function getCosConfig(): CosConfig {
     enabled: false,
   })
 
-  // 密钥优先级：YAML 配置文件 > store 持久化数据
-  // YAML 是密钥的 source of truth（方便更新密钥后立即生效）
-  // store 中的密钥仅在 YAML 未配置时作为备选（如用户通过设置界面手动配置）
-  const finalSecretId = yamlCfg.secretId || storedConfig.secretId
-  const finalSecretKey = yamlCfg.secretKey || storedConfig.secretKey
+  // 密钥优先级：store 持久化数据（设置页配置）> YAML 配置文件
+  // 用户在设置页手动配置的密钥优先级最高
+  // YAML 仅在 store 未配置时作为备选（首次启动或用户未手动配置时）
+  const finalSecretId = storedConfig.secretId || yamlCfg.secretId
+  const finalSecretKey = storedConfig.secretKey || yamlCfg.secretKey
 
   // enabled 逻辑：
-  // 1. 如果 YAML 有密钥，以 YAML 的 enabled 为准
-  // 2. 如果 YAML 无密钥但 store 有，使用 store 的 enabled
-  const finalEnabled = yamlCfg.secretId ? yamlCfg.enabled : storedConfig.enabled
+  // 1. 如果 store 有密钥，以 store 的 enabled 为准（用户手动配置优先）
+  // 2. 如果 store 无密钥但 YAML 有，使用 YAML 的 enabled
+  const finalEnabled = storedConfig.secretId ? storedConfig.enabled : yamlCfg.enabled
 
   console.log('getCosConfig - finalSecretId:', finalSecretId ? finalSecretId.substring(0, 8) + '...' : '(空)',
     'enabled:', finalEnabled, '(store:', storedConfig.enabled, 'yaml:', yamlCfg.enabled, ')',
-    'source:', yamlCfg.secretId ? 'YAML' : 'store')
+    'source:', storedConfig.secretId ? 'store' : 'YAML')
 
   return {
     secretId: finalSecretId,
@@ -275,6 +278,29 @@ function debounceSyncTags(): void {
     // 同时同步到 settings 目录
     await uploadSetting('customTags', tags)
   }, 1000)
+}
+
+/** 防抖同步收藏到云端 favorites 目录（按片段 id 分别防抖） */
+const syncFavoriteTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
+
+function debounceSyncFavorite(snippet: Snippet): void {
+  const config = getCosConfig()
+  if (!config.enabled) return
+
+  const existing = syncFavoriteTimers.get(snippet.id)
+  if (existing) clearTimeout(existing)
+
+  const timer = setTimeout(async () => {
+    syncFavoriteTimers.delete(snippet.id)
+    if (snippet.isFavorite) {
+      // 收藏：上传到 favorites 目录
+      await uploadFavorite(snippet)
+    } else {
+      // 取消收藏：从 favorites 目录删除
+      await deleteFavoriteFromCloud(snippet)
+    }
+  }, 1000) // 1秒防抖
+  syncFavoriteTimers.set(snippet.id, timer)
 }
 
 // ====== 设置同步辅助函数 ======
@@ -379,6 +405,8 @@ export function toggleFavorite(id: string): Snippet[] {
     target.isFavorite = !target.isFavorite
     target.updatedAt = new Date().toISOString()
     debounceSyncSnippet(target) // 仅上传变更的片段
+    // 收藏状态变更时，同步到 COS favorites 目录
+    debounceSyncFavorite(target)
   }
   store.set('snippets', snippets)
   return snippets
@@ -397,15 +425,20 @@ export function incrementCopyCount(id: string): Snippet[] {
   return snippets
 }
 
-/** 更新片段（标题、标签） */
-export function updateSnippet(id: string, data: Partial<Pick<Snippet, 'title' | 'tags'>>): Snippet[] {
+/** 更新片段（标题、标签、内容） */
+export function updateSnippet(id: string, data: Partial<Pick<Snippet, 'title' | 'tags' | 'content'>>): Snippet[] {
   const snippets = getAllSnippets()
   const target = snippets.find((s) => s.id === id)
   if (target) {
     if (data.title !== undefined) target.title = data.title
     if (data.tags !== undefined) target.tags = data.tags
+    if (data.content !== undefined) target.content = data.content
     target.updatedAt = new Date().toISOString()
     debounceSyncSnippet(target) // 仅上传变更的片段
+    // 如果是收藏片段，同步到 favorites 目录
+    if (target.isFavorite) {
+      debounceSyncFavorite(target)
+    }
   }
   store.set('snippets', snippets)
   return snippets
@@ -431,6 +464,16 @@ export async function pullSnippetsFromCloud(): Promise<Snippet[] | null> {
 export async function pushSnippetsToCloud(): Promise<boolean> {
   const snippets = getAllSnippets()
   return uploadAllSnippets(snippets)
+}
+
+/**
+ * 从云端拉取收藏数据（favorites 目录）
+ * 返回收藏列表，不覆盖本地 snippets，由调用方决定合并策略
+ */
+export async function pullFavoritesFromCloud(): Promise<Snippet[] | null> {
+  const cloudFavorites = await downloadFavorites()
+  if (cloudFavorites === null) return null
+  return cloudFavorites as Snippet[]
 }
 
 /**

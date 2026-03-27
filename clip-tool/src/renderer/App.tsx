@@ -7,9 +7,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import SavePanel, { type SavePanelRef } from './components/SavePanel'
 import SearchPanel, { type SearchPanelRef } from './components/SearchPanel'
-import EditorPanel from './components/EditorPanel'
+import EditorPanel, { type EditorPanelRef } from './components/EditorPanel'
 import AiPanel, { type AiPanelRef } from './components/AiPanel'
 import FavoritePanel from './components/FavoritePanel'
+import DocPanel from './components/DocPanel'
 import SettingsPanel, { type SettingsPanelRef } from './components/SettingsPanel'
 import ProfilePanel from './components/ProfilePanel'
 import LauncherPanel, { type LauncherPanelRef } from './components/LauncherPanel'
@@ -17,7 +18,7 @@ import { useShortcuts } from './hooks/useShortcuts'
 import { registerTags } from './utils/tagColor'
 import type { SnippetData } from './types'
 
-type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'profile' | 'settings' | 'launcher'
+type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'doc' | 'profile' | 'settings' | 'launcher'
 
 /** 将 Electron accelerator 格式转换为短标签显示 */
 function formatHint(accelerator: string): string {
@@ -53,6 +54,7 @@ const App: React.FC = () => {
   const settingsPanelRef = useRef<SettingsPanelRef>(null)
   const aiPanelRef = useRef<AiPanelRef>(null)
   const launcherPanelRef = useRef<LauncherPanelRef>(null)
+  const editorPanelRef = useRef<EditorPanelRef>(null)
   const [settingsNavFocused, setSettingsNavFocused] = useState(false)
   const [aiCardFocused, setAiCardFocused] = useState(false)
 
@@ -66,17 +68,45 @@ const App: React.FC = () => {
       // 异步拉取云端数据（如果启用了 COS）
       const cosConfig = await window.clipToolAPI.getCosConfig()
       if (cosConfig.enabled) {
-        const cloudData = await window.clipToolAPI.pullSnippets()
+        // 并行拉取 snippets 和 favorites
+        const [cloudData, cloudFavorites] = await Promise.all([
+          window.clipToolAPI.pullSnippets(),
+          window.clipToolAPI.pullFavorites(),
+        ])
+
+        let merged = [...localData]
+
+        // 合并云端 snippets：以云端数据为主，本地独有的片段也保留
         if (cloudData !== null && cloudData.length > 0) {
-          // 合并：以云端数据为主，本地独有的片段也保留
           const cloudIds = new Set(cloudData.map((s) => s.id))
           const localOnly = localData.filter((s) => !cloudIds.has(s.id))
-          const merged = [...cloudData, ...localOnly].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )
-          setSnippets(merged)
+          merged = [...cloudData, ...localOnly]
         }
-        // 如果云端返回空数组，保留本地数据不覆盖
+
+        // 合并云端 favorites：将 favorites 目录中的收藏数据合并进来
+        // favorites 中的数据一定是 isFavorite=true 的，以 id 去重
+        if (cloudFavorites !== null && cloudFavorites.length > 0) {
+          const existingIds = new Set(merged.map((s) => s.id))
+          for (const fav of cloudFavorites) {
+            if (existingIds.has(fav.id)) {
+              // 已存在的片段：确保收藏状态为 true
+              const existing = merged.find((s) => s.id === fav.id)
+              if (existing) {
+                existing.isFavorite = true
+              }
+            } else {
+              // 不存在的片段：从 favorites 目录补充进来
+              fav.isFavorite = true
+              merged.push(fav)
+            }
+          }
+        }
+
+        // 按创建时间排序
+        merged.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        setSnippets(merged)
       }
     } catch (error) {
       console.error('加载片段失败:', error)
@@ -227,6 +257,18 @@ const App: React.FC = () => {
     }
   }, [showToast])
 
+  // 更新标题
+  const handleUpdateTitle = useCallback(async (id: string, title: string) => {
+    try {
+      const updated = await window.clipToolAPI.updateSnippet(id, { title })
+      setSnippets(updated)
+      showToast('✓ 标题已更新')
+    } catch (error) {
+      console.error('更新标题失败:', error)
+      showToast('✕ 更新标题失败')
+    }
+  }, [showToast])
+
   // 注册窗口内快捷键
   useShortcuts({
     activeTab,
@@ -247,6 +289,12 @@ const App: React.FC = () => {
     },
     onArrowDown: () => {
       searchPanelRef.current?.selectDown()
+    },
+    onEditorUp: () => {
+      editorPanelRef.current?.selectUp()
+    },
+    onEditorDown: () => {
+      editorPanelRef.current?.selectDown()
     },
     onEscape: () => {
       // launcher tab: 先让 LauncherPanel 层层退出子状态
@@ -269,7 +317,7 @@ const App: React.FC = () => {
       settingsPanelRef.current?.blurNav()
       setAiCardFocused(false)
       aiPanelRef.current?.blurCards()
-      const tabKeys: TabType[] = ['save', 'editor', 'search', 'launcher', 'ai', 'favorite', 'settings', 'profile']
+      const tabKeys: TabType[] = ['save', 'editor', 'search', 'launcher', 'doc', 'ai', 'favorite', 'settings', 'profile']
       setActiveTab((prev) => {
         const currentIndex = tabKeys.indexOf(prev)
         let nextIndex: number
@@ -334,10 +382,11 @@ const App: React.FC = () => {
   })
 
   const tabs: { key: TabType; label: string; hint: string }[] = [
-    { key: 'save', label: '📋 保存', hint: shortcutHints.save },
-    { key: 'editor', label: '✏️ 编辑', hint: shortcutHints.editor },
+    { key: 'save', label: '📋 速存', hint: shortcutHints.save },
+    { key: 'editor', label: '✏️ 历史', hint: shortcutHints.editor },
     { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
     { key: 'launcher', label: '🚀 导航', hint: shortcutHints.launcher },
+    { key: 'doc', label: '📄 速记', hint: '' },
     { key: 'ai', label: '🤖 AI', hint: shortcutHints.ai },
     { key: 'favorite', label: '⭐ 收藏', hint: shortcutHints.favorite },
     { key: 'settings', label: '⚙ 设置', hint: shortcutHints.settings },
@@ -369,7 +418,7 @@ const App: React.FC = () => {
           <SavePanel ref={savePanelRef} onSave={handleSaveAndClose} triggerRead={triggerRead} />
         )}
         {activeTab === 'editor' && (
-          <EditorPanel onSave={handleSave} />
+          <EditorPanel ref={editorPanelRef} onSave={handleSave} />
         )}
         {activeTab === 'search' && (
           <SearchPanel
@@ -389,8 +438,10 @@ const App: React.FC = () => {
             onDelete={handleDelete}
             onToggleFavorite={handleToggleFavorite}
             onUpdateTags={handleUpdateTags}
+            onUpdateTitle={handleUpdateTitle}
           />
         )}
+        {activeTab === 'doc' && <DocPanel onSave={handleSave} activeTab={activeTab} />}
         {activeTab === 'profile' && <ProfilePanel />}
         {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
         {activeTab === 'launcher' && <LauncherPanel ref={launcherPanelRef} onSwitchToAi={(query) => {

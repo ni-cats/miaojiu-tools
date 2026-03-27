@@ -27,6 +27,14 @@ interface SnippetCardProps {
   onToggleFavorite: (id: string) => void
   onUpdateTags?: (id: string, tags: string[]) => void
   onMouseEnter?: () => void
+  // 内联标题编辑（由 FavoritePanel 传入）
+  editingTitleId?: string | null
+  editTitleValue?: string
+  titleInputRef?: React.RefObject<HTMLInputElement>
+  onStartEditTitle?: (e: React.MouseEvent) => void
+  onEditTitleChange?: (value: string) => void
+  onSaveTitle?: () => void
+  onCancelEditTitle?: () => void
 }
 
 const SnippetCard: React.FC<SnippetCardProps> = ({
@@ -39,6 +47,13 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
   onToggleFavorite,
   onUpdateTags,
   onMouseEnter,
+  editingTitleId,
+  editTitleValue,
+  titleInputRef,
+  onStartEditTitle,
+  onEditTitleChange,
+  onSaveTitle,
+  onCancelEditTitle,
 }) => {
   const [isEditingTags, setIsEditingTags] = useState(false)
   const [editTags, setEditTags] = useState<string[]>([])
@@ -146,7 +161,35 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
         {showIndex && index !== undefined && (
           <span className="snippet-index">⌘{index + 1}</span>
         )}
-        <span className="snippet-title">{snippet.title}</span>
+        {editingTitleId === snippet.id ? (
+          <input
+            ref={titleInputRef as React.RefObject<HTMLInputElement>}
+            className="snippet-title-input"
+            type="text"
+            value={editTitleValue || ''}
+            onChange={(e) => onEditTitleChange?.(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                e.stopPropagation()
+                onSaveTitle?.()
+              } else if (e.key === 'Escape') {
+                e.stopPropagation()
+                onCancelEditTitle?.()
+              }
+            }}
+            onBlur={() => onSaveTitle?.()}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span
+            className="snippet-title"
+            onDoubleClick={(e) => onStartEditTitle?.(e)}
+            title={onStartEditTitle ? '双击编辑标题' : undefined}
+          >
+            {snippet.title}
+          </span>
+        )}
         <span className={`snippet-type ${snippet.type}`}>
           {TYPE_LABELS[snippet.type] || snippet.type}
           {snippet.language && snippet.language !== 'plaintext' ? ` · ${snippet.language}` : ''}

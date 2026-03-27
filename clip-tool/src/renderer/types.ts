@@ -99,7 +99,7 @@ export interface ClipToolAPI {
   deleteSnippet: (id: string) => Promise<SnippetData[]>
   toggleFavorite: (id: string) => Promise<SnippetData[]>
   copyToClipboard: (id: string, content: string, contentType?: string) => Promise<SnippetData[]>
-  updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags'>>) => Promise<SnippetData[]>
+  updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags' | 'content'>>) => Promise<SnippetData[]>
   hideWindow: () => void
   onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void) => (() => void)
   getShortcuts: () => Promise<ShortcutConfig>
@@ -112,6 +112,7 @@ export interface ClipToolAPI {
   testCosConnection: () => Promise<{ success: boolean; message: string }>
   getDeviceId: () => Promise<string>
   pullSnippets: () => Promise<SnippetData[] | null>
+  pullFavorites: () => Promise<SnippetData[] | null>
   pushSnippets: () => Promise<boolean>
   pullTags: () => Promise<string[] | null>
   pushTags: () => Promise<boolean>

@@ -90,8 +90,8 @@ const api = {
   copyToClipboard: (id: string, content: string, contentType?: string): Promise<SnippetData[]> =>
     ipcRenderer.invoke('snippets:copyToClipboard', id, content, contentType),
 
-  /** 更新片段 */
-  updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags'>>): Promise<SnippetData[]> =>
+  /** 更新片段（标题、标签、内容） */
+  updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags' | 'content'>>): Promise<SnippetData[]> =>
     ipcRenderer.invoke('snippets:update', id, data),
 
   /** 隐藏窗口 */
@@ -134,6 +134,9 @@ const api = {
 
   /** 从云端拉取片段数据 */
   pullSnippets: (): Promise<SnippetData[] | null> => ipcRenderer.invoke('cos:pullSnippets'),
+
+  /** 从云端拉取收藏数据（favorites 目录） */
+  pullFavorites: (): Promise<SnippetData[] | null> => ipcRenderer.invoke('cos:pullFavorites'),
 
   /** 将本地片段推送到云端 */
   pushSnippets: (): Promise<boolean> => ipcRenderer.invoke('cos:pushSnippets'),
