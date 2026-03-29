@@ -21,11 +21,13 @@
     "electron-store": "^8.1.0",
     "fuse.js": "^7.0.0",
     "js-yaml": "^4.1.1",
+    "marked": "^15.0.12",
     "nanoid": "^5.0.4",
     "tencentcloud-sdk-nodejs-hunyuan": "^4.1.188"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
+    "@types/marked": "^5.0.2",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",

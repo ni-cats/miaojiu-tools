@@ -3,7 +3,7 @@
  * 支持用户自定义全局快捷键和管理预设标签
  */
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
-import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig } from '../types'
+import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
@@ -105,7 +105,7 @@ const ShortcutItem: React.FC<ShortcutItemProps> = ({
 }
 
 /** 设置面板子页面类型 */
-type SettingsSection = 'save' | 'editor' | 'search' | 'launcher' | 'ai' | 'favorite' | 'profile' | 'shortcuts' | 'plugins' | 'appearance'
+type SettingsSection = 'save' | 'editor' | 'search' | 'launcher' | 'ai' | 'favorite' | 'profile' | 'shortcuts' | 'plugins' | 'appearance' | 'display'
 
 /** 主题配置 */
 const THEMES: { id: string; name: string; emoji: string; desc: string; dark: boolean }[] = [
@@ -131,6 +131,7 @@ const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
   { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
   { key: 'plugins', icon: '🧩', label: '插件' },
   { key: 'appearance', icon: '🎨', label: '主题' },
+  { key: 'display', icon: '👁', label: '页面' },
 ]
 
 /** 预留插件列表 */
@@ -203,7 +204,7 @@ export interface SettingsPanelRef {
   blurNav: () => void
 }
 
-const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void }>(({ onShortcutsChanged, onDataChanged }, ref) => {
+const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void; onPageVisibilityChanged?: () => void }>(({ onShortcutsChanged, onDataChanged, onPageVisibilityChanged }, ref) => {
   // 当前激活的子页面
   const [activeSection, setActiveSection] = useState<SettingsSection>('save')
   // 导航栏是否处于键盘聚焦状态
@@ -281,6 +282,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [aiStatus, setAiStatus] = useState<string | null>(null)
   const [showAiSecretKeys, setShowAiSecretKeys] = useState<Record<number, boolean>>({})
 
+
   // 导航分类管理状态
   const [launcherCategories, setLauncherCategories] = useState<string[]>([])
   const [newCategoryInput, setNewCategoryInput] = useState('')
@@ -288,6 +290,19 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   // 导航分类拖拽排序状态（必须在组件顶层声明）
   const [catDragIndex, setCatDragIndex] = useState<number | null>(null)
   const [catDragOverIndex, setCatDragOverIndex] = useState<number | null>(null)
+
+  // 页面可见性配置状态
+  const [pageVisibility, setPageVisibility] = useState<PageVisibility>({
+    save: true,
+    editor: true,
+    search: true,
+    launcher: true,
+    doc: true,
+    ai: true,
+    favorite: true,
+    settings: true,
+    profile: true,
+  })
 
   // 加载当前快捷键配置
   useEffect(() => {
@@ -316,8 +331,11 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     window.clipToolAPI.getLauncherCategories().then(setLauncherCategories)
     // 加载 AI 标题配置
     window.clipToolAPI.getAiTitleEnabled().then(setAiTitleEnabled)
+
     // 加载主题
     window.clipToolAPI.getTheme().then(setCurrentTheme)
+    // 加载页面可见性配置
+    window.clipToolAPI.getPageVisibility().then(setPageVisibility)
   }, [])
 
   // 录制快捷键
@@ -1252,6 +1270,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     }
 
     return (
+      <>
       <div className="settings-section">
         <div className="settings-section-title">🤖 AI 模型配置</div>
         <div className="settings-section-hint">
@@ -1373,10 +1392,60 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
           </div>
         )}
       </div>
+      </>
     )
   }
 
   /** 根据当前激活的子页面渲染内容 */
+  /** 页面展示配置子页面 */
+  const PAGE_DISPLAY_ITEMS: { key: keyof PageVisibility; icon: string; label: string; desc: string; required?: boolean }[] = [
+    { key: 'save', icon: '📋', label: '速存', desc: '快速保存剪贴板内容' },
+    { key: 'editor', icon: '✏️', label: '历史', desc: '查看和编辑剪贴板历史' },
+    { key: 'search', icon: '🔍', label: '搜索', desc: '搜索已保存的片段' },
+    { key: 'launcher', icon: '🚀', label: '导航', desc: '快速链接导航面板' },
+    { key: 'doc', icon: '📄', label: '速记', desc: '快速记录笔记' },
+    { key: 'ai', icon: '🤖', label: 'AI', desc: 'AI 智能助手' },
+    { key: 'favorite', icon: '⭐', label: '收藏', desc: '收藏的片段管理' },
+    { key: 'settings', icon: '⚙', label: '设置', desc: '应用设置（建议保持开启）', required: true },
+    { key: 'profile', icon: '👤', label: '我的', desc: '个人中心' },
+  ]
+
+  const renderDisplayPage = () => (
+    <div className="settings-section">
+      <div className="settings-section-title">👁 页面展示配置</div>
+      <div className="settings-section-hint">
+        控制顶部 Tab 栏中各页面是否显示，关闭后对应页面将被隐藏
+      </div>
+
+      <div className="settings-display-list">
+        {PAGE_DISPLAY_ITEMS.map((item) => (
+          <div key={item.key} className="settings-config-item">
+            <div className="settings-config-info">
+              <div className="settings-config-label">{item.icon} {item.label}</div>
+              <div className="settings-config-desc">{item.desc}</div>
+            </div>
+            <div className="settings-config-action">
+              <label className="settings-cos-switch" title={pageVisibility[item.key] ? '已显示' : '已隐藏'}>
+                <input
+                  type="checkbox"
+                  checked={pageVisibility[item.key]}
+                  disabled={item.required}
+                  onChange={async (e) => {
+                    const newConfig = { ...pageVisibility, [item.key]: e.target.checked }
+                    setPageVisibility(newConfig)
+                    await window.clipToolAPI.savePageVisibility(newConfig)
+                    onPageVisibilityChanged?.()
+                  }}
+                />
+                <span className="settings-cos-slider"></span>
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   /** 外观主题子页面 */
   const renderAppearancePage = () => (
     <div className="settings-section">
@@ -1419,6 +1488,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       case 'profile': return renderStoragePage()
       case 'shortcuts': return renderShortcutsPage()
       case 'plugins': return renderPluginsPage()
+      case 'display': return renderDisplayPage()
       default: return null
     }
   }

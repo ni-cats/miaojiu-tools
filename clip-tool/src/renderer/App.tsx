@@ -16,7 +16,7 @@ import ProfilePanel from './components/ProfilePanel'
 import LauncherPanel, { type LauncherPanelRef } from './components/LauncherPanel'
 import { useShortcuts } from './hooks/useShortcuts'
 import { registerTags } from './utils/tagColor'
-import type { SnippetData } from './types'
+import type { SnippetData, PageVisibility } from './types'
 
 type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'doc' | 'profile' | 'settings' | 'launcher'
 
@@ -48,6 +48,17 @@ const App: React.FC = () => {
     settings: '',
     profile: '',
     launcher: '',
+  })
+  const [pageVisibility, setPageVisibility] = useState<PageVisibility>({
+    save: true,
+    editor: true,
+    search: true,
+    launcher: true,
+    doc: true,
+    ai: true,
+    favorite: true,
+    settings: true,
+    profile: true,
   })
   const searchPanelRef = useRef<SearchPanelRef>(null)
   const savePanelRef = useRef<SavePanelRef>(null)
@@ -132,9 +143,20 @@ const App: React.FC = () => {
     }
   }, [])
 
+  // 加载页面可见性配置
+  const loadPageVisibility = useCallback(async () => {
+    try {
+      const config = await window.clipToolAPI.getPageVisibility()
+      setPageVisibility(config)
+    } catch (error) {
+      console.error('加载页面可见性配置失败:', error)
+    }
+  }, [])
+
   useEffect(() => {
     loadSnippets()
     loadShortcutHints()
+    loadPageVisibility()
     // 初始化标签颜色映射
     window.clipToolAPI.getCustomTags().then(registerTags)
     // 初始化主题
@@ -323,14 +345,16 @@ const App: React.FC = () => {
       aiPanelRef.current?.blurCards()
       const tabKeys: TabType[] = ['save', 'editor', 'search', 'launcher', 'doc', 'ai', 'favorite', 'settings', 'profile']
       setActiveTab((prev) => {
-        const currentIndex = tabKeys.indexOf(prev)
+        // 过滤出可见的 Tab
+        const visibleTabs = tabKeys.filter((key) => pageVisibility[key as keyof PageVisibility] !== false)
+        const currentIndex = visibleTabs.indexOf(prev)
         let nextIndex: number
         if (direction === 'left') {
-          nextIndex = currentIndex <= 0 ? tabKeys.length - 1 : currentIndex - 1
+          nextIndex = currentIndex <= 0 ? visibleTabs.length - 1 : currentIndex - 1
         } else {
-          nextIndex = currentIndex >= tabKeys.length - 1 ? 0 : currentIndex + 1
+          nextIndex = currentIndex >= visibleTabs.length - 1 ? 0 : currentIndex + 1
         }
-        const nextTab = tabKeys[nextIndex]
+        const nextTab = visibleTabs[nextIndex]
         // 切换到搜索模式时自动聚焦搜索框
         if (nextTab === 'search') {
           setTimeout(() => {
@@ -385,7 +409,7 @@ const App: React.FC = () => {
     aiCardFocused,
   })
 
-  const tabs: { key: TabType; label: string; hint: string }[] = [
+  const allTabs: { key: TabType; label: string; hint: string }[] = [
     { key: 'save', label: '📋 速存', hint: shortcutHints.save },
     { key: 'editor', label: '✏️ 历史', hint: shortcutHints.editor },
     { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
@@ -396,6 +420,9 @@ const App: React.FC = () => {
     { key: 'settings', label: '⚙ 设置', hint: shortcutHints.settings },
     { key: 'profile', label: '👤 我的', hint: shortcutHints.profile },
   ]
+
+  // 根据页面可见性过滤 Tab
+  const tabs = allTabs.filter((tab) => pageVisibility[tab.key as keyof PageVisibility] !== false)
 
   return (
     <div className="app-container">
@@ -447,7 +474,7 @@ const App: React.FC = () => {
         )}
         {activeTab === 'doc' && <DocPanel onSave={handleSave} activeTab={activeTab} />}
         {activeTab === 'profile' && <ProfilePanel />}
-        {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} />}
+        {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} onPageVisibilityChanged={loadPageVisibility} />}
         {activeTab === 'launcher' && <LauncherPanel ref={launcherPanelRef} onSwitchToAi={(query) => {
           setActiveTab('ai')
           // 将搜索词存入剪贴板以便在 AI 中使用

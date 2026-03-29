@@ -2,7 +2,7 @@
  * Electron 主进程入口
  * 负责窗口创建、生命周期管理
  */
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, screen } from 'electron'
 import path from 'path'
 import { registerShortcuts, unregisterAllShortcuts } from './shortcuts'
 import { createTray } from './tray'
@@ -19,9 +19,21 @@ function createMainWindow() {
   // 读取记忆的窗口大小和位置
   const savedBounds = getWindowBounds()
 
+  // 首次打开时根据屏幕大小自动适配窗口尺寸
+  const isFirstOpen = savedBounds.x === undefined && savedBounds.y === undefined
+  let windowWidth = savedBounds.width
+  let windowHeight = savedBounds.height
+  if (isFirstOpen) {
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
+    // 窗口宽度取屏幕宽度的 35%，高度取屏幕高度的 70%，并限制在合理范围内
+    windowWidth = Math.max(480, Math.min(Math.round(screenWidth * 0.35), 800))
+    windowHeight = Math.max(500, Math.min(Math.round(screenHeight * 0.7), 1000))
+  }
+
   mainWindow = new BrowserWindow({
-    width: savedBounds.width,
-    height: savedBounds.height,
+    width: windowWidth,
+    height: windowHeight,
     ...(savedBounds.x !== undefined && savedBounds.y !== undefined
       ? { x: savedBounds.x, y: savedBounds.y }
       : {}),
@@ -80,14 +92,14 @@ function createMainWindow() {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
-  // 窗口失焦时自动隐藏
-  mainWindow.on('blur', () => {
-    // 延迟隐藏，避免点击托盘图标/Dock图标时窗口立即隐藏
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isFocused()) {
-        mainWindow.hide()
-      }
-    }, 200)
+  // 不再在失焦时自动隐藏窗口，仅通过用户主动操作（Escape、双击空格等）关闭
+
+  // 确保窗口每次显示时都保持在最前面（使用 floating 级别）
+  mainWindow.on('show', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(true, 'floating')
+      mainWindow.focus()
+    }
   })
 
   mainWindow.on('closed', () => {

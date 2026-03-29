@@ -1,9 +1,7 @@
 
 # 🐱 ClipTool — macOS 剪贴板代码片段管理工具
 
-<p align="center">
-  <img src="resources/icon/miaojiu-clip-new.png" width="128" height="128" alt="ClipTool Logo">
-</p>
+![ClipTool Logo](./resources/icon/miaojiu-clip-logo.png)
 
 <p align="center">
   一款专为开发者打造的 macOS 剪贴板管理工具，支持代码片段保存、智能分类、模糊搜索、AI 对话、快速导航等功能，并可通过腾讯云 COS 实现多设备数据同步。

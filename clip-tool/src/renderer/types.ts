@@ -83,6 +83,19 @@ export interface QuickLink {
   params?: QuickLinkParam[]  // URL 参数定义
 }
 
+/** 页面可见性配置 */
+export interface PageVisibility {
+  save: boolean
+  editor: boolean
+  search: boolean
+  launcher: boolean
+  doc: boolean
+  ai: boolean
+  favorite: boolean
+  settings: boolean
+  profile: boolean
+}
+
 /** AI 模型配置 */
 export interface AiModelConfig {
   provider: 'hunyuan' | 'deepseek'
@@ -161,6 +174,9 @@ export interface ClipToolAPI {
   // 主题
   getTheme: () => Promise<string>
   setTheme: (theme: string) => Promise<string>
+  // 页面可见性
+  getPageVisibility: () => Promise<PageVisibility>
+  savePageVisibility: (config: PageVisibility) => Promise<PageVisibility>
 }
 
 declare global {

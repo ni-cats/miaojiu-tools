@@ -147,11 +147,13 @@ const FavoritePanel: React.FC<FavoritePanelProps> = ({ snippets, onCopy, onDelet
       </div>
 
       {/* 快捷键提示 */}
-      <div className="shortcut-hint" style={{ borderTop: 'none', paddingTop: 4 }}>
-        <kbd>↑↓</kbd> 选择 &nbsp;
-        <kbd>Enter</kbd> 复制 &nbsp;
-        <kbd>双击标题</kbd> 编辑 &nbsp;
-        <kbd>Esc</kbd> 关闭
+      <div className="shortcut-hint" style={{ borderTop: 'none', paddingTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <kbd>↑↓</kbd> 选择 &nbsp;
+          <kbd>Enter</kbd> 复制 &nbsp;
+          <kbd>双击标题</kbd> 编辑 &nbsp;
+          <kbd>Esc</kbd> 关闭
+        </div>
       </div>
     </div>
   )

@@ -23,6 +23,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
   const [historyLimit, setHistoryLimit] = useState(20)
   const [toast, setToast] = useState<string | null>(null)
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1)
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editorSectionRef = useRef<HTMLDivElement>(null)
   const historyListRef = useRef<HTMLDivElement>(null)
@@ -37,8 +38,14 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
         const next = Math.max(prev - 1, -1)
         if (next >= 0) {
           const item = history[next]
-          if (item && !item.isImage && item.type !== 'image') {
-            setEditorContent(item.content)
+          if (item) {
+            if (item.isImage || item.type === 'image') {
+              setSelectedImageSrc(item.content)
+              setEditorContent('')
+            } else {
+              setSelectedImageSrc(null)
+              setEditorContent(item.content)
+            }
           }
           setTimeout(() => {
             const list = historyListRef.current
@@ -48,6 +55,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
         } else {
           // 回到 -1 时清空编辑框
           setEditorContent('')
+          setSelectedImageSrc(null)
         }
         return next
       })
@@ -58,8 +66,14 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
         const next = Math.min(prev + 1, history.length - 1)
         // 将选中项内容展示到编辑框
         const item = history[next]
-        if (item && !item.isImage && item.type !== 'image') {
-          setEditorContent(item.content)
+        if (item) {
+          if (item.isImage || item.type === 'image') {
+            setSelectedImageSrc(item.content)
+            setEditorContent('')
+          } else {
+            setSelectedImageSrc(null)
+            setEditorContent(item.content)
+          }
         }
         // 滚动到可见区域
         setTimeout(() => {
@@ -224,21 +238,27 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
             💾 保存
           </button>
         </div>
-        <textarea
-          ref={textareaRef}
-          className="editor-textarea"
-          value={editorContent}
-          onChange={(e) => {
-            setEditorContent(e.target.value)
-            // 输入内容后取消历史选中
-            if (e.target.value.trim()) {
-              setSelectedHistoryIndex(-1)
-            }
-          }}
+        {selectedImageSrc ? (
+          <div className="editor-image-preview">
+            <img src={selectedImageSrc} alt="图片预览" />
+          </div>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            className="editor-textarea"
+            value={editorContent}
+            onChange={(e) => {
+              setEditorContent(e.target.value)
+              // 输入内容后取消历史选中
+              if (e.target.value.trim()) {
+                setSelectedHistoryIndex(-1)
+              }
+            }}
 
-          placeholder="在这里编辑内容...&#10;可以直接输入，也可以点击下方历史记录填充&#10;↑↓ 切换剪贴板历史，选中内容自动展示"
-          spellCheck={false}
-        />
+            placeholder="在这里编辑内容...&#10;可以直接输入，也可以点击下方历史记录填充&#10;↑↓ 切换剪贴板历史，选中内容自动展示"
+            spellCheck={false}
+          />
+        )}
       </div>
 
       {/* 分隔线 */}
@@ -279,9 +299,15 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
                 <span className={`editor-history-type ${item.type}`}>
                   {item.type}
                 </span>
-                <span className="editor-history-preview">
-                  {previewContent(item.content, item.isImage)}
-                </span>
+                {(item.isImage || item.content.startsWith('data:image/')) ? (
+                  <span className="editor-history-preview editor-history-image-preview">
+                    <img src={item.content} alt="图片" />
+                  </span>
+                ) : (
+                  <span className="editor-history-preview">
+                    {previewContent(item.content, item.isImage)}
+                  </span>
+                )}
               </div>
               <div className="editor-history-item-meta">
                 <span className="editor-history-time">{formatTime(item.timestamp)}</span>

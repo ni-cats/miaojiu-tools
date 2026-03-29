@@ -48,6 +48,8 @@ import {
   setTheme,
   pushSettingsToCloud,
   pullSettingsFromCloud,
+  getPageVisibility,
+  savePageVisibility,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
@@ -56,6 +58,7 @@ import {
   type ClipboardHistoryItem,
   type QuickLink,
   type AiModelConfig,
+  type PageVisibility,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
@@ -350,4 +353,17 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   ipcMain.handle('settings:pull', async () => {
     return pullSettingsFromCloud()
   })
+
+  // ====== 页面可见性 ======
+
+  // 获取页面可见性配置
+  ipcMain.handle('pageVisibility:get', () => {
+    return getPageVisibility()
+  })
+
+  // 保存页面可见性配置
+  ipcMain.handle('pageVisibility:save', (_event, config: PageVisibility) => {
+    return savePageVisibility(config)
+  })
+
 }

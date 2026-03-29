@@ -70,6 +70,18 @@ export interface QuickLink {
   order: number
 }
 
+export interface PageVisibility {
+  save: boolean
+  editor: boolean
+  search: boolean
+  launcher: boolean
+  doc: boolean
+  ai: boolean
+  favorite: boolean
+  settings: boolean
+  profile: boolean
+}
+
 const api = {
   /** 获取所有片段 */
   getAllSnippets: (): Promise<SnippetData[]> => ipcRenderer.invoke('snippets:getAll'),
@@ -281,6 +293,14 @@ const api = {
 
   /** 设置主题 */
   setTheme: (theme: string): Promise<string> => ipcRenderer.invoke('theme:set', theme),
+
+  // ====== 页面可见性 API ======
+
+  /** 获取页面可见性配置 */
+  getPageVisibility: (): Promise<PageVisibility> => ipcRenderer.invoke('pageVisibility:get'),
+
+  /** 保存页面可见性配置 */
+  savePageVisibility: (config: PageVisibility): Promise<PageVisibility> => ipcRenderer.invoke('pageVisibility:save', config),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

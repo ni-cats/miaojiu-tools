@@ -107,6 +107,7 @@ interface StoreSchema {
   aiModels: AiModelConfig[]  // AI 模型配置列表
   aiTitleEnabled: boolean  // 是否启用 AI 生成标题
   theme: string  // 主题名称
+  pageVisibility: PageVisibility  // 页面可见性配置
 }
 
 /** AI 模型配置 */
@@ -116,6 +117,19 @@ export interface AiModelConfig {
   secretKey: string                  // API 密钥（混元）
   model: string                      // 模型名称
   enabled: boolean                   // 是否启用
+}
+
+/** 页面可见性配置 */
+export interface PageVisibility {
+  save: boolean
+  editor: boolean
+  search: boolean
+  launcher: boolean
+  doc: boolean
+  ai: boolean
+  favorite: boolean
+  settings: boolean
+  profile: boolean
 }
 
 /** 快速链接参数定义 */
@@ -179,6 +193,17 @@ const store = new Store<StoreSchema>({
     aiModels: [] as AiModelConfig[],
     aiTitleEnabled: false,
     theme: 'system',
+    pageVisibility: {
+      save: true,
+      editor: true,
+      search: true,
+      launcher: true,
+      doc: true,
+      ai: true,
+      favorite: true,
+      settings: true,
+      profile: true,
+    },
     profile: {
       nickname: '',
       avatar: '',
@@ -315,6 +340,7 @@ const SYNC_SETTING_NAMES = [
   'aiModels',
   'aiTitleEnabled',
   'launcherCategories',
+  'pageVisibility',
 ] as const
 
 /** 所有需要同步的导航配置项名称（launcher 目录） */
@@ -817,6 +843,30 @@ export function setTheme(theme: string): string {
   return theme
 }
 
+// ====== 页面可见性配置管理 ======
+
+/** 获取页面可见性配置 */
+export function getPageVisibility(): PageVisibility {
+  return store.get('pageVisibility', {
+    save: true,
+    editor: true,
+    search: true,
+    launcher: true,
+    doc: true,
+    ai: true,
+    favorite: true,
+    settings: true,
+    profile: true,
+  })
+}
+
+/** 保存页面可见性配置 */
+export function savePageVisibility(config: PageVisibility): PageVisibility {
+  store.set('pageVisibility', config)
+  debounceSyncSetting('pageVisibility', config)
+  return config
+}
+
 // ====== 设置批量推拉 ======
 
 /**
@@ -830,6 +880,7 @@ export function getAllSyncSettings(): Record<string, unknown> {
     aiModels: getAiModels(),
     aiTitleEnabled: getAiTitleEnabled(),
     launcherCategories: getLauncherCategories(),
+    pageVisibility: getPageVisibility(),
   }
 }
 
@@ -900,6 +951,9 @@ export async function pullSettingsFromCloud(): Promise<Record<string, unknown> |
   // settings 目录中的 launcherCategories
   if (cloudSettings.launcherCategories) {
     store.set('launcherCategories', cloudSettings.launcherCategories as string[])
+  }
+  if (cloudSettings.pageVisibility) {
+    store.set('pageVisibility', cloudSettings.pageVisibility as PageVisibility)
   }
 
   // 逐项覆盖本地导航配置（launcher 目录）
