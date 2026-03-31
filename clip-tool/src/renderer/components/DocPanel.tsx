@@ -9,6 +9,22 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { nanoid } from 'nanoid'
 import type { SnippetData, ContentType } from '../types'
 
+/** 支持的编辑器主题列表 */
+const EDITOR_THEMES: { id: string; label: string; dark: boolean }[] = [
+  { id: 'github-dark', label: 'GitHub Dark', dark: true },
+  { id: 'github-light', label: 'GitHub Light', dark: false },
+  { id: 'one-dark-pro', label: 'One Dark Pro', dark: true },
+  { id: 'dracula', label: 'Dracula', dark: true },
+  { id: 'nord', label: 'Nord', dark: true },
+  { id: 'min-dark', label: 'Min Dark', dark: true },
+  { id: 'min-light', label: 'Min Light', dark: false },
+  { id: 'monokai', label: 'Monokai', dark: true },
+  { id: 'slack-dark', label: 'Slack Dark', dark: true },
+  { id: 'vitesse-dark', label: 'Vitesse Dark', dark: true },
+  { id: 'vitesse-light', label: 'Vitesse Light', dark: false },
+  { id: 'tokyo-night', label: 'Tokyo Night', dark: true },
+]
+
 /** 支持的语言列表 */
 const SUPPORTED_LANGUAGES = [
   { id: 'plaintext', label: '纯文本' },
@@ -253,6 +269,10 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
   const [shikiHighlighter, setShikiHighlighter] = useState<any>(null)
   const [showFormatMenu, setShowFormatMenu] = useState(false)
   const [aiTitleLoading, setAiTitleLoading] = useState(false)
+  /** 当前会话主题（一次性，不保存） */
+  const [editorTheme, setEditorTheme] = useState('github-dark')
+  /** 默认主题（从设置中读取） */
+  const defaultThemeRef = useRef('github-dark')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lineNumberRef = useRef<HTMLDivElement>(null)
   const highlightRef = useRef<HTMLDivElement>(null)
@@ -262,13 +282,21 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
   /** 标记是否已经自动读取过剪贴板（防止重复读取） */
   const hasAutoReadRef = useRef(false)
 
-  // 初始化 shiki 高亮器
+  // 加载默认主题配置
+  useEffect(() => {
+    window.clipToolAPI.getDocEditorTheme().then((theme) => {
+      setEditorTheme(theme)
+      defaultThemeRef.current = theme
+    })
+  }, [])
+
+  // 初始化 shiki 高亮器（加载所有主题）
   useEffect(() => {
     let cancelled = false
     import('shiki').then(async (shiki) => {
       if (cancelled) return
       const highlighter = await shiki.createHighlighter({
-        themes: ['github-dark'],
+        themes: EDITOR_THEMES.map((t) => t.id),
         langs: SUPPORTED_LANGUAGES.map((l) => l.id).filter((id) => id !== 'plaintext'),
       })
       if (!cancelled) {
@@ -309,6 +337,8 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
     // 当切离文档页面时，重置标记，下次切回来可以再次读取
     if (activeTab !== 'doc') {
       hasAutoReadRef.current = false
+      // 切离时恢复默认主题（一次性切换重置）
+      setEditorTheme(defaultThemeRef.current)
     }
   }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -331,7 +361,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
       try {
         const html = shikiHighlighter.codeToHtml(content, {
           lang: language,
-          theme: 'github-dark',
+          theme: editorTheme,
         })
         setHighlightedHtml(html)
       } catch {
@@ -340,7 +370,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
     } else {
       setHighlightedHtml('')
     }
-  }, [content, language, shikiHighlighter])
+  }, [content, language, shikiHighlighter, editorTheme])
 
   // 点击外部关闭格式化菜单
   useEffect(() => {
@@ -420,9 +450,42 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
     showToast('✓ 已撤回')
   }, [showToast])
 
-  // 快捷键：⌘⇧F 格式化 / ⌘Z 撤回
+  // 从剪贴板粘贴
+  const handlePaste = useCallback(async () => {
+    try {
+      const clipData = await window.clipToolAPI.readClipboard()
+      if (clipData && clipData.content && !clipData.isImage) {
+        const text = clipData.content
+        const detected = detectLanguage(text)
+        let processedText = text
+        if (detected === 'json') {
+          try {
+            processedText = JSON.stringify(JSON.parse(text), null, 2)
+          } catch {
+            processedText = text
+          }
+        }
+        if (content.trim()) {
+          pushUndo(content) // 粘贴覆盖前压入撤回栈
+        }
+        setContent(processedText)
+        setLanguage(detected)
+        showToast(`✓ 已粘贴${detected !== 'plaintext' ? ` · 识别为 ${detected.toUpperCase()}` : ''}`)
+      }
+    } catch {
+      showToast('✕ 读取剪贴板失败')
+    }
+  }, [content, showToast, pushUndo])
+
+  // 快捷键：⌘⇧F 格式化 / ⌘Z 撤回 / ⌘V 粘贴（空状态下）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ⌘V / Ctrl+V：空状态下拦截粘贴，调用 handlePaste 读取剪贴板并自动识别语言
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && !content.trim()) {
+        e.preventDefault()
+        handlePaste()
+        return
+      }
       // ⌘⇧F / Ctrl+Shift+F：自动格式化
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
         e.preventDefault()
@@ -449,7 +512,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [content, language, handleFormat, handleUndo])
+  }, [content, language, handleFormat, handleUndo, handlePaste])
 
   // AI 生成标题
   const handleAiTitle = useCallback(async () => {
@@ -511,33 +574,6 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
     setLanguage('plaintext')
     setHighlightedHtml('')
     showToast('✓ 已清空')
-  }, [content, showToast, pushUndo])
-
-  // 从剪贴板粘贴
-  const handlePaste = useCallback(async () => {
-    try {
-      const clipData = await window.clipToolAPI.readClipboard()
-      if (clipData && clipData.content && !clipData.isImage) {
-        const text = clipData.content
-        const detected = detectLanguage(text)
-        let processedText = text
-        if (detected === 'json') {
-          try {
-            processedText = JSON.stringify(JSON.parse(text), null, 2)
-          } catch {
-            processedText = text
-          }
-        }
-        if (content.trim()) {
-          pushUndo(content) // 粘贴覆盖前压入撤回栈
-        }
-        setContent(processedText)
-        setLanguage(detected)
-        showToast(`✓ 已粘贴${detected !== 'plaintext' ? ` · 识别为 ${detected.toUpperCase()}` : ''}`)
-      }
-    } catch {
-      showToast('✕ 读取剪贴板失败')
-    }
   }, [content, showToast, pushUndo])
 
   // 获取语言显示标签
@@ -609,6 +645,20 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
             ↩ 撤回
           </button>
 
+          {/* 主题选择 */}
+          <select
+            className="doc-lang-select doc-theme-select"
+            value={editorTheme}
+            onChange={(e) => setEditorTheme(e.target.value)}
+            title="切换编辑器主题（仅本次会话生效）"
+          >
+          {EDITOR_THEMES.map((theme) => (
+              <option key={theme.id} value={theme.id}>
+                {theme.label}
+              </option>
+            ))}
+          </select>
+
           {/* 语言选择 */}
           <select
             className="doc-lang-select"
@@ -623,10 +673,15 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
       </div>
 
       {/* 内容区域：统一编辑+预览 */}
-      <div className="doc-content-area">
+      <div className="doc-content-area" style={{
+        background: EDITOR_THEMES.find((t) => t.id === editorTheme)?.dark ? '#0d1117' : '#ffffff',
+      }}>
         {content.trim() ? (
           <div className="doc-editor-wrapper">
-            <div className="doc-line-numbers" ref={lineNumberRef}>
+            <div className="doc-line-numbers" ref={lineNumberRef} style={{
+              background: EDITOR_THEMES.find((t) => t.id === editorTheme)?.dark ? '#0d1117' : '#f6f8fa',
+              color: EDITOR_THEMES.find((t) => t.id === editorTheme)?.dark ? undefined : '#57606a',
+            }}>
               <pre>{generateLineNumbers(Math.max(lineCount, 1))}</pre>
             </div>
             <div className="doc-editable-area">
@@ -638,7 +693,9 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
                     dangerouslySetInnerHTML={{ __html: highlightedHtml }}
                   />
                 ) : (
-                  <pre className="doc-plain-preview">
+                  <pre className="doc-plain-preview" style={{
+                    color: EDITOR_THEMES.find((t) => t.id === editorTheme)?.dark ? '#e6edf3' : '#656d76',
+                  }}>
                     <code>{content}</code>
                   </pre>
                 )}
@@ -651,6 +708,9 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
                 onChange={(e) => setContent(e.target.value)}
                 onScroll={handleTextareaScroll}
                 spellCheck={false}
+                style={{
+                  caretColor: EDITOR_THEMES.find((t) => t.id === editorTheme)?.dark ? '#e6edf3' : '#1f2328',
+                }}
               />
             </div>
           </div>
@@ -687,6 +747,9 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
           )}
         </div>
         <div className="doc-statusbar-right">
+          <button className="doc-action-btn" onClick={() => window.clipToolAPI.openHistoryWindow()} title="打开剪贴板历史窗口">
+            📋 历史
+          </button>
           <button className="doc-action-btn" onClick={handlePaste} title="从剪贴板粘贴">
             📋 粘贴
           </button>

@@ -51,17 +51,34 @@ export function useShortcuts(handlers: ShortcutHandlers) {
         return
       }
 
-      // 双击空格：关闭窗口（非输入框聚焦时）
-      if (e.key === ' ' && !isInputFocused && !isMeta) {
-        e.preventDefault()
+      // 双击空格：关闭窗口（任何情况下都生效）
+      if (e.key === ' ' && !isMeta) {
         const now = Date.now()
         if (now - lastSpaceTimeRef.current < 400) {
           // 双击空格，关闭窗口
+          e.preventDefault()
           lastSpaceTimeRef.current = 0
+          // 如果在输入框中，删除第一次按下时输入的空格
+          if (isInputFocused) {
+            const el = target as HTMLInputElement | HTMLTextAreaElement
+            const val = el.value
+            const pos = el.selectionStart ?? val.length
+            // 删除光标前的一个空格（第一次按下时输入的）
+            if (pos > 0 && val[pos - 1] === ' ') {
+              el.value = val.slice(0, pos - 1) + val.slice(pos)
+              el.selectionStart = el.selectionEnd = pos - 1
+              // 触发 input 事件让 React 感知变化
+              el.dispatchEvent(new Event('input', { bubbles: true }))
+            }
+          }
           h.onClose?.()
           return
         }
         lastSpaceTimeRef.current = now
+        // 非输入框时阻止默认行为（避免页面滚动等）
+        if (!isInputFocused) {
+          e.preventDefault()
+        }
         return
       }
 

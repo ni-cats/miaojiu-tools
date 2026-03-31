@@ -108,6 +108,8 @@ interface StoreSchema {
   aiTitleEnabled: boolean  // 是否启用 AI 生成标题
   theme: string  // 主题名称
   pageVisibility: PageVisibility  // 页面可见性配置
+  appFontSize: number  // 全局字体大小
+  docEditorTheme: string  // 速记编辑器默认主题
 }
 
 /** AI 模型配置 */
@@ -204,6 +206,8 @@ const store = new Store<StoreSchema>({
       settings: true,
       profile: true,
     },
+    appFontSize: 13,
+    docEditorTheme: 'github-dark',
     profile: {
       nickname: '',
       avatar: '',
@@ -341,6 +345,8 @@ const SYNC_SETTING_NAMES = [
   'aiTitleEnabled',
   'launcherCategories',
   'pageVisibility',
+  'appFontSize',
+  'docEditorTheme',
 ] as const
 
 /** 所有需要同步的导航配置项名称（launcher 目录） */
@@ -867,6 +873,35 @@ export function savePageVisibility(config: PageVisibility): PageVisibility {
   return config
 }
 
+// ====== 全局字体大小配置 ======
+
+/** 获取全局字体大小 */
+export function getAppFontSize(): number {
+  return store.get('appFontSize', 13)
+}
+
+/** 设置全局字体大小 */
+export function setAppFontSize(size: number): number {
+  const clamped = Math.max(10, Math.min(20, size))
+  store.set('appFontSize', clamped)
+  debounceSyncSetting('appFontSize', clamped)
+  return clamped
+}
+
+// ====== 速记编辑器主题 ======
+
+/** 获取速记编辑器默认主题 */
+export function getDocEditorTheme(): string {
+  return store.get('docEditorTheme', 'github-dark')
+}
+
+/** 设置速记编辑器默认主题 */
+export function setDocEditorTheme(theme: string): string {
+  store.set('docEditorTheme', theme)
+  debounceSyncSetting('docEditorTheme', theme)
+  return theme
+}
+
 // ====== 设置批量推拉 ======
 
 /**
@@ -881,6 +916,8 @@ export function getAllSyncSettings(): Record<string, unknown> {
     aiTitleEnabled: getAiTitleEnabled(),
     launcherCategories: getLauncherCategories(),
     pageVisibility: getPageVisibility(),
+    appFontSize: getAppFontSize(),
+    docEditorTheme: getDocEditorTheme(),
   }
 }
 
@@ -954,6 +991,12 @@ export async function pullSettingsFromCloud(): Promise<Record<string, unknown> |
   }
   if (cloudSettings.pageVisibility) {
     store.set('pageVisibility', cloudSettings.pageVisibility as PageVisibility)
+  }
+  if (cloudSettings.appFontSize !== undefined) {
+    store.set('appFontSize', cloudSettings.appFontSize as number)
+  }
+  if (cloudSettings.docEditorTheme) {
+    store.set('docEditorTheme', cloudSettings.docEditorTheme as string)
   }
 
   // 逐项覆盖本地导航配置（launcher 目录）

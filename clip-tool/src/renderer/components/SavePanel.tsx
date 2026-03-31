@@ -154,8 +154,10 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
             <div className="clipboard-preview">{clipboardData!.content}</div>
           )
         ) : (
-          <div className="clipboard-preview" style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: '20px' }}>
-            剪贴板为空，请先复制内容
+          <div className="clipboard-empty-guide">
+            <span className="clipboard-empty-guide-icon">📋</span>
+            <span className="clipboard-empty-guide-text">剪贴板为空</span>
+            <span className="clipboard-empty-guide-hint">请先复制内容，然后回到这里保存</span>
           </div>
         )}
       </div>

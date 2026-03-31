@@ -7,12 +7,122 @@ import path from 'path'
 import { registerShortcuts, unregisterAllShortcuts } from './shortcuts'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
-import { getWindowBounds, saveWindowBounds, pushSettingsToCloud, getCosConfig } from './store'
+import { getWindowBounds, saveWindowBounds, pushSettingsToCloud, pullSettingsFromCloud, getCosConfig } from './store'
 
 let mainWindow: BrowserWindow | null = null
+let historyWindow: BrowserWindow | null = null
 
 function getMainWindow() {
   return mainWindow
+}
+
+function getHistoryWindow() {
+  return historyWindow
+}
+
+/** 创建独立的剪贴板历史子窗口 */
+function createHistoryWindow() {
+  // 如果已存在，直接聚焦
+  if (historyWindow && !historyWindow.isDestroyed()) {
+    historyWindow.show()
+    historyWindow.focus()
+    return
+  }
+
+  // 获取主窗口所在屏幕（修复副屏 Bug：不再使用 primaryDisplay）
+  const mainBounds = mainWindow?.getBounds()
+
+  const winWidth = 500
+  const winHeight = 560
+
+  let x: number | undefined
+  let y: number | undefined
+  if (mainBounds) {
+    // 获取主窗口中心点所在的屏幕
+    const centerX = mainBounds.x + Math.round(mainBounds.width / 2)
+    const centerY = mainBounds.y + Math.round(mainBounds.height / 2)
+    const display = screen.getDisplayNearestPoint({ x: centerX, y: centerY })
+    const { x: workX, y: workY, width: workWidth, height: workHeight } = display.workArea
+
+    // 水平居中对齐主窗口
+    x = mainBounds.x + Math.round((mainBounds.width - winWidth) / 2)
+    // 放在主窗口上方
+    y = mainBounds.y - winHeight - 10
+
+    // 如果上方空间不够，放在主窗口下方
+    if (y < workY) {
+      y = mainBounds.y + mainBounds.height + 10
+    }
+    // 如果下方也不够，居中显示在屏幕上
+    if (y + winHeight > workY + workHeight) {
+      y = workY + Math.round((workHeight - winHeight) / 2)
+    }
+    // 确保 x 不超出屏幕边界
+    if (x < workX) x = workX
+    if (x + winWidth > workX + workWidth) x = workX + workWidth - winWidth
+  }
+
+  historyWindow = new BrowserWindow({
+    width: winWidth,
+    height: winHeight,
+    ...(x !== undefined && y !== undefined ? { x, y } : {}),
+    show: false,
+    frame: false,
+    transparent: true,
+    resizable: true,
+    minWidth: 320,
+    minHeight: 300,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    vibrancy: 'under-window',
+    visualEffectState: 'active',
+    titleBarStyle: 'hidden',
+    trafficLightPosition: { x: -999, y: -999 },
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  })
+
+  // 加载页面（带 hash 标识为历史窗口）
+  if (process.env.VITE_DEV_SERVER === '1') {
+    historyWindow.loadURL('http://localhost:5173#clipboard-history').catch(() => {
+      historyWindow?.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'clipboard-history' })
+    })
+  } else {
+    historyWindow.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'clipboard-history' })
+  }
+
+  historyWindow.once('ready-to-show', () => {
+    historyWindow?.show()
+    historyWindow?.focus()
+  })
+
+  // 始终置顶
+  historyWindow.on('show', () => {
+    if (historyWindow && !historyWindow.isDestroyed()) {
+      historyWindow.setAlwaysOnTop(true, 'floating')
+      historyWindow.focus()
+    }
+  })
+
+  historyWindow.on('blur', () => {
+    if (historyWindow && !historyWindow.isDestroyed()) {
+      historyWindow.setAlwaysOnTop(false)
+    }
+  })
+
+  historyWindow.on('focus', () => {
+    if (historyWindow && !historyWindow.isDestroyed()) {
+      historyWindow.setAlwaysOnTop(true, 'floating')
+    }
+  })
+
+  historyWindow.on('closed', () => {
+    historyWindow = null
+  })
 }
 
 function createMainWindow() {
@@ -94,11 +204,25 @@ function createMainWindow() {
 
   // 不再在失焦时自动隐藏窗口，仅通过用户主动操作（Escape、双击空格等）关闭
 
-  // 确保窗口每次显示时都保持在最前面（使用 floating 级别）
+  // 窗口显示时置顶并聚焦
   mainWindow.on('show', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setAlwaysOnTop(true, 'floating')
       mainWindow.focus()
+    }
+  })
+
+  // 窗口失去焦点时取消置顶，让其他窗口可以覆盖
+  mainWindow.on('blur', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(false)
+    }
+  })
+
+  // 窗口重新获得焦点时恢复置顶
+  mainWindow.on('focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(true, 'floating')
     }
   })
 
@@ -113,7 +237,7 @@ app.whenReady().then(() => {
   createMainWindow()
   createTray(getMainWindow)
   registerShortcuts(getMainWindow)
-  registerIpcHandlers(getMainWindow)
+  registerIpcHandlers(getMainWindow, getHistoryWindow, createHistoryWindow)
 
   // 首次启动自动显示窗口，让用户知道应用已运行
   if (mainWindow) {
@@ -123,13 +247,17 @@ app.whenReady().then(() => {
     })
   }
 
-  // 启动时自动将本地设置和导航数据同步到云端
+  // 启动时自动同步设置：先从云端拉取（确保本地是最新的），再推送本地到云端
   const cosConfig = getCosConfig()
   if (cosConfig.enabled) {
-    pushSettingsToCloud().then((ok) => {
+    pullSettingsFromCloud().then((result) => {
+      console.log(`[启动同步] 从云端拉取设置: ${result ? '成功' : '云端暂无数据'}`)
+      // 拉取完成后再推送本地数据到云端（确保本地新增的设置项也同步上去）
+      return pushSettingsToCloud()
+    }).then((ok) => {
       console.log(`[启动同步] 本地数据推送到云端: ${ok ? '成功' : '失败'}`)
     }).catch((err) => {
-      console.error('[启动同步] 推送失败:', err)
+      console.error('[启动同步] 同步失败:', err)
     })
   }
 })

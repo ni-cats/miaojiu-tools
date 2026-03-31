@@ -9,7 +9,7 @@ import subprocess
 import os
 import sys
 
-SRC = '/Users/miaojiu/IdeaProjects/miaojiu-tools/clip-tool/resources/icon/miaojiu-clip.png'
+SRC = '/Users/miaojiu/IdeaProjects/miaojiu-tools/clip-tool/resources/icon/cliptool.png'
 RESOURCES = '/Users/miaojiu/IdeaProjects/miaojiu-tools/clip-tool/resources'
 
 def find_ellipse_bounds(img_array):
@@ -119,12 +119,25 @@ def generate_icons(cropped_path):
     import shutil
     shutil.rmtree(iconset_dir, ignore_errors=True)
 
+def prepare_square(src_path, output_path):
+    """将图片调整为正方形（居中放置）"""
+    img = Image.open(src_path).convert('RGBA')
+    w, h = img.size
+    size = max(w, h)
+    final = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    offset_x = (size - w) // 2
+    offset_y = (size - h) // 2
+    final.paste(img, (offset_x, offset_y), img)
+    final.save(output_path)
+    print(f'  ✓ 正方形化完成: {final.size[0]}x{final.size[1]} -> {output_path}')
+    return final
+
 if __name__ == '__main__':
-    print('🔧 Step 1: 裁剪图标为椭圆形...')
-    cropped_path = '/tmp/clip-icon-ellipse.png'
-    crop_ellipse(SRC, cropped_path)
+    print('🔧 Step 1: 将图标调整为正方形...')
+    prepared_path = '/tmp/clip-icon-prepared.png'
+    prepare_square(SRC, prepared_path)
     
     print('🔧 Step 2: 生成各尺寸图标...')
-    generate_icons(cropped_path)
+    generate_icons(prepared_path)
     
     print('✅ 所有图标生成完成!')

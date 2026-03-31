@@ -182,7 +182,7 @@ export async function generateTitle(content: string, contentType: string): Promi
     Messages: [
       {
         Role: 'system',
-        Content: '你是一个标题生成助手。请为以下内容生成一个简短的中文标题（不超过20个字），只返回标题本身，不要有任何解释、引号或标点。',
+        Content: '你是一个标题生成助手。请为以下内容生成一个简短的中文标题（不超过20个字），只返回标题本身，不要有任何解释、引号或标点。如果内容是无意义的乱码、随机字符、不可读内容或无法提取有效信息，请直接返回 INVALID 这个单词。',
       },
       {
         Role: 'user',
@@ -196,6 +196,8 @@ export async function generateTitle(content: string, contentType: string): Promi
     const res = await client.ChatCompletions(params)
     const title = res.Choices?.[0]?.Message?.Content?.trim()
     if (title) {
+      // 如果 AI 判断内容无效，返回 null 以保留原始内容
+      if (title.toUpperCase() === 'INVALID') return null
       // 清理标题中可能存在的引号
       return title.replace(/^["'《「【]|["'》」】]$/g, '').trim().substring(0, 30)
     }

@@ -104,12 +104,23 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
     return () => observer.disconnect()
   }, [])
 
-  // 加载剪贴板历史和限制
+  // 加载剪贴板历史和限制，并读取当前剪贴板内容填充编辑框
   useEffect(() => {
     window.clipToolAPI.getClipboardHistory().then(setHistory)
     window.clipToolAPI.getClipboardHistoryLimit().then((limit) => {
       setHistoryLimit(limit)
     })
+    // 读取当前剪贴板内容，实时填充到编辑框
+    window.clipToolAPI.readClipboard().then((data) => {
+      if (data && data.content && data.content.trim()) {
+        if (data.isImage) {
+          setSelectedImageSrc(data.content)
+        } else {
+          setEditorContent(data.content)
+        }
+        lastClipboardRef.current = data.content
+      }
+    }).catch(() => {})
   }, [])
 
   // 定时轮询剪贴板变化，自动记录到历史
@@ -246,6 +257,12 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
           <textarea
             ref={textareaRef}
             className="editor-textarea"
+            style={{
+              background: '#ffffff',
+              color: '#1a1a1a',
+              border: '1px solid #d0d0d0',
+              caretColor: '#333',
+            }}
             value={editorContent}
             onChange={(e) => {
               setEditorContent(e.target.value)

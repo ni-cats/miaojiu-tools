@@ -105,7 +105,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 持久化的分类列表
   const [categoryOptions, setCategoryOptions] = useState<string[]>(['常用', '工作', '文档', '工具', '社交', '其他'])
 
-  // 内置工具激活状态（null=未激活, 'base64'=Base64工具）
+  // 内置工具激活状态（null=未激活, 'base64'=Base64工具, 'timestamp'=时间戳工具, 'imageBase64'=图片Base64工具）
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [base64Input, setBase64Input] = useState('')
   const [base64Encoded, setBase64Encoded] = useState('')
@@ -114,6 +114,22 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // Base64 工具结果选中索引（0=encode, 1=decode）
   const [base64SelectedIndex, setBase64SelectedIndex] = useState(0)
   const base64InputRef = useRef<HTMLTextAreaElement>(null)
+
+  // 时间戳转换工具状态
+  const [tsInput, setTsInput] = useState('')
+  const [tsResult, setTsResult] = useState('')
+  const [tsNow, setTsNow] = useState('')
+  const [tsSelectedIndex, setTsSelectedIndex] = useState(0) // 0=转换结果, 1=当前时间戳
+  const tsInputRef = useRef<HTMLInputElement>(null)
+  const tsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // 图片Base64工具状态
+  const [imgBase64Result, setImgBase64Result] = useState('')
+  const [imgPreviewSrc, setImgPreviewSrc] = useState('')
+  const [imgBase64Input, setImgBase64Input] = useState('')
+  const [imgBase64Mode, setImgBase64Mode] = useState<'toBase64' | 'toImage'>('toBase64') // 当前模式
+  const imgFileInputRef = useRef<HTMLInputElement>(null)
+
   // 复制提示 toast
   const [copyToast, setCopyToast] = useState<string | null>(null)
   const copyToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -243,6 +259,24 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       keywords: ['base64', '编码', '解码', 'encode', 'decode', '工具'],
       toolKey: 'base64',
     },
+    {
+      id: '__builtin_timestamp__',
+      name: '时间戳转换',
+      icon: '🕐',
+      category: '工具',
+      description: '时间戳与日期时间互相转换',
+      keywords: ['timestamp', '时间戳', '时间', '日期', '转换', 'unix', 'date', '工具'],
+      toolKey: 'timestamp',
+    },
+    {
+      id: '__builtin_image_base64__',
+      name: '图片 Base64 转换',
+      icon: '🖼️',
+      category: '工具',
+      description: '图片转 Base64 / Base64 转图片',
+      keywords: ['图片', 'image', 'base64', '转换', '编码', 'img', 'png', 'jpg', '工具'],
+      toolKey: 'imageBase64',
+    },
   ], [])
 
   // 筛选结果（搜索 + 分类）
@@ -295,6 +329,83 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     }
   }, [])
 
+  // 时间戳转换逻辑
+  const handleTsInputChange = useCallback((value: string) => {
+    setTsInput(value)
+    if (!value.trim()) {
+      setTsResult('')
+      return
+    }
+    const trimmed = value.trim()
+    // 尝试解析为时间戳（纯数字）
+    if (/^\d+$/.test(trimmed)) {
+      let ts = parseInt(trimmed, 10)
+      // 自动判断秒级/毫秒级
+      if (ts < 1e12) ts *= 1000 // 秒级转毫秒
+      const date = new Date(ts)
+      if (!isNaN(date.getTime())) {
+        const pad = (n: number) => n.toString().padStart(2, '0')
+        const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+        setTsResult(`📅 ${formatted}\n⏱️ 秒级: ${Math.floor(ts / 1000)}\n⏱️ 毫秒级: ${ts}`)
+        return
+      }
+    }
+    // 尝试解析为日期字符串
+    const date = new Date(trimmed)
+    if (!isNaN(date.getTime())) {
+      setTsResult(`⏱️ 秒级时间戳: ${Math.floor(date.getTime() / 1000)}\n⏱️ 毫秒级时间戳: ${date.getTime()}`)
+      return
+    }
+    setTsResult('❌ 无法识别的格式，请输入时间戳或日期字符串')
+  }, [])
+
+  // 实时更新当前时间戳
+  useEffect(() => {
+    if (activeTool === 'timestamp') {
+      const update = () => {
+        const now = new Date()
+        const pad = (n: number) => n.toString().padStart(2, '0')
+        const formatted = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+        setTsNow(`${Math.floor(now.getTime() / 1000)}  |  ${formatted}`)
+      }
+      update()
+      tsTimerRef.current = setInterval(update, 1000)
+      return () => {
+        if (tsTimerRef.current) clearInterval(tsTimerRef.current)
+      }
+    }
+  }, [activeTool])
+
+  // 图片转 Base64
+  const handleImageFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setImgBase64Result(result)
+      setImgPreviewSrc(result)
+    }
+    reader.readAsDataURL(file)
+    // 重置 input 以便重复选择同一文件
+    e.target.value = ''
+  }, [])
+
+  // Base64 转图片
+  const handleImgBase64InputChange = useCallback((value: string) => {
+    setImgBase64Input(value)
+    if (!value.trim()) {
+      setImgPreviewSrc('')
+      return
+    }
+    // 自动补全 data URI 前缀
+    let src = value.trim()
+    if (!src.startsWith('data:')) {
+      src = `data:image/png;base64,${src}`
+    }
+    setImgPreviewSrc(src)
+  }, [])
+
   // 修正选中索引（当有搜索结果时才修正，无结果时 selectedIndex 用于 fallback 选项切换）
   useEffect(() => {
     if (totalItems > 0 && selectedIndex >= totalItems) {
@@ -321,6 +432,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       url = 'https://' + url
     }
     window.clipToolAPI.openExternal(url)
+    // 跳转后关闭窗口
+    window.clipToolAPI.hideWindow()
   }, [])
 
   // 确认参数并打开链接
@@ -333,12 +446,37 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     window.clipToolAPI.openExternal(url)
     setParamLink(null)
     setParamValues({})
+    // 跳转后关闭窗口
+    window.clipToolAPI.hideWindow()
   }, [paramLink, paramValues])
+
+  // 判断输入是否为 URL
+  const isUrl = useCallback((text: string) => {
+    const trimmed = text.trim()
+    // 匹配 http(s):// 开头、域名格式（如 example.com）、localhost、IP 地址等
+    return /^https?:\/\//i.test(trimmed) ||
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+(\/.*)?$/.test(trimmed) ||
+      /^localhost(:\d+)?(\/.*)?$/.test(trimmed) ||
+      /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?(\/.*)?$/.test(trimmed)
+  }, [])
+
+  // 直接在浏览器中打开 URL
+  const handleOpenUrl = useCallback((text: string) => {
+    let url = text.trim()
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url
+    }
+    window.clipToolAPI.openExternal(url)
+    // 跳转后关闭窗口
+    window.clipToolAPI.hideWindow()
+  }, [])
 
   // 浏览器搜索
   const handleBrowserSearch = useCallback((query: string) => {
     const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`
     window.clipToolAPI.openExternal(url)
+    // 跳转后关闭窗口
+    window.clipToolAPI.hideWindow()
   }, [])
 
   // AI 搜索（在当前页面内展示结果）
@@ -456,28 +594,57 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 处理内置工具选中
   const handleToolOpen = useCallback((toolKey: string) => {
     setActiveTool(toolKey)
+    // 重置 Base64 工具状态
     setBase64Input('')
     setBase64Encoded('')
     setBase64Decoded('')
     setBase64Error('')
     setBase64SelectedIndex(0)
-    // 自动聚焦到工具输入框
-    setTimeout(() => base64InputRef.current?.focus(), 50)
+    // 重置时间戳工具状态
+    setTsInput('')
+    setTsResult('')
+    setTsSelectedIndex(0)
+    // 重置图片Base64工具状态
+    setImgBase64Result('')
+    setImgPreviewSrc('')
+    setImgBase64Input('')
+    setImgBase64Mode('toBase64')
+    // 自动聚焦到对应工具输入框
+    setTimeout(() => {
+      if (toolKey === 'base64') base64InputRef.current?.focus()
+      else if (toolKey === 'timestamp') tsInputRef.current?.focus()
+    }, 50)
   }, [])
 
   // 搜索框键盘事件
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     // 搜索无结果时的特殊键盘处理（链接+工具都没有匹配时）
     if (totalItems === 0 && searchQuery.trim() && !showAiResult && !activeTool) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const fallbackCount = isUrl(searchQuery) ? 3 : 2 // URL 时有 3 个选项，否则 2 个
+      if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSelectedIndex((prev) => (prev === 0 ? 1 : 0)) // 在两个选项间切换
+        setSelectedIndex((prev) => Math.min(prev + 1, fallbackCount - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedIndex((prev) => Math.max(prev - 1, 0))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        if (selectedIndex === 0) {
-          handleBrowserSearch(searchQuery.trim())
+        if (isUrl(searchQuery)) {
+          // URL 模式：0=打开URL, 1=Google搜索, 2=AI搜索
+          if (selectedIndex === 0) {
+            handleOpenUrl(searchQuery.trim())
+          } else if (selectedIndex === 1) {
+            handleBrowserSearch(searchQuery.trim())
+          } else {
+            handleAiSearch(searchQuery.trim())
+          }
         } else {
-          handleAiSearch(searchQuery.trim())
+          // 非 URL 模式：0=Google搜索, 1=AI搜索
+          if (selectedIndex === 0) {
+            handleBrowserSearch(searchQuery.trim())
+          } else {
+            handleAiSearch(searchQuery.trim())
+          }
         }
       }
       return
@@ -504,18 +671,41 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         e.preventDefault()
         e.stopPropagation()
         setActiveTool(null)
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setBase64SelectedIndex((prev) => Math.min(prev + 1, 1))
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setBase64SelectedIndex((prev) => Math.max(prev - 1, 0))
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        // 复制当前选中的结果
-        const textToCopy = base64SelectedIndex === 0 ? base64Encoded : base64Decoded
-        if (textToCopy && textToCopy !== '编码失败' && !textToCopy.startsWith('（') && textToCopy !== '等待输入...') {
-          copyWithToast(textToCopy)
+      } else if (activeTool === 'base64') {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setBase64SelectedIndex((prev) => Math.min(prev + 1, 1))
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setBase64SelectedIndex((prev) => Math.max(prev - 1, 0))
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          const textToCopy = base64SelectedIndex === 0 ? base64Encoded : base64Decoded
+          if (textToCopy && textToCopy !== '编码失败' && !textToCopy.startsWith('（') && textToCopy !== '等待输入...') {
+            copyWithToast(textToCopy)
+          }
+        }
+      } else if (activeTool === 'timestamp') {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setTsSelectedIndex((prev) => Math.min(prev + 1, 1))
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setTsSelectedIndex((prev) => Math.max(prev - 1, 0))
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          if (tsSelectedIndex === 0 && tsResult) {
+            copyWithToast(tsResult.replace(/📅 |⏱️ |❌ /g, ''))
+          } else if (tsSelectedIndex === 1 && tsNow) {
+            copyWithToast(tsNow.split('  |  ')[0])
+          }
+        }
+      } else if (activeTool === 'imageBase64') {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          if (imgBase64Mode === 'toBase64' && imgBase64Result) {
+            copyWithToast(imgBase64Result)
+          }
         }
       }
       return
@@ -700,6 +890,207 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         </div>
       )}
 
+      {/* 内置工具区域 - 时间戳转换 */}
+      {activeTool === 'timestamp' && (
+        <div className="launcher-base64-tool">
+          <div className="launcher-base64-header">
+            <span className="launcher-base64-title">🕐 时间戳转换工具</span>
+            <button
+              className="launcher-base64-close-btn"
+              onClick={() => setActiveTool(null)}
+              title="关闭工具 (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="launcher-ts-now-bar">
+            <span className="launcher-ts-now-label">⏱️ 当前时间</span>
+            <span className="launcher-ts-now-value">{tsNow}</span>
+            <button
+              className="launcher-base64-copy-btn"
+              onClick={() => tsNow && copyWithToast(tsNow.split('  |  ')[0])}
+            >
+              复制
+            </button>
+          </div>
+          <div className="launcher-base64-input-area">
+            <input
+              ref={tsInputRef}
+              className="launcher-ts-input"
+              type="text"
+              value={tsInput}
+              onChange={(e) => handleTsInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setTsSelectedIndex((prev) => Math.min(prev + 1, 1))
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setTsSelectedIndex((prev) => Math.max(prev - 1, 0))
+                } else if (e.key === 'Enter' && !e.shiftKey && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  if (tsSelectedIndex === 0 && tsResult) {
+                    copyWithToast(tsResult.replace(/📅 |⏱️ |❌ /g, ''))
+                  } else if (tsSelectedIndex === 1 && tsNow) {
+                    copyWithToast(tsNow.split('  |  ')[0])
+                  }
+                }
+              }}
+              placeholder="输入时间戳（秒/毫秒）或日期字符串（如 2024-01-01 12:00:00）"
+              autoFocus
+            />
+          </div>
+          <div className="launcher-base64-results">
+            <div className={`launcher-base64-result-block ${tsSelectedIndex === 0 ? 'selected' : ''}`}
+              onClick={() => setTsSelectedIndex(0)}
+            >
+              <div className="launcher-base64-result-label">
+                <span>📅 转换结果 {tsSelectedIndex === 0 ? '◀' : ''}</span>
+                {tsResult && !tsResult.startsWith('❌') && (
+                  <button
+                    className="launcher-base64-copy-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      copyWithToast(tsResult.replace(/📅 |⏱️ |❌ /g, ''))
+                    }}
+                  >
+                    {tsSelectedIndex === 0 ? '⌘↵ 复制' : '复制'}
+                  </button>
+                )}
+              </div>
+              <pre className="launcher-base64-result-text">{tsResult || '等待输入...'}</pre>
+            </div>
+            <div className={`launcher-base64-result-block ${tsSelectedIndex === 1 ? 'selected' : ''}`}
+              onClick={() => setTsSelectedIndex(1)}
+            >
+              <div className="launcher-base64-result-label">
+                <span>⏱️ 当前时间戳 {tsSelectedIndex === 1 ? '◀' : ''}</span>
+                <button
+                  className="launcher-base64-copy-btn"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    tsNow && copyWithToast(tsNow.split('  |  ')[0])
+                  }}
+                >
+                  {tsSelectedIndex === 1 ? '⌘↵ 复制' : '复制'}
+                </button>
+              </div>
+              <pre className="launcher-base64-result-text">{tsNow || '加载中...'}</pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 内置工具区域 - 图片 Base64 转换 */}
+      {activeTool === 'imageBase64' && (
+        <div className="launcher-base64-tool">
+          <div className="launcher-base64-header">
+            <span className="launcher-base64-title">🖼️ 图片 Base64 转换</span>
+            <button
+              className="launcher-base64-close-btn"
+              onClick={() => setActiveTool(null)}
+              title="关闭工具 (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+          {/* 模式切换 */}
+          <div className="launcher-img-mode-tabs">
+            <button
+              className={`launcher-img-mode-tab ${imgBase64Mode === 'toBase64' ? 'active' : ''}`}
+              onClick={() => {
+                setImgBase64Mode('toBase64')
+                setImgPreviewSrc('')
+                setImgBase64Result('')
+                setImgBase64Input('')
+              }}
+            >
+              📤 图片 → Base64
+            </button>
+            <button
+              className={`launcher-img-mode-tab ${imgBase64Mode === 'toImage' ? 'active' : ''}`}
+              onClick={() => {
+                setImgBase64Mode('toImage')
+                setImgPreviewSrc('')
+                setImgBase64Result('')
+                setImgBase64Input('')
+              }}
+            >
+              📥 Base64 → 图片
+            </button>
+          </div>
+
+          {imgBase64Mode === 'toBase64' ? (
+            <div className="launcher-img-to-base64">
+              <input
+                ref={imgFileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageFileSelect}
+              />
+              <div
+                className="launcher-img-drop-zone"
+                onClick={() => imgFileInputRef.current?.click()}
+              >
+                {imgPreviewSrc ? (
+                  <img src={imgPreviewSrc} alt="预览" className="launcher-img-preview" />
+                ) : (
+                  <div className="launcher-img-drop-hint">
+                    <span className="launcher-img-drop-icon">📁</span>
+                    <span>点击选择图片文件</span>
+                    <span className="launcher-img-drop-sub">支持 PNG、JPG、GIF、SVG 等格式</span>
+                  </div>
+                )}
+              </div>
+              {imgBase64Result && (
+                <div className="launcher-base64-results">
+                  <div className="launcher-base64-result-block selected">
+                    <div className="launcher-base64-result-label">
+                      <span>📤 Base64 结果（{(imgBase64Result.length / 1024).toFixed(1)} KB）</span>
+                      <button
+                        className="launcher-base64-copy-btn"
+                        onClick={() => copyWithToast(imgBase64Result)}
+                      >
+                        复制
+                      </button>
+                    </div>
+                    <pre className="launcher-base64-result-text launcher-img-base64-text">{imgBase64Result.substring(0, 200)}...</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="launcher-base64-to-img">
+              <div className="launcher-base64-input-area">
+                <textarea
+                  className="launcher-base64-textarea"
+                  value={imgBase64Input}
+                  onChange={(e) => handleImgBase64InputChange(e.target.value)}
+                  placeholder="粘贴 Base64 字符串（支持带 data:image/... 前缀或纯 Base64）"
+                  autoFocus
+                />
+              </div>
+              {imgPreviewSrc && (
+                <div className="launcher-img-preview-area">
+                  <div className="launcher-base64-result-label">
+                    <span>🖼️ 图片预览</span>
+                  </div>
+                  <div className="launcher-img-preview-box">
+                    <img
+                      src={imgPreviewSrc}
+                      alt="预览"
+                      className="launcher-img-preview"
+                      onError={() => setImgPreviewSrc('')}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 添加/编辑表单 */}
       {isAdding && (
         <div className="launcher-form">
@@ -863,29 +1254,43 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                 <span className="launcher-empty-icon">🔍</span>
                 <span>未找到匹配的链接，你可以：</span>
                 <div className="launcher-fallback-actions">
+                  {isUrl(searchQuery) && (
+                    <button
+                      className={`launcher-fallback-btn ${selectedIndex === 0 ? 'selected' : ''}`}
+                      onClick={() => handleOpenUrl(searchQuery.trim())}
+                      onMouseEnter={() => setSelectedIndex(0)}
+                    >
+                      <span className="launcher-fallback-icon">🔗</span>
+                      <div className="launcher-fallback-info">
+                        <span className="launcher-fallback-title">打开 URL</span>
+                        <span className="launcher-fallback-desc">在浏览器中打开「{searchQuery.trim()}」</span>
+                      </div>
+                      {selectedIndex === 0 && <span className="launcher-fallback-hint">↵</span>}
+                    </button>
+                  )}
                   <button
-                    className={`launcher-fallback-btn ${selectedIndex === 0 ? 'selected' : ''}`}
+                    className={`launcher-fallback-btn ${selectedIndex === (isUrl(searchQuery) ? 1 : 0) ? 'selected' : ''}`}
                     onClick={() => handleBrowserSearch(searchQuery.trim())}
-                    onMouseEnter={() => setSelectedIndex(0)}
+                    onMouseEnter={() => setSelectedIndex(isUrl(searchQuery) ? 1 : 0)}
                   >
                     <span className="launcher-fallback-icon">🌐</span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">Google 搜索</span>
                       <span className="launcher-fallback-desc">在浏览器中搜索「{searchQuery.trim()}」</span>
                     </div>
-                    {selectedIndex === 0 && <span className="launcher-fallback-hint">↵</span>}
+                    {selectedIndex === (isUrl(searchQuery) ? 1 : 0) && <span className="launcher-fallback-hint">↵</span>}
                   </button>
                   <button
-                    className={`launcher-fallback-btn ${selectedIndex === 1 ? 'selected' : ''}`}
+                    className={`launcher-fallback-btn ${selectedIndex === (isUrl(searchQuery) ? 2 : 1) ? 'selected' : ''}`}
                     onClick={() => handleAiSearch(searchQuery.trim())}
-                    onMouseEnter={() => setSelectedIndex(1)}
+                    onMouseEnter={() => setSelectedIndex(isUrl(searchQuery) ? 2 : 1)}
                   >
                     <span className="launcher-fallback-icon">🤖</span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">AI 搜索</span>
                       <span className="launcher-fallback-desc">在当前页面使用 AI 搜索「{searchQuery.trim()}」</span>
                     </div>
-                    {selectedIndex === 1 && <span className="launcher-fallback-hint">↵</span>}
+                    {selectedIndex === (isUrl(searchQuery) ? 2 : 1) && <span className="launcher-fallback-hint">↵</span>}
                   </button>
                 </div>
               </>
@@ -1005,10 +1410,21 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
 
       {/* 底部提示 */}
       <div className="launcher-footer">
-        {activeTool ? (
+        {activeTool === 'base64' ? (
           <>
             <span>↑↓ 切换结果</span>
             <span>⌘↵ 复制</span>
+            <span>Esc 退出</span>
+          </>
+        ) : activeTool === 'timestamp' ? (
+          <>
+            <span>↑↓ 切换结果</span>
+            <span>⌘↵ 复制</span>
+            <span>Esc 退出</span>
+          </>
+        ) : activeTool === 'imageBase64' ? (
+          <>
+            <span>↵ 复制结果</span>
             <span>Esc 退出</span>
           </>
         ) : (

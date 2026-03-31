@@ -37,7 +37,7 @@ function formatHint(accelerator: string): string {
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('save')
   const [snippets, setSnippets] = useState<SnippetData[]>([])
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
   const [triggerRead, setTriggerRead] = useState(0)
   const [shortcutHints, setShortcutHints] = useState<Record<string, string>>({
     save: '⌘⇧K',
@@ -163,6 +163,13 @@ const App: React.FC = () => {
     window.clipToolAPI.getTheme().then((theme) => {
       document.documentElement.setAttribute('data-theme', theme)
     })
+    // 初始化全局字体大小
+    window.clipToolAPI.getAppFontSize().then((size) => {
+      const scale = size / 13
+      document.documentElement.style.setProperty('--app-zoom', String(scale))
+      const appContainer = document.querySelector('.app-container') as HTMLElement
+      if (appContainer) appContainer.style.zoom = String(scale)
+    })
   }, [loadSnippets, loadShortcutHints])
 
   // 监听主进程发来的模式切换（全局快捷键触发）
@@ -181,8 +188,19 @@ const App: React.FC = () => {
         setTimeout(() => {
           launcherPanelRef.current?.focusSearch()
         }, 100)
+      } else if (mode === 'editor') {
+        // 如果当前已在 editor tab，正常切换；否则打开独立历史小窗
+        setActiveTab((prev) => {
+          if (prev === 'editor') {
+            return 'editor'
+          } else {
+            // 不在历史页面时，打开独立小窗
+            window.clipToolAPI.openHistoryWindow()
+            return prev // 保持当前 tab 不变
+          }
+        })
       } else {
-        // editor / ai / favorite / settings / profile
+        // ai / favorite / settings / profile
         setActiveTab(mode as TabType)
       }
       // 每次唤起都重新加载数据
@@ -191,10 +209,18 @@ const App: React.FC = () => {
     return unsubscribe
   }, [loadSnippets])
 
-  // Toast 提示
-  const showToast = useCallback((message: string) => {
-    setToast(message)
-    setTimeout(() => setToast(null), 2000)
+  // Toast 提示（支持类型：success / error / warning / info）
+  const showToast = useCallback((message: string, type?: 'success' | 'error' | 'warning' | 'info') => {
+    // 自动推断类型
+    let toastType = type
+    if (!toastType) {
+      if (message.startsWith('✓') || message.startsWith('✅')) toastType = 'success'
+      else if (message.startsWith('✕') || message.startsWith('❌')) toastType = 'error'
+      else if (message.startsWith('⚠')) toastType = 'warning'
+      else toastType = 'info'
+    }
+    setToast({ message, type: toastType })
+    setTimeout(() => setToast(null), 2200)
   }, [])
 
   // 保存片段
@@ -302,12 +328,12 @@ const App: React.FC = () => {
     onEnterSave: () => {
       savePanelRef.current?.doSave()
     },
-    // ⌘C / Enter（搜索模式）：复制选中项并关闭
+    // ⌘C / Enter（搜索模式）：复制选中项（不关闭页面）
     onCopySelected: () => {
       const results = searchPanelRef.current?.getResults()
       const idx = searchPanelRef.current?.getSelectedIndex() ?? 0
       if (results && results[idx]) {
-        handleCopyAndClose(results[idx])
+        handleCopy(results[idx])
       }
     },
     onArrowUp: () => {
@@ -333,7 +359,7 @@ const App: React.FC = () => {
     onQuickCopy: (index: number) => {
       const results = searchPanelRef.current?.getResults()
       if (results && results[index]) {
-        handleCopyAndClose(results[index])
+        handleCopy(results[index])
       }
     },
     // ← / → 切换 Tab（使用函数式更新避免闭包陷阱）
@@ -444,7 +470,7 @@ const App: React.FC = () => {
       </div>
 
       {/* 面板内容 */}
-      <div className="panel-content">
+      <div className="panel-content" key={activeTab}>
         {activeTab === 'save' && (
           <SavePanel ref={savePanelRef} onSave={handleSaveAndClose} triggerRead={triggerRead} />
         )}
@@ -455,7 +481,7 @@ const App: React.FC = () => {
           <SearchPanel
             ref={searchPanelRef}
             snippets={snippets}
-            onCopy={handleCopyAndClose}
+            onCopy={handleCopy}
             onDelete={handleDelete}
             onToggleFavorite={handleToggleFavorite}
             onUpdateTags={handleUpdateTags}
@@ -485,7 +511,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Toast 提示 */}
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
 
       {/* 窗口拉伸手柄 */}
       <div className="resize-handle" />

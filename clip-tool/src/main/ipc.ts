@@ -48,8 +48,13 @@ import {
   setTheme,
   pushSettingsToCloud,
   pullSettingsFromCloud,
+  getAllSyncSettings,
   getPageVisibility,
   savePageVisibility,
+  getAppFontSize,
+  setAppFontSize,
+  getDocEditorTheme,
+  setDocEditorTheme,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
@@ -66,7 +71,34 @@ import { testCosConnection, getDeviceId } from './cos'
 import { chatWithHunyuan, isHunyuanAvailable, generateTitle, type ChatMessage } from './hunyuan'
 
 /** 注册所有 IPC 事件处理器 */
-export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
+export function registerIpcHandlers(
+  getMainWindow: () => BrowserWindow | null,
+  getHistoryWindow: () => BrowserWindow | null,
+  createHistoryWindow: () => void
+) {
+  // 同步获取所有设置初始值（避免渲染进程异步加载导致UI跳变）
+  ipcMain.on('settings:getInitialSync', (event) => {
+    const settings = getAllSyncSettings()
+    event.returnValue = {
+      ...settings,
+      cosConfig: getCosConfig(),
+      deviceId: getDeviceId(),
+      storageMode: getStorageMode(),
+      theme: getTheme(),
+    }
+  })
+
+  // 异步获取所有同步设置（用于刷新缓存，不阻塞渲染进程）
+  ipcMain.handle('settings:getAllSync', () => {
+    return {
+      ...getAllSyncSettings(),
+      cosConfig: getCosConfig(),
+      deviceId: getDeviceId(),
+      storageMode: getStorageMode(),
+      theme: getTheme(),
+    }
+  })
+
   // 获取所有片段
   ipcMain.handle('snippets:getAll', () => {
     return getAllSnippets()
@@ -107,6 +139,19 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   ipcMain.on('window:hide', () => {
     const win = getMainWindow()
     if (win) win.hide()
+  })
+
+  // 打开独立的剪贴板历史窗口
+  ipcMain.on('historyWindow:open', () => {
+    createHistoryWindow()
+  })
+
+  // 关闭剪贴板历史窗口
+  ipcMain.on('historyWindow:close', () => {
+    const win = getHistoryWindow()
+    if (win && !win.isDestroyed()) {
+      win.close()
+    }
   })
 
   // 获取快捷键配置
@@ -364,6 +409,30 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null) {
   // 保存页面可见性配置
   ipcMain.handle('pageVisibility:save', (_event, config: PageVisibility) => {
     return savePageVisibility(config)
+  })
+
+  // ====== 全局字体大小 ======
+
+  // 获取全局字体大小
+  ipcMain.handle('appFontSize:get', () => {
+    return getAppFontSize()
+  })
+
+  // 设置全局字体大小
+  ipcMain.handle('appFontSize:set', (_event, size: number) => {
+    return setAppFontSize(size)
+  })
+
+  // ====== 速记编辑器主题 ======
+
+  // 获取速记编辑器默认主题
+  ipcMain.handle('docEditorTheme:get', () => {
+    return getDocEditorTheme()
+  })
+
+  // 设置速记编辑器默认主题
+  ipcMain.handle('docEditorTheme:set', (_event, theme: string) => {
+    return setDocEditorTheme(theme)
   })
 
 }

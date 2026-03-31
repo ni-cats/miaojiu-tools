@@ -106,6 +106,10 @@ export interface AiModelConfig {
 }
 
 export interface ClipToolAPI {
+  // 同步设置缓存（APP启动时获取，零延迟）
+  initialSettings: Record<string, unknown>
+  // 异步获取最新设置（用于刷新缓存）
+  getAllSyncSettings: () => Promise<Record<string, unknown>>
   getAllSnippets: () => Promise<SnippetData[]>
   readClipboard: () => Promise<ClipboardData>
   addSnippet: (snippet: SnippetData) => Promise<SnippetData[]>
@@ -114,6 +118,9 @@ export interface ClipToolAPI {
   copyToClipboard: (id: string, content: string, contentType?: string) => Promise<SnippetData[]>
   updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags' | 'content'>>) => Promise<SnippetData[]>
   hideWindow: () => void
+  openHistoryWindow: () => void
+  closeHistoryWindow: () => void
+  isHistoryWindow: () => boolean
   onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void) => (() => void)
   getShortcuts: () => Promise<ShortcutConfig>
   saveShortcuts: (config: ShortcutConfig) => Promise<ShortcutConfig>
@@ -177,6 +184,9 @@ export interface ClipToolAPI {
   // 页面可见性
   getPageVisibility: () => Promise<PageVisibility>
   savePageVisibility: (config: PageVisibility) => Promise<PageVisibility>
+  // 全局字体大小
+  getAppFontSize: () => Promise<number>
+  setAppFontSize: (size: number) => Promise<number>
 }
 
 declare global {

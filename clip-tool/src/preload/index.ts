@@ -83,6 +83,12 @@ export interface PageVisibility {
 }
 
 const api = {
+  /** 同步获取所有设置初始值（仅在 preload 加载时执行一次 sendSync，零延迟） */
+  initialSettings: ipcRenderer.sendSync('settings:getInitialSync') as Record<string, unknown>,
+
+  /** 异步获取所有同步设置（用于刷新缓存） */
+  getAllSyncSettings: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('settings:getAllSync'),
+
   /** 获取所有片段 */
   getAllSnippets: (): Promise<SnippetData[]> => ipcRenderer.invoke('snippets:getAll'),
 
@@ -108,6 +114,12 @@ const api = {
 
   /** 隐藏窗口 */
   hideWindow: (): void => ipcRenderer.send('window:hide'),
+
+  /** 打开独立的剪贴板历史窗口 */
+  openHistoryWindow: (): void => ipcRenderer.send('historyWindow:open'),
+
+  /** 关闭剪贴板历史窗口 */
+  closeHistoryWindow: (): void => ipcRenderer.send('historyWindow:close'),
 
   /** 监听窗口模式切换（主进程通过全局快捷键触发） */
   onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void): (() => void) => {
@@ -301,6 +313,27 @@ const api = {
 
   /** 保存页面可见性配置 */
   savePageVisibility: (config: PageVisibility): Promise<PageVisibility> => ipcRenderer.invoke('pageVisibility:save', config),
+
+  // ====== 全局字体大小 API ======
+
+  /** 获取全局字体大小 */
+  getAppFontSize: (): Promise<number> => ipcRenderer.invoke('appFontSize:get'),
+
+  /** 设置全局字体大小 */
+  setAppFontSize: (size: number): Promise<number> => ipcRenderer.invoke('appFontSize:set', size),
+
+  // ====== 速记编辑器主题 API ======
+
+  /** 获取速记编辑器默认主题 */
+  getDocEditorTheme: (): Promise<string> => ipcRenderer.invoke('docEditorTheme:get'),
+
+  /** 设置速记编辑器默认主题 */
+  setDocEditorTheme: (theme: string): Promise<string> => ipcRenderer.invoke('docEditorTheme:set', theme),
+
+  /** 判断当前是否为剪贴板历史窗口 */
+  isHistoryWindow: (): boolean => {
+    return window.location.hash === '#clipboard-history'
+  },
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

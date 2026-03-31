@@ -59,8 +59,50 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
   const [editTags, setEditTags] = useState<string[]>([])
   const [customTagInput, setCustomTagInput] = useState('')
   const [presetTags, setPresetTags] = useState<string[]>([])
+  const [copyFlash, setCopyFlash] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [favBounce, setFavBounce] = useState(false)
   const tagEditorRef = useRef<HTMLDivElement>(null)
   const tagInputRef = useRef<HTMLInputElement>(null)
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+    }
+  }, [])
+
+  // 复制并触发涟漪动画
+  const handleCopyWithFlash = useCallback((s: SnippetData) => {
+    setCopyFlash(true)
+    setTimeout(() => setCopyFlash(false), 600)
+    onCopy(s)
+  }, [onCopy])
+
+  // 删除确认流程
+  const handleDeleteRequest = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowDeleteConfirm(true)
+    // 3秒后自动取消确认
+    deleteTimerRef.current = setTimeout(() => setShowDeleteConfirm(false), 3000)
+  }, [])
+
+  const handleDeleteConfirm = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+    setShowDeleteConfirm(false)
+    setIsDeleting(true)
+    // 等动画播完再真正删除
+    setTimeout(() => onDelete(snippet.id), 350)
+  }, [onDelete, snippet.id])
+
+  const handleDeleteCancel = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+    setShowDeleteConfirm(false)
+  }, [])
 
   // 打开标签编辑
   const openTagEditor = useCallback((e: React.MouseEvent) => {
@@ -128,16 +170,26 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
 
   return (
     <div
-      className={`snippet-card ${isSelected ? 'selected' : ''}`}
-      onClick={() => onCopy(snippet)}
+      className={`snippet-card ${isSelected ? 'selected' : ''} ${copyFlash ? 'copy-flash' : ''} ${isDeleting ? 'deleting' : ''}`}
+      onClick={() => handleCopyWithFlash(snippet)}
       onMouseEnter={onMouseEnter}
     >
+      {/* 删除确认弹窗 */}
+      {showDeleteConfirm && (
+        <div className="delete-confirm-overlay" onClick={(e) => e.stopPropagation()}>
+          <span>确认删除？</span>
+          <button className="delete-confirm-btn confirm" onClick={handleDeleteConfirm}>删除</button>
+          <button className="delete-confirm-btn cancel" onClick={handleDeleteCancel}>取消</button>
+        </div>
+      )}
       {/* 操作按钮 */}
       <div className="snippet-actions">
         <button
-          className={`action-btn ${snippet.isFavorite ? 'favorite' : ''}`}
+          className={`action-btn ${snippet.isFavorite ? 'favorite' : ''} ${favBounce ? (snippet.isFavorite ? 'bounce' : 'unfavorite-anim') : ''}`}
           onClick={(e) => {
             e.stopPropagation()
+            setFavBounce(true)
+            setTimeout(() => setFavBounce(false), 500)
             onToggleFavorite(snippet.id)
           }}
           title={snippet.isFavorite ? '取消收藏' : '收藏'}
@@ -146,10 +198,7 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
         </button>
         <button
           className="action-btn danger"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete(snippet.id)
-          }}
+          onClick={handleDeleteRequest}
           title="删除"
         >
           ✕

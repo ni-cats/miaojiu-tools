@@ -105,7 +105,7 @@ const ShortcutItem: React.FC<ShortcutItemProps> = ({
 }
 
 /** 设置面板子页面类型 */
-type SettingsSection = 'save' | 'editor' | 'search' | 'launcher' | 'ai' | 'favorite' | 'profile' | 'shortcuts' | 'plugins' | 'appearance' | 'display'
+type SettingsSection = 'general' | 'config' | 'shortcuts' | 'plugins' | 'appearance' | 'display'
 
 /** 主题配置 */
 const THEMES: { id: string; name: string; emoji: string; desc: string; dark: boolean }[] = [
@@ -121,17 +121,12 @@ const THEMES: { id: string; name: string; emoji: string; desc: string; dark: boo
 
 /** 设置导航按钮配置 */
 const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
-  { key: 'save', icon: '📋', label: '保存' },
-  { key: 'editor', icon: '✏️', label: '编辑' },
-  { key: 'search', icon: '🔍', label: '搜索' },
-  { key: 'launcher', icon: '🚀', label: '导航' },
-  { key: 'ai', icon: '🤖', label: 'AI' },
-  { key: 'favorite', icon: '⭐', label: '收藏' },
-  { key: 'profile', icon: '💾', label: '存储' },
+  { key: 'general', icon: '⚙️', label: '通用' },
+  { key: 'config', icon: '🔧', label: '配置' },
   { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
-  { key: 'plugins', icon: '🧩', label: '插件' },
-  { key: 'appearance', icon: '🎨', label: '主题' },
   { key: 'display', icon: '👁', label: '页面' },
+  { key: 'appearance', icon: '🎨', label: '主题' },
+  { key: 'plugins', icon: '🧩', label: '插件' },
 ]
 
 /** 预留插件列表 */
@@ -206,7 +201,7 @@ export interface SettingsPanelRef {
 
 const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void; onPageVisibilityChanged?: () => void }>(({ onShortcutsChanged, onDataChanged, onPageVisibilityChanged }, ref) => {
   // 当前激活的子页面
-  const [activeSection, setActiveSection] = useState<SettingsSection>('save')
+  const [activeSection, setActiveSection] = useState<SettingsSection>('general')
   // 导航栏是否处于键盘聚焦状态
   const [navFocused, setNavFocused] = useState(false)
 
@@ -232,59 +227,84 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     },
   }))
 
-  const [shortcuts, setShortcuts] = useState<ShortcutConfig>({
-    openSave: '',
-    openSearch: '',
-    openEditor: '',
-    openAi: '',
-    openFavorite: '',
-    openSettings: '',
-    openProfile: '',
-    openLauncher: '',
-  })
+  // 从 preload 缓存的设置初始值（APP启动时同步获取，零延迟）
+  const _init = window.clipToolAPI.initialSettings
+
+  /** 更新 preload 缓存，确保下次打开设置页面时初始值是最新的 */
+  const updateCache = useCallback((updates: Record<string, unknown>) => {
+    Object.assign(window.clipToolAPI.initialSettings, updates)
+  }, [])
+
+  const [shortcuts, setShortcuts] = useState<ShortcutConfig>(
+    (_init.shortcuts as ShortcutConfig) || {
+      openSave: '',
+      openSearch: '',
+      openEditor: '',
+      openAi: '',
+      openFavorite: '',
+      openSettings: '',
+      openProfile: '',
+      openLauncher: '',
+    }
+  )
   const [recording, setRecording] = useState<keyof ShortcutConfig | null>(null)
   const [saveStatus, setSaveStatus] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const originalRef = useRef<ShortcutConfig | null>(null)
 
   // 标签管理状态
-  const [customTags, setCustomTags] = useState<string[]>([])
+  const [customTags, setCustomTags] = useState<string[]>((_init.customTags as string[]) || [])
   const [newTagInput, setNewTagInput] = useState('')
+
+  // 通用设置状态
+  const [appFontSize, setAppFontSize] = useState((_init.appFontSize as number) || 13)
+  // 速记页面默认编辑器主题
+  const [docEditorTheme, setDocEditorTheme] = useState((_init.docEditorTheme as string) || 'github-dark')
+
+  /** 应用字体大小缩放 */
+  const applyFontZoom = (size: number) => {
+    const scale = size / 13
+    document.documentElement.style.setProperty('--app-zoom', String(scale))
+    const appContainer = document.querySelector('.app-container') as HTMLElement
+    if (appContainer) appContainer.style.zoom = String(scale)
+  }
   const [tagSaveStatus, setTagSaveStatus] = useState<string | null>(null)
 
   // AI 生成标题配置
-  const [aiTitleEnabled, setAiTitleEnabled] = useState<boolean | null>(null)
+  const [aiTitleEnabled, setAiTitleEnabled] = useState<boolean>((_init.aiTitleEnabled as boolean) ?? false)
 
   // 编辑 — 剪贴板历史条数
-  const [editorHistoryLimit, setEditorHistoryLimit] = useState(20)
+  const [editorHistoryLimit, setEditorHistoryLimit] = useState((_init.clipboardHistoryLimit as number) || 20)
   const [editingEditorLimit, setEditingEditorLimit] = useState(false)
-  const [editorLimitInput, setEditorLimitInput] = useState('')
+  const [editorLimitInput, setEditorLimitInput] = useState(String((_init.clipboardHistoryLimit as number) || 20))
   const [editorLimitStatus, setEditorLimitStatus] = useState<string | null>(null)
 
   // 主题状态
-  const [currentTheme, setCurrentTheme] = useState<string>('system')
+  const [currentTheme, setCurrentTheme] = useState<string>((_init.theme as string) || 'system')
 
   // COS 云端存储状态
-  const [cosConfig, setCosConfig] = useState<CosConfig>({
-    secretId: '',
-    secretKey: '',
-    enabled: false,
-  })
-  const [deviceId, setDeviceId] = useState<string>('')
+  const [cosConfig, setCosConfig] = useState<CosConfig>(
+    (_init.cosConfig as CosConfig) || {
+      secretId: '',
+      secretKey: '',
+      enabled: false,
+    }
+  )
+  const [deviceId, setDeviceId] = useState<string>((_init.deviceId as string) || '')
   const [cosStatus, setCosStatus] = useState<string | null>(null)
   const [cosTesting, setCosTesting] = useState(false)
   const [cosSyncing, setCosSyncing] = useState(false)
   const [showSecretKey, setShowSecretKey] = useState(false)
-  const [storageMode, setStorageModeState] = useState<StorageMode>('local')
+  const [storageMode, setStorageModeState] = useState<StorageMode>((_init.storageMode as StorageMode) || 'local')
 
   // AI 模型配置状态
-  const [aiModels, setAiModels] = useState<AiModelConfig[]>([])
+  const [aiModels, setAiModels] = useState<AiModelConfig[]>((_init.aiModels as AiModelConfig[]) || [])
   const [aiStatus, setAiStatus] = useState<string | null>(null)
   const [showAiSecretKeys, setShowAiSecretKeys] = useState<Record<number, boolean>>({})
 
 
   // 导航分类管理状态
-  const [launcherCategories, setLauncherCategories] = useState<string[]>([])
+  const [launcherCategories, setLauncherCategories] = useState<string[]>((_init.launcherCategories as string[]) || [])
   const [newCategoryInput, setNewCategoryInput] = useState('')
   const [categorySaveStatus, setCategorySaveStatus] = useState<string | null>(null)
   // 导航分类拖拽排序状态（必须在组件顶层声明）
@@ -292,50 +312,70 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [catDragOverIndex, setCatDragOverIndex] = useState<number | null>(null)
 
   // 页面可见性配置状态
-  const [pageVisibility, setPageVisibility] = useState<PageVisibility>({
-    save: true,
-    editor: true,
-    search: true,
-    launcher: true,
-    doc: true,
-    ai: true,
-    favorite: true,
-    settings: true,
-    profile: true,
-  })
+  const [pageVisibility, setPageVisibility] = useState<PageVisibility>(
+    (_init.pageVisibility as PageVisibility) || {
+      save: true,
+      editor: true,
+      search: true,
+      launcher: true,
+      doc: true,
+      ai: true,
+      favorite: true,
+      settings: true,
+      profile: true,
+    }
+  )
 
-  // 加载当前快捷键配置
+  // 初始化副作用（注册标签、设置 originalRef、异步刷新最新设置）
   useEffect(() => {
-    window.clipToolAPI.getShortcuts().then((config) => {
-      setShortcuts(config)
-      originalRef.current = { ...config }
-    })
-    // 加载自定义标签
-    window.clipToolAPI.getCustomTags().then((tags) => {
-      setCustomTags(tags)
-      registerTags(tags)
-    })
-    // 加载剪贴板历史条数限制
-    window.clipToolAPI.getClipboardHistoryLimit().then((limit) => {
-      setEditorHistoryLimit(limit)
-      setEditorLimitInput(String(limit))
-    })
-    // 加载 COS 配置和设备 ID
-    window.clipToolAPI.getCosConfig().then(setCosConfig)
-    window.clipToolAPI.getDeviceId().then(setDeviceId)
-    // 加载存储模式
-    window.clipToolAPI.getStorageMode().then(setStorageModeState)
-    // 加载 AI 模型配置
-    window.clipToolAPI.getAiModels().then(setAiModels)
-    // 加载导航分类
-    window.clipToolAPI.getLauncherCategories().then(setLauncherCategories)
-    // 加载 AI 标题配置
-    window.clipToolAPI.getAiTitleEnabled().then(setAiTitleEnabled)
+    originalRef.current = { ...shortcuts }
+    registerTags(customTags)
 
-    // 加载主题
-    window.clipToolAPI.getTheme().then(setCurrentTheme)
-    // 加载页面可见性配置
-    window.clipToolAPI.getPageVisibility().then(setPageVisibility)
+    // 异步获取最新设置值（云端拉取后可能已更新），只有值不同时才更新 state
+    window.clipToolAPI.getAllSyncSettings().then((latest: Record<string, unknown>) => {
+      // 用最新值覆盖缓存，确保下次打开设置页面时初始值是最新的
+      Object.assign(window.clipToolAPI.initialSettings, latest)
+      if (latest.aiTitleEnabled !== undefined && latest.aiTitleEnabled !== _init.aiTitleEnabled) {
+        setAiTitleEnabled(latest.aiTitleEnabled as boolean)
+      }
+      if (latest.docEditorTheme && latest.docEditorTheme !== _init.docEditorTheme) {
+        setDocEditorTheme(latest.docEditorTheme as string)
+      }
+      if (latest.shortcuts && JSON.stringify(latest.shortcuts) !== JSON.stringify(_init.shortcuts)) {
+        setShortcuts(latest.shortcuts as ShortcutConfig)
+        originalRef.current = { ...(latest.shortcuts as ShortcutConfig) }
+      }
+      if (latest.customTags && JSON.stringify(latest.customTags) !== JSON.stringify(_init.customTags)) {
+        setCustomTags(latest.customTags as string[])
+        registerTags(latest.customTags as string[])
+      }
+      if (latest.clipboardHistoryLimit !== undefined && latest.clipboardHistoryLimit !== _init.clipboardHistoryLimit) {
+        setEditorHistoryLimit(latest.clipboardHistoryLimit as number)
+        setEditorLimitInput(String(latest.clipboardHistoryLimit))
+      }
+      if (latest.aiModels && JSON.stringify(latest.aiModels) !== JSON.stringify(_init.aiModels)) {
+        setAiModels(latest.aiModels as AiModelConfig[])
+      }
+      if (latest.launcherCategories && JSON.stringify(latest.launcherCategories) !== JSON.stringify(_init.launcherCategories)) {
+        setLauncherCategories(latest.launcherCategories as string[])
+      }
+      if (latest.pageVisibility && JSON.stringify(latest.pageVisibility) !== JSON.stringify(_init.pageVisibility)) {
+        setPageVisibility(latest.pageVisibility as PageVisibility)
+      }
+      if (latest.appFontSize !== undefined && latest.appFontSize !== _init.appFontSize) {
+        setAppFontSize(latest.appFontSize as number)
+        applyFontZoom(latest.appFontSize as number)
+      }
+      if (latest.theme && latest.theme !== _init.theme) {
+        setCurrentTheme(latest.theme as string)
+      }
+      if (latest.cosConfig && JSON.stringify(latest.cosConfig) !== JSON.stringify(_init.cosConfig)) {
+        setCosConfig(latest.cosConfig as CosConfig)
+      }
+      if (latest.storageMode && latest.storageMode !== _init.storageMode) {
+        setStorageModeState(latest.storageMode as StorageMode)
+      }
+    })
   }, [])
 
   // 录制快捷键
@@ -388,6 +428,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       originalRef.current = { ...saved }
       setHasChanges(false)
       setSaveStatus('✓ 快捷键已保存')
+      updateCache({ shortcuts: saved })
       // 通知父组件快捷键已更新
       onShortcutsChanged?.()
       setTimeout(() => setSaveStatus(null), 2000)
@@ -431,6 +472,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     registerTags(saved)
     setNewTagInput('')
     setTagSaveStatus('✓ 已添加')
+    updateCache({ customTags: saved })
     setTimeout(() => setTagSaveStatus(null), 2000)
   }, [newTagInput, customTags])
 
@@ -439,6 +481,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     const saved = await window.clipToolAPI.saveCustomTags(updated)
     setCustomTags(saved)
     registerTags(saved)
+    updateCache({ customTags: saved })
   }, [customTags])
 
   // ===== 拖拽排序 =====
@@ -467,6 +510,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     const saved = await window.clipToolAPI.saveCustomTags(updated)
     setCustomTags(saved)
     registerTags(saved)
+    updateCache({ customTags: saved })
     setDragIndex(null)
     setDragOverIndex(null)
   }, [dragIndex, customTags])
@@ -481,6 +525,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     try {
       const saved = await window.clipToolAPI.setStorageMode(mode)
       setStorageModeState(saved)
+      updateCache({ storageMode: saved })
       // 同步更新 COS enabled 状态
       setCosConfig((prev) => ({ ...prev, enabled: mode === 'cos' }))
       setCosStatus(mode === 'cos' ? '☁️ 已切换为云端存储模式' : '💾 已切换为本地存储模式')
@@ -496,6 +541,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     try {
       const saved = await window.clipToolAPI.saveCosConfig(cosConfig)
       setCosConfig(saved)
+      updateCache({ cosConfig: saved })
       setCosStatus('✓ COS 配置已保存')
       setTimeout(() => setCosStatus(null), 2000)
     } catch (error) {
@@ -578,6 +624,12 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
         if (settings.aiModels) setAiModels(settings.aiModels as AiModelConfig[])
         if (settings.aiTitleEnabled !== undefined) setAiTitleEnabled(settings.aiTitleEnabled as boolean)
         if (settings.launcherCategories) setLauncherCategories(settings.launcherCategories as string[])
+        if (settings.docEditorTheme) setDocEditorTheme(settings.docEditorTheme as string)
+        if (settings.pageVisibility) setPageVisibility(settings.pageVisibility as PageVisibility)
+        if (settings.appFontSize !== undefined) {
+          setAppFontSize(settings.appFontSize as number)
+          applyFontZoom(settings.appFontSize as number)
+        }
       }
       if (results.length > 0) {
         setCosStatus(`✓ 已从云端拉取 ${results.join('、')}`)
@@ -730,322 +782,323 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     </>
   )
 
-  /** 保存设置子页面（预设标签管理） */
-  const renderSavePage = () => (
-    <div className="settings-section">
-      <div className="settings-section-title">📋 保存 — 智能标题</div>
-      <div className="settings-section-hint">
-        启用后，保存片段时将自动调用 AI 大模型为剪贴板内容生成简短标题（需先在 AI 页面配置模型密钥）
-      </div>
+  /** 配置页面（合并了 AI 模型配置 + 存储配置） */
+  const renderConfigPage = () => {
+    /** 模型提供商列表 */
+    const AI_PROVIDERS: { key: AiModelConfig['provider']; name: string; icon: string; models: string[]; needSecretId: boolean }[] = [
+      {
+        key: 'hunyuan',
+        name: '腾讯混元',
+        icon: '🤖',
+        models: ['hunyuan-lite', 'hunyuan-standard', 'hunyuan-pro'],
+        needSecretId: true,
+      },
+      {
+        key: 'deepseek',
+        name: 'DeepSeek',
+        icon: '🧠',
+        models: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
+        needSecretId: false,
+      },
+    ]
 
-      <div className="settings-config-item" style={{ marginBottom: 16 }}>
-        <div className="settings-config-info">
-          <div className="settings-config-label">🤖 AI 自动生成标题</div>
-          <div className="settings-config-desc">保存时自动使用大模型分析内容并生成标题，替代默认的前30字截取</div>
-        </div>
-        <div className="settings-config-action">
-          {aiTitleEnabled === null ? (
-            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>加载中...</span>
-          ) : (
-            <label className="settings-cos-switch" title={aiTitleEnabled ? '已启用' : '未启用'}>
-              <input
-                type="checkbox"
-                checked={aiTitleEnabled}
-                onChange={async (e) => {
-                  const enabled = e.target.checked
-                  const saved = await window.clipToolAPI.setAiTitleEnabled(enabled)
-                  setAiTitleEnabled(saved)
-                }}
-              />
-              <span className="settings-cos-slider"></span>
-            </label>
-          )}
-        </div>
-      </div>
-
-      <div className="settings-section-title">📋 保存 — 预设标签管理</div>
-      <div className="settings-section-hint">
-        管理保存片段时可快速选择的预设标签
-      </div>
-
-      {/* 添加标签 */}
-      <div className="settings-tag-add-row">
-        <input
-          className="text-input"
-          type="text"
-          value={newTagInput}
-          onChange={(e) => setNewTagInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newTagInput.trim()) {
-              e.preventDefault()
-              handleAddTag()
-            }
-          }}
-          placeholder="输入新标签名称，回车添加"
-          style={{ flex: 1 }}
-        />
-        <button
-          className="settings-tag-add-btn"
-          onClick={handleAddTag}
-          disabled={!newTagInput.trim()}
-        >
-          添加
-        </button>
-      </div>
-
-      {tagSaveStatus && (
-        <span className={`settings-status ${tagSaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
-              style={{ fontSize: 12, marginTop: 4 }}>
-          {tagSaveStatus}
-        </span>
-      )}
-
-      {/* 标签列表（拖拽排序） */}
-      <div className="settings-tag-list">
-        {customTags.length === 0 ? (
-          <div className="settings-tag-empty">暂无预设标签，请添加</div>
-        ) : (
-          customTags.map((tag, index) => (
-            <div
-              key={tag}
-              className={`settings-tag-item${
-                dragIndex === index ? ' dragging' : ''
-              }${dragOverIndex === index && dragIndex !== index ? ' drag-over' : ''}`}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={() => handleDrop(index)}
-              onDragEnd={handleDragEnd}
-            >
-              <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
-              <span className="settings-tag-index">{index + 1}</span>
-              <span
-                className="settings-launcher-category-preview"
-                style={{ background: getTagColor(tag).bg, color: getTagColor(tag).text }}
-              >
-                {tag}
-              </span>
-              <button
-                className="settings-tag-remove-btn"
-                onClick={() => handleRemoveTag(tag)}
-                title="删除标签"
-              >
-                ✕
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-
-  /** 编辑设置子页面（剪贴板历史条数配置） */
-  const renderEditorPage = () => {
-    const handleSaveEditorLimit = async () => {
-      const num = parseInt(editorLimitInput, 10)
-      if (isNaN(num) || num < 1 || num > 500) {
-        setEditorLimitStatus('⚠ 请输入 1~500 之间的数字')
-        setTimeout(() => setEditorLimitStatus(null), 2000)
+    const handleAddModel = (provider: AiModelConfig['provider']) => {
+      const providerInfo = AI_PROVIDERS.find((p) => p.key === provider)
+      if (!providerInfo) return
+      if (aiModels.some((m) => m.provider === provider)) {
+        setAiStatus(`⚠ ${providerInfo.name} 已添加`)
+        setTimeout(() => setAiStatus(null), 2000)
         return
       }
-      const saved = await window.clipToolAPI.setClipboardHistoryLimit(num)
-      setEditorHistoryLimit(saved)
-      setEditingEditorLimit(false)
-      setEditorLimitStatus(`✓ 已设置最多保存 ${saved} 条`)
-      setTimeout(() => setEditorLimitStatus(null), 2000)
+      const newModel: AiModelConfig = {
+        provider,
+        secretId: '',
+        secretKey: '',
+        model: providerInfo.models[0],
+        enabled: false,
+      }
+      const updated = [...aiModels, newModel]
+      setAiModels(updated)
+    }
+
+    const handleRemoveModel = async (index: number) => {
+      const updated = aiModels.filter((_, i) => i !== index)
+      const saved = await window.clipToolAPI.saveAiModels(updated)
+      setAiModels(saved)
+      updateCache({ aiModels: saved })
+      setAiStatus('✓ 已删除')
+      setTimeout(() => setAiStatus(null), 2000)
+    }
+
+    const handleUpdateModel = (index: number, data: Partial<AiModelConfig>) => {
+      const updated = [...aiModels]
+      updated[index] = { ...updated[index], ...data }
+      if (data.enabled) {
+        updated.forEach((m, i) => {
+          if (i !== index) m.enabled = false
+        })
+      }
+      setAiModels(updated)
+    }
+
+    const handleSaveAiModels = async () => {
+      const saved = await window.clipToolAPI.saveAiModels(aiModels)
+      setAiModels(saved)
+      updateCache({ aiModels: saved })
+      setAiStatus('✓ AI 配置已保存')
+      setTimeout(() => setAiStatus(null), 2000)
+    }
+
+    const toggleShowAiKey = (index: number) => {
+      setShowAiSecretKeys((prev) => ({ ...prev, [index]: !prev[index] }))
     }
 
     return (
-      <div className="settings-section">
-        <div className="settings-section-title">✏️ 编辑设置</div>
-        <div className="settings-section-hint">
-          配置编辑页面的行为参数
-        </div>
+      <>
+        {/* ===== AI 模型配置 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">🤖 AI 模型配置</div>
+          <div className="settings-section-hint">
+            配置 AI 大模型的密钥信息，启用后可在 AI 页面中使用对话功能。同一时间只能启用一个模型。
+          </div>
 
-        <div className="settings-editor-config">
-          <div className="settings-config-item">
-            <div className="settings-config-info">
-              <div className="settings-config-label">📋 剪贴板历史最大条数</div>
-              <div className="settings-config-desc">控制编辑页面下方剪贴板历史列表保存的最大条数（1~500），超出后自动移除旧记录</div>
-            </div>
-            <div className="settings-config-action">
-              {editingEditorLimit ? (
-                <div className="editor-limit-edit">
-                  <input
-                    className="text-input editor-limit-input"
-                    type="number"
-                    min={1}
-                    max={500}
-                    value={editorLimitInput}
-                    onChange={(e) => setEditorLimitInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEditorLimit()
-                      if (e.key === 'Escape') setEditingEditorLimit(false)
-                    }}
-                    autoFocus
-                  />
-                  <button className="editor-limit-btn" onClick={handleSaveEditorLimit}>✓</button>
-                  <button className="editor-limit-btn cancel" onClick={() => setEditingEditorLimit(false)}>✕</button>
-                </div>
-              ) : (
+          {/* 添加模型按钮 */}
+          <div className="ai-provider-add-row">
+            {AI_PROVIDERS.map((provider) => {
+              const alreadyAdded = aiModels.some((m) => m.provider === provider.key)
+              return (
                 <button
-                  className="editor-limit-tag"
-                  onClick={() => {
-                    setEditorLimitInput(String(editorHistoryLimit))
-                    setEditingEditorLimit(true)
-                  }}
-                  title="点击修改"
+                  key={provider.key}
+                  className={`ai-provider-add-btn ${alreadyAdded ? 'added' : ''}`}
+                  onClick={() => handleAddModel(provider.key)}
+                  disabled={alreadyAdded}
                 >
-                  {editorHistoryLimit} 条
+                  <span>{provider.icon}</span>
+                  <span>{alreadyAdded ? `${provider.name} ✓` : `+ ${provider.name}`}</span>
                 </button>
+              )
+            })}
+          </div>
+
+          {/* 已配置的模型列表 */}
+          {aiModels.map((model, index) => {
+            const providerInfo = AI_PROVIDERS.find((p) => p.key === model.provider)
+            if (!providerInfo) return null
+            return (
+              <div key={index} className="ai-model-card">
+                <div className="ai-model-card-header">
+                  <div className="ai-model-card-title">
+                    <span>{providerInfo.icon}</span>
+                    <span>{providerInfo.name}</span>
+                  </div>
+                  <div className="ai-model-card-actions">
+                    <label className="settings-cos-switch" title={model.enabled ? '已启用' : '未启用'}>
+                      <input
+                        type="checkbox"
+                        checked={model.enabled}
+                        onChange={(e) => handleUpdateModel(index, { enabled: e.target.checked })}
+                      />
+                      <span className="settings-cos-slider"></span>
+                    </label>
+                    <button
+                      className="settings-tag-remove-btn"
+                      onClick={() => handleRemoveModel(index)}
+                      title="删除"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {providerInfo.needSecretId && (
+                  <div className="settings-cos-field">
+                    <label className="settings-cos-label">SecretId</label>
+                    <input
+                      className="text-input"
+                      type="text"
+                      value={model.secretId}
+                      onChange={(e) => handleUpdateModel(index, { secretId: e.target.value })}
+                      placeholder="输入 SecretId"
+                      spellCheck={false}
+                    />
+                  </div>
+                )}
+
+                <div className="settings-cos-field">
+                  <label className="settings-cos-label">{providerInfo.needSecretId ? 'SecretKey' : 'API Key'}</label>
+                  <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                    <input
+                      className="text-input"
+                      type={showAiSecretKeys[index] ? 'text' : 'password'}
+                      value={model.secretKey}
+                      onChange={(e) => handleUpdateModel(index, { secretKey: e.target.value })}
+                      placeholder={`输入 ${providerInfo.needSecretId ? 'SecretKey' : 'API Key'}`}
+                      style={{ flex: 1 }}
+                      spellCheck={false}
+                    />
+                    <button
+                      className="settings-cos-toggle-btn"
+                      onClick={() => toggleShowAiKey(index)}
+                      title={showAiSecretKeys[index] ? '隐藏' : '显示'}
+                    >
+                      {showAiSecretKeys[index] ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {aiModels.length === 0 && (
+            <div className="settings-placeholder" style={{ padding: '20px 0' }}>
+              <span className="settings-placeholder-icon">🤖</span>
+              <span className="settings-placeholder-text">点击上方按钮添加 AI 模型</span>
+            </div>
+          )}
+
+          {aiModels.length > 0 && (
+            <div className="settings-cos-actions" style={{ marginTop: 8 }}>
+              <button
+                className="settings-cos-btn primary"
+                onClick={handleSaveAiModels}
+              >
+                💾 保存配置
+              </button>
+              {aiStatus && (
+                <span className={`settings-status ${aiStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                      style={{ fontSize: 12 }}>
+                  {aiStatus}
+                </span>
               )}
             </div>
+          )}
+        </div>
+
+        {/* ===== 存储配置 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">💾 存储配置 — 存储模式</div>
+          <div className="settings-section-hint">
+            选择数据存储方式：本地存储仅保存在当前设备，云端存储支持多设备同步
           </div>
-        </div>
-
-        {editorLimitStatus && (
-          <span className={`settings-status ${editorLimitStatus.startsWith('✓') ? 'success' : 'warning'}`}
-                style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
-            {editorLimitStatus}
-          </span>
-        )}
-      </div>
-    )
-  }
-
-  /** 存储设置子页面 */
-  const renderStoragePage = () => (
-    <>
-      {/* 存储模式选择 */}
-      <div className="settings-section">
-        <div className="settings-section-title">💾 存储配置 — 存储模式</div>
-        <div className="settings-section-hint">
-          选择数据存储方式：本地存储仅保存在当前设备，云端存储支持多设备同步
-        </div>
-        <div className="settings-storage-mode">
-          <div
-            className={`settings-storage-option ${storageMode === 'local' ? 'active' : ''}`}
-            onClick={() => handleStorageModeChange('local')}
-          >
-            <span className="settings-storage-icon">💾</span>
-            <div className="settings-storage-info">
-              <div className="settings-storage-name">本地存储</div>
-              <div className="settings-storage-desc">数据保存在本地，快速且无网络依赖</div>
+          <div className="settings-storage-mode">
+            <div
+              className={`settings-storage-option ${storageMode === 'local' ? 'active' : ''}`}
+              onClick={() => handleStorageModeChange('local')}
+            >
+              <span className="settings-storage-icon">💾</span>
+              <div className="settings-storage-info">
+                <div className="settings-storage-name">本地存储</div>
+                <div className="settings-storage-desc">数据保存在本地，快速且无网络依赖</div>
+              </div>
+              {storageMode === 'local' && <span className="settings-storage-check">✓</span>}
             </div>
-            {storageMode === 'local' && <span className="settings-storage-check">✓</span>}
-          </div>
-          <div
-            className={`settings-storage-option ${storageMode === 'cos' ? 'active' : ''}`}
-            onClick={() => handleStorageModeChange('cos')}
-          >
-            <span className="settings-storage-icon">☁️</span>
-            <div className="settings-storage-info">
-              <div className="settings-storage-name">COS 云端存储</div>
-              <div className="settings-storage-desc">数据同步到腾讯云 COS，支持多设备共享</div>
+            <div
+              className={`settings-storage-option ${storageMode === 'cos' ? 'active' : ''}`}
+              onClick={() => handleStorageModeChange('cos')}
+            >
+              <span className="settings-storage-icon">☁️</span>
+              <div className="settings-storage-info">
+                <div className="settings-storage-name">COS 云端存储</div>
+                <div className="settings-storage-desc">数据同步到腾讯云 COS，支持多设备共享</div>
+              </div>
+              {storageMode === 'cos' && <span className="settings-storage-check">✓</span>}
             </div>
-            {storageMode === 'cos' && <span className="settings-storage-check">✓</span>}
           </div>
         </div>
-      </div>
 
-      {/* COS 云端存储配置 */}
-      <div className="settings-section" style={{ opacity: storageMode === 'cos' ? 1 : 0.5, pointerEvents: storageMode === 'cos' ? 'auto' : 'none' }}>
-        <div className="settings-section-title">☁️ 云端存储配置（腾讯云 COS）</div>
-        <div className="settings-section-hint">
-          配置腾讯云 COS 密钥，片段数据和所有设置将自动同步到云端。设备 ID：<code style={{ fontSize: 11, color: '#8b949e', userSelect: 'all' }}>{deviceId || '获取中...'}</code>
-        </div>
+        {/* COS 云端存储配置 */}
+        <div className="settings-section" style={{ opacity: storageMode === 'cos' ? 1 : 0.5, pointerEvents: storageMode === 'cos' ? 'auto' : 'none' }}>
+          <div className="settings-section-title">☁️ 云端存储配置（腾讯云 COS）</div>
+          <div className="settings-section-hint">
+            配置腾讯云 COS 密钥，片段数据和所有设置将自动同步到云端。设备 ID：<code style={{ fontSize: 11, color: '#8b949e', userSelect: 'all' }}>{deviceId || '获取中...'}</code>
+          </div>
 
-        {/* SecretId 输入 */}
-        <div className="settings-cos-field">
-          <label className="settings-cos-label">SecretId</label>
-          <input
-            className="text-input"
-            type="text"
-            value={cosConfig.secretId}
-            onChange={(e) => setCosConfig((prev) => ({ ...prev, secretId: e.target.value }))}
-            placeholder="输入腾讯云 SecretId"
-            spellCheck={false}
-          />
-        </div>
-
-        {/* SecretKey 输入 */}
-        <div className="settings-cos-field">
-          <label className="settings-cos-label">SecretKey</label>
-          <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+          <div className="settings-cos-field">
+            <label className="settings-cos-label">SecretId</label>
             <input
               className="text-input"
-              type={showSecretKey ? 'text' : 'password'}
-              value={cosConfig.secretKey}
-              onChange={(e) => setCosConfig((prev) => ({ ...prev, secretKey: e.target.value }))}
-              placeholder="输入腾讯云 SecretKey"
-              style={{ flex: 1 }}
+              type="text"
+              value={cosConfig.secretId}
+              onChange={(e) => setCosConfig((prev) => ({ ...prev, secretId: e.target.value }))}
+              placeholder="输入腾讯云 SecretId"
               spellCheck={false}
             />
+          </div>
+
+          <div className="settings-cos-field">
+            <label className="settings-cos-label">SecretKey</label>
+            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+              <input
+                className="text-input"
+                type={showSecretKey ? 'text' : 'password'}
+                value={cosConfig.secretKey}
+                onChange={(e) => setCosConfig((prev) => ({ ...prev, secretKey: e.target.value }))}
+                placeholder="输入腾讯云 SecretKey"
+                style={{ flex: 1 }}
+                spellCheck={false}
+              />
+              <button
+                className="settings-cos-toggle-btn"
+                onClick={() => setShowSecretKey(!showSecretKey)}
+                title={showSecretKey ? '隐藏' : '显示'}
+              >
+                {showSecretKey ? '🙈' : '👁'}
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-cos-field">
+            <label className="settings-cos-label">同步状态</label>
+            <span style={{ fontSize: 12, color: storageMode === 'cos' ? '#34c759' : '#8b949e' }}>
+              {storageMode === 'cos' ? '✓ 已启用 - 数据变更自动同步' : '未启用（请切换为云端存储模式）'}
+            </span>
+          </div>
+
+          {cosStatus && (
+            <div className={`settings-status ${cosStatus.startsWith('✓') ? 'success' : cosStatus.startsWith('⚠') ? 'warning' : 'error'}`}
+                 style={{ fontSize: 12, marginTop: 4, marginBottom: 4 }}>
+              {cosStatus}
+            </div>
+          )}
+
+          <div className="settings-cos-actions">
             <button
-              className="settings-cos-toggle-btn"
-              onClick={() => setShowSecretKey(!showSecretKey)}
-              title={showSecretKey ? '隐藏' : '显示'}
+              className="settings-cos-btn"
+              onClick={handleSaveCosConfig}
+              disabled={!cosConfig.secretId || !cosConfig.secretKey}
             >
-              {showSecretKey ? '🙈' : '👁'}
+              💾 保存配置
+            </button>
+            <button
+              className="settings-cos-btn"
+              onClick={handleTestConnection}
+              disabled={!cosConfig.secretId || !cosConfig.secretKey || cosTesting}
+            >
+              {cosTesting ? '⏳ 测试中...' : '🔗 测试连接'}
+            </button>
+            <button
+              className="settings-cos-btn primary"
+              onClick={handlePushToCloud}
+              disabled={!cosConfig.secretId || !cosConfig.secretKey || cosSyncing}
+            >
+              {cosSyncing ? '⏳ 同步中...' : '⬆️ 推送到云端'}
+            </button>
+            <button
+              className="settings-cos-btn"
+              onClick={handlePullFromCloud}
+              disabled={!cosConfig.secretId || !cosConfig.secretKey || cosSyncing}
+            >
+              {cosSyncing ? '⏳ 同步中...' : '⬇️ 从云端拉取'}
             </button>
           </div>
-        </div>
 
-        {/* 同步状态（由存储模式自动控制） */}
-        <div className="settings-cos-field">
-          <label className="settings-cos-label">同步状态</label>
-          <span style={{ fontSize: 12, color: storageMode === 'cos' ? '#34c759' : '#8b949e' }}>
-            {storageMode === 'cos' ? '✓ 已启用 - 数据变更自动同步' : '未启用（请切换为云端存储模式）'}
-          </span>
-        </div>
-
-        {/* 状态提示 */}
-        {cosStatus && (
-          <div className={`settings-status ${cosStatus.startsWith('✓') ? 'success' : cosStatus.startsWith('⚠') ? 'warning' : 'error'}`}
-               style={{ fontSize: 12, marginTop: 4, marginBottom: 4 }}>
-            {cosStatus}
+          <div className="settings-section-hint" style={{ marginTop: 8 }}>
+            💡 推送/拉取会同步：片段数据、标签、快捷键、AI 模型配置、导航分类、快速链接等所有设置
           </div>
-        )}
-
-        {/* 操作按钮 */}
-        <div className="settings-cos-actions">
-          <button
-            className="settings-cos-btn"
-            onClick={handleSaveCosConfig}
-            disabled={!cosConfig.secretId || !cosConfig.secretKey}
-          >
-            💾 保存配置
-          </button>
-          <button
-            className="settings-cos-btn"
-            onClick={handleTestConnection}
-            disabled={!cosConfig.secretId || !cosConfig.secretKey || cosTesting}
-          >
-            {cosTesting ? '⏳ 测试中...' : '🔗 测试连接'}
-          </button>
-          <button
-            className="settings-cos-btn primary"
-            onClick={handlePushToCloud}
-            disabled={!cosConfig.secretId || !cosConfig.secretKey || cosSyncing}
-          >
-            {cosSyncing ? '⏳ 同步中...' : '⬆️ 推送到云端'}
-          </button>
-          <button
-            className="settings-cos-btn"
-            onClick={handlePullFromCloud}
-            disabled={!cosConfig.secretId || !cosConfig.secretKey || cosSyncing}
-          >
-            {cosSyncing ? '⏳ 同步中...' : '⬇️ 从云端拉取'}
-          </button>
         </div>
-
-        {/* 同步说明 */}
-        <div className="settings-section-hint" style={{ marginTop: 8 }}>
-          💡 推送/拉取会同步：片段数据、标签、快捷键、AI 模型配置、导航分类、快速链接等所有设置
-        </div>
-      </div>
-    </>
-  )
+      </>
+    )
+  }
 
   /** 插件子页面（预留功能） */
   const renderPluginsPage = () => (
@@ -1070,331 +1123,11 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
         })}
       </div>
 
-      {/* 底部提示 */}
       <div className="plugin-footer">
         <span className="plugin-footer-text">🔧 更多插件持续开发中，敬请期待...</span>
       </div>
     </div>
   )
-
-  /** 导航设置子页面（分类标签管理） */
-  const renderLauncherPage = () => {
-    const handleAddCategory = async () => {
-      const cat = newCategoryInput.trim()
-      if (!cat) return
-      if (launcherCategories.includes(cat)) {
-        setCategorySaveStatus('⚠ 分类已存在')
-        setTimeout(() => setCategorySaveStatus(null), 2000)
-        return
-      }
-      const updated = [...launcherCategories, cat]
-      const saved = await window.clipToolAPI.saveLauncherCategories(updated)
-      setLauncherCategories(saved)
-      setNewCategoryInput('')
-      setCategorySaveStatus('✓ 已添加')
-      setTimeout(() => setCategorySaveStatus(null), 2000)
-    }
-
-    const handleRemoveCategory = async (cat: string) => {
-      const updated = launcherCategories.filter((c) => c !== cat)
-      const saved = await window.clipToolAPI.saveLauncherCategories(updated)
-      setLauncherCategories(saved)
-    }
-
-    const handleCatDrop = async (index: number) => {
-      if (catDragIndex === null || catDragIndex === index) {
-        setCatDragIndex(null)
-        setCatDragOverIndex(null)
-        return
-      }
-      const updated = [...launcherCategories]
-      const [removed] = updated.splice(catDragIndex, 1)
-      updated.splice(index, 0, removed)
-      const saved = await window.clipToolAPI.saveLauncherCategories(updated)
-      setLauncherCategories(saved)
-      setCatDragIndex(null)
-      setCatDragOverIndex(null)
-    }
-
-    return (
-      <div className="settings-section">
-        <div className="settings-section-title">🚀 导航 — 分类标签管理</div>
-        <div className="settings-section-hint">
-          管理导航页面的分类标签，每个分类会自动分配颜色并显示在链接标题旁
-        </div>
-
-        {/* 添加分类 */}
-        <div className="settings-tag-add-row">
-          <input
-            className="text-input"
-            type="text"
-            value={newCategoryInput}
-            onChange={(e) => setNewCategoryInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newCategoryInput.trim()) {
-                e.preventDefault()
-                handleAddCategory()
-              }
-            }}
-            placeholder="输入新分类名称，回车添加"
-            style={{ flex: 1 }}
-          />
-          <button
-            className="settings-tag-add-btn"
-            onClick={handleAddCategory}
-            disabled={!newCategoryInput.trim()}
-          >
-            添加
-          </button>
-        </div>
-
-        {categorySaveStatus && (
-          <span className={`settings-status ${categorySaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
-                style={{ fontSize: 12, marginTop: 4 }}>
-            {categorySaveStatus}
-          </span>
-        )}
-
-        {/* 分类列表（拖拽排序） */}
-        <div className="settings-tag-list">
-          {launcherCategories.length === 0 ? (
-            <div className="settings-tag-empty">暂无分类标签，请添加</div>
-          ) : (
-            launcherCategories.map((cat, index) => {
-              const color = getTagColor(cat)
-              return (
-                <div
-                  key={cat}
-                  className={`settings-tag-item${
-                    catDragIndex === index ? ' dragging' : ''
-                  }${catDragOverIndex === index && catDragIndex !== index ? ' drag-over' : ''}`}
-                  draggable
-                  onDragStart={() => setCatDragIndex(index)}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setCatDragOverIndex(index) }}
-                  onDrop={() => handleCatDrop(index)}
-                  onDragEnd={() => { setCatDragIndex(null); setCatDragOverIndex(null) }}
-                >
-                  <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
-                  <span className="settings-tag-index">{index + 1}</span>
-                  <span
-                    className="settings-launcher-category-preview"
-                    style={{ background: color.bg, color: color.text }}
-                  >
-                    {cat}
-                  </span>
-                  <button
-                    className="settings-tag-remove-btn"
-                    onClick={() => handleRemoveCategory(cat)}
-                    title="删除分类"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )
-            })
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  /** AI 模型配置子页面 */
-  const renderAiConfigPage = () => {
-    /** 模型提供商列表 */
-    const AI_PROVIDERS: { key: AiModelConfig['provider']; name: string; icon: string; models: string[]; needSecretId: boolean }[] = [
-      {
-        key: 'hunyuan',
-        name: '腾讯混元',
-        icon: '🤖',
-        models: ['hunyuan-lite', 'hunyuan-standard', 'hunyuan-pro'],
-        needSecretId: true,  // 混元需要 SecretId + SecretKey
-      },
-      {
-        key: 'deepseek',
-        name: 'DeepSeek',
-        icon: '🧠',
-        models: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
-        needSecretId: false, // DeepSeek 只需要 API Key
-      },
-    ]
-
-    const handleAddModel = (provider: AiModelConfig['provider']) => {
-      const providerInfo = AI_PROVIDERS.find((p) => p.key === provider)
-      if (!providerInfo) return
-      // 检查是否已添加该提供商
-      if (aiModels.some((m) => m.provider === provider)) {
-        setAiStatus(`⚠ ${providerInfo.name} 已添加`)
-        setTimeout(() => setAiStatus(null), 2000)
-        return
-      }
-      const newModel: AiModelConfig = {
-        provider,
-        secretId: '',
-        secretKey: '',
-        model: providerInfo.models[0],
-        enabled: false,
-      }
-      const updated = [...aiModels, newModel]
-      setAiModels(updated)
-    }
-
-    const handleRemoveModel = async (index: number) => {
-      const updated = aiModels.filter((_, i) => i !== index)
-      const saved = await window.clipToolAPI.saveAiModels(updated)
-      setAiModels(saved)
-      setAiStatus('✓ 已删除')
-      setTimeout(() => setAiStatus(null), 2000)
-    }
-
-    const handleUpdateModel = (index: number, data: Partial<AiModelConfig>) => {
-      const updated = [...aiModels]
-      updated[index] = { ...updated[index], ...data }
-      // 启用一个模型时，禁用其他模型
-      if (data.enabled) {
-        updated.forEach((m, i) => {
-          if (i !== index) m.enabled = false
-        })
-      }
-      setAiModels(updated)
-    }
-
-    const handleSaveAiModels = async () => {
-      const saved = await window.clipToolAPI.saveAiModels(aiModels)
-      setAiModels(saved)
-      setAiStatus('✓ AI 配置已保存')
-      setTimeout(() => setAiStatus(null), 2000)
-    }
-
-    const toggleShowAiKey = (index: number) => {
-      setShowAiSecretKeys((prev) => ({ ...prev, [index]: !prev[index] }))
-    }
-
-    return (
-      <>
-      <div className="settings-section">
-        <div className="settings-section-title">🤖 AI 模型配置</div>
-        <div className="settings-section-hint">
-          配置 AI 大模型的密钥信息，启用后可在 AI 页面中使用对话功能。同一时间只能启用一个模型。
-        </div>
-
-        {/* 添加模型按钮 */}
-        <div className="ai-provider-add-row">
-          {AI_PROVIDERS.map((provider) => {
-            const alreadyAdded = aiModels.some((m) => m.provider === provider.key)
-            return (
-              <button
-                key={provider.key}
-                className={`ai-provider-add-btn ${alreadyAdded ? 'added' : ''}`}
-                onClick={() => handleAddModel(provider.key)}
-                disabled={alreadyAdded}
-              >
-                <span>{provider.icon}</span>
-                <span>{alreadyAdded ? `${provider.name} ✓` : `+ ${provider.name}`}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 已配置的模型列表 */}
-        {aiModels.map((model, index) => {
-          const providerInfo = AI_PROVIDERS.find((p) => p.key === model.provider)
-          if (!providerInfo) return null
-          return (
-            <div key={index} className="ai-model-card">
-              <div className="ai-model-card-header">
-                <div className="ai-model-card-title">
-                  <span>{providerInfo.icon}</span>
-                  <span>{providerInfo.name}</span>
-                </div>
-                <div className="ai-model-card-actions">
-                  {/* 启用开关 */}
-                  <label className="settings-cos-switch" title={model.enabled ? '已启用' : '未启用'}>
-                    <input
-                      type="checkbox"
-                      checked={model.enabled}
-                      onChange={(e) => handleUpdateModel(index, { enabled: e.target.checked })}
-                    />
-                    <span className="settings-cos-slider"></span>
-                  </label>
-                  <button
-                    className="settings-tag-remove-btn"
-                    onClick={() => handleRemoveModel(index)}
-                    title="删除"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {/* SecretId（仅混元需要） */}
-              {providerInfo.needSecretId && (
-                <div className="settings-cos-field">
-                  <label className="settings-cos-label">SecretId</label>
-                  <input
-                    className="text-input"
-                    type="text"
-                    value={model.secretId}
-                    onChange={(e) => handleUpdateModel(index, { secretId: e.target.value })}
-                    placeholder="输入 SecretId"
-                    spellCheck={false}
-                  />
-                </div>
-              )}
-
-              {/* SecretKey / API Key */}
-              <div className="settings-cos-field">
-                <label className="settings-cos-label">{providerInfo.needSecretId ? 'SecretKey' : 'API Key'}</label>
-                <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-                  <input
-                    className="text-input"
-                    type={showAiSecretKeys[index] ? 'text' : 'password'}
-                    value={model.secretKey}
-                    onChange={(e) => handleUpdateModel(index, { secretKey: e.target.value })}
-                    placeholder={`输入 ${providerInfo.needSecretId ? 'SecretKey' : 'API Key'}`}
-                    style={{ flex: 1 }}
-                    spellCheck={false}
-                  />
-                  <button
-                    className="settings-cos-toggle-btn"
-                    onClick={() => toggleShowAiKey(index)}
-                    title={showAiSecretKeys[index] ? '隐藏' : '显示'}
-                  >
-                    {showAiSecretKeys[index] ? '🙈' : '👁'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-
-        {aiModels.length === 0 && (
-          <div className="settings-placeholder" style={{ padding: '20px 0' }}>
-            <span className="settings-placeholder-icon">🤖</span>
-            <span className="settings-placeholder-text">点击上方按钮添加 AI 模型</span>
-          </div>
-        )}
-
-        {/* 状态提示和保存按钮 */}
-        {aiModels.length > 0 && (
-          <div className="settings-cos-actions" style={{ marginTop: 8 }}>
-            <button
-              className="settings-cos-btn primary"
-              onClick={handleSaveAiModels}
-            >
-              💾 保存配置
-            </button>
-            {aiStatus && (
-              <span className={`settings-status ${aiStatus.startsWith('✓') ? 'success' : 'warning'}`}
-                    style={{ fontSize: 12 }}>
-                {aiStatus}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-      </>
-    )
-  }
 
   /** 根据当前激活的子页面渲染内容 */
   /** 页面展示配置子页面 */
@@ -1409,6 +1142,409 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     { key: 'settings', icon: '⚙', label: '设置', desc: '应用设置（建议保持开启）', required: true },
     { key: 'profile', icon: '👤', label: '我的', desc: '个人中心' },
   ]
+
+  /** 通用设置页面（合并了保存、编辑、导航设置） */
+  const renderGeneralPage = () => {
+    const handleSaveEditorLimit = async () => {
+      const num = parseInt(editorLimitInput, 10)
+      if (isNaN(num) || num < 1 || num > 500) {
+        setEditorLimitStatus('⚠ 请输入 1~500 之间的数字')
+        setTimeout(() => setEditorLimitStatus(null), 2000)
+        return
+      }
+      const saved = await window.clipToolAPI.setClipboardHistoryLimit(num)
+      setEditorHistoryLimit(saved)
+      setEditingEditorLimit(false)
+      setEditorLimitStatus(`✓ 已设置最多保存 ${saved} 条`)
+      updateCache({ clipboardHistoryLimit: saved })
+      setTimeout(() => setEditorLimitStatus(null), 2000)
+    }
+
+    const handleAddCategory = async () => {
+      const cat = newCategoryInput.trim()
+      if (!cat) return
+      if (launcherCategories.includes(cat)) {
+        setCategorySaveStatus('⚠ 分类已存在')
+        setTimeout(() => setCategorySaveStatus(null), 2000)
+        return
+      }
+      const updated = [...launcherCategories, cat]
+      const saved = await window.clipToolAPI.saveLauncherCategories(updated)
+      setLauncherCategories(saved)
+      setNewCategoryInput('')
+      setCategorySaveStatus('✓ 已添加')
+      updateCache({ launcherCategories: saved })
+      setTimeout(() => setCategorySaveStatus(null), 2000)
+    }
+
+    const handleRemoveCategory = async (cat: string) => {
+      const updated = launcherCategories.filter((c) => c !== cat)
+      const saved = await window.clipToolAPI.saveLauncherCategories(updated)
+      setLauncherCategories(saved)
+      updateCache({ launcherCategories: saved })
+    }
+
+    const handleCatDrop = async (index: number) => {
+      if (catDragIndex === null || catDragIndex === index) {
+        setCatDragIndex(null)
+        setCatDragOverIndex(null)
+        return
+      }
+      const updated = [...launcherCategories]
+      const [removed] = updated.splice(catDragIndex, 1)
+      updated.splice(index, 0, removed)
+      const saved = await window.clipToolAPI.saveLauncherCategories(updated)
+      setLauncherCategories(saved)
+      updateCache({ launcherCategories: saved })
+      setCatDragIndex(null)
+      setCatDragOverIndex(null)
+    }
+
+    return (
+      <>
+        {/* ===== 通用 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">⚙️ 通用设置</div>
+          <div className="settings-section-hint">
+            调整应用的通用配置项
+          </div>
+
+          {/* 字体大小设置 */}
+          <div className="settings-config-item">
+            <div className="settings-config-info">
+              <div className="settings-config-label">🔤 字体大小</div>
+              <div className="settings-config-desc">调整全局字体大小，范围 10-20px，默认 13px</div>
+            </div>
+            <div className="settings-config-action settings-font-size-control">
+              <button
+                className="settings-font-size-btn"
+                onClick={async () => {
+                  const newSize = Math.max(10, appFontSize - 1)
+                  setAppFontSize(newSize)
+                  await window.clipToolAPI.setAppFontSize(newSize)
+                  applyFontZoom(newSize)
+                  updateCache({ appFontSize: newSize })
+                }}
+                disabled={appFontSize <= 10}
+              >
+                A-
+              </button>
+              <span className="settings-font-size-value">{appFontSize}px</span>
+              <button
+                className="settings-font-size-btn"
+                onClick={async () => {
+                  const newSize = Math.min(20, appFontSize + 1)
+                  setAppFontSize(newSize)
+                  await window.clipToolAPI.setAppFontSize(newSize)
+                  applyFontZoom(newSize)
+                  updateCache({ appFontSize: newSize })
+                }}
+                disabled={appFontSize >= 20}
+              >
+                A+
+              </button>
+              <button
+                className="settings-font-size-btn settings-font-size-reset"
+                onClick={async () => {
+                  setAppFontSize(13)
+                  await window.clipToolAPI.setAppFontSize(13)
+                  applyFontZoom(13)
+                  updateCache({ appFontSize: 13 })
+                }}
+              >
+                重置
+              </button>
+            </div>
+          </div>
+
+          {/* 字体大小预览 */}
+          <div className="settings-font-preview" style={{ fontSize: `${appFontSize}px` }}>
+            <div className="settings-font-preview-title">预览效果</div>
+            <div className="settings-font-preview-text">
+              ClipTool 是一款智能剪贴板管理工具，支持代码片段保存、搜索、AI 智能分析等功能。
+            </div>
+            <div className="settings-font-preview-code">
+              const hello = &quot;Hello, World!&quot;;
+            </div>
+          </div>
+
+          {/* 速记页面默认主题 */}
+          <div className="settings-config-item">
+            <div className="settings-config-info">
+              <div className="settings-config-label">🎨 速记页面默认主题</div>
+              <div className="settings-config-desc">设置速记页面编辑器的默认主题，在速记页面中可临时切换（一次性）</div>
+            </div>
+            <div className="settings-config-action">
+              <select
+                className="text-input"
+                value={docEditorTheme}
+                onChange={async (e) => {
+                  const theme = e.target.value
+                  setDocEditorTheme(theme)
+                  await window.clipToolAPI.setDocEditorTheme(theme)
+                  updateCache({ docEditorTheme: theme })
+                }}
+                style={{ width: 160, padding: '4px 8px', fontSize: 12 }}
+              >
+                <option value="github-dark">GitHub Dark</option>
+                <option value="github-light">GitHub Light</option>
+                <option value="one-dark-pro">One Dark Pro</option>
+                <option value="dracula">Dracula</option>
+                <option value="nord">Nord</option>
+                <option value="min-dark">Min Dark</option>
+                <option value="min-light">Min Light</option>
+                <option value="monokai">Monokai</option>
+                <option value="slack-dark">Slack Dark</option>
+                <option value="vitesse-dark">Vitesse Dark</option>
+                <option value="vitesse-light">Vitesse Light</option>
+                <option value="tokyo-night">Tokyo Night</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== 保存设置 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">📋 保存 — 智能标题</div>
+          <div className="settings-section-hint">
+            启用后，保存片段时将自动调用 AI 大模型为剪贴板内容生成简短标题（需先在配置页面配置模型密钥）
+          </div>
+
+          <div className="settings-config-item" style={{ marginBottom: 16 }}>
+            <div className="settings-config-info">
+              <div className="settings-config-label">🤖 AI 自动生成标题</div>
+              <div className="settings-config-desc">保存时自动使用大模型分析内容并生成标题，替代默认的前30字截取</div>
+            </div>
+            <div className="settings-config-action">
+              <label className="settings-cos-switch" title={aiTitleEnabled ? '已启用' : '未启用'}>
+                <input
+                  type="checkbox"
+                  checked={aiTitleEnabled}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked
+                    const saved = await window.clipToolAPI.setAiTitleEnabled(enabled)
+                    setAiTitleEnabled(saved)
+                    updateCache({ aiTitleEnabled: saved })
+                  }}
+                />
+                <span className="settings-cos-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-section-title">📋 保存 — 预设标签管理</div>
+          <div className="settings-section-hint">
+            管理保存片段时可快速选择的预设标签
+          </div>
+
+          {/* 添加标签 */}
+          <div className="settings-tag-add-row">
+            <input
+              className="text-input"
+              type="text"
+              value={newTagInput}
+              onChange={(e) => setNewTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newTagInput.trim()) {
+                  e.preventDefault()
+                  handleAddTag()
+                }
+              }}
+              placeholder="输入新标签名称，回车添加"
+              style={{ flex: 1 }}
+            />
+            <button
+              className="settings-tag-add-btn"
+              onClick={handleAddTag}
+              disabled={!newTagInput.trim()}
+            >
+              添加
+            </button>
+          </div>
+
+          {tagSaveStatus && (
+            <span className={`settings-status ${tagSaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                  style={{ fontSize: 12, marginTop: 4 }}>
+              {tagSaveStatus}
+            </span>
+          )}
+
+          {/* 标签列表（拖拽排序） */}
+          <div className="settings-tag-list">
+            {customTags.length === 0 ? (
+              <div className="settings-tag-empty">暂无预设标签，请添加</div>
+            ) : (
+              customTags.map((tag, index) => (
+                <div
+                  key={tag}
+                  className={`settings-tag-item${
+                    dragIndex === index ? ' dragging' : ''
+                  }${dragOverIndex === index && dragIndex !== index ? ' drag-over' : ''}`}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={() => handleDrop(index)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
+                  <span className="settings-tag-index">{index + 1}</span>
+                  <span
+                    className="settings-launcher-category-preview"
+                    style={{ background: getTagColor(tag).bg, color: getTagColor(tag).text }}
+                  >
+                    {tag}
+                  </span>
+                  <button
+                    className="settings-tag-remove-btn"
+                    onClick={() => handleRemoveTag(tag)}
+                    title="删除标签"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ===== 编辑设置 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">✏️ 编辑设置</div>
+          <div className="settings-section-hint">
+            配置编辑页面的行为参数
+          </div>
+
+          <div className="settings-editor-config">
+            <div className="settings-config-item">
+              <div className="settings-config-info">
+                <div className="settings-config-label">📋 剪贴板历史最大条数</div>
+                <div className="settings-config-desc">控制编辑页面下方剪贴板历史列表保存的最大条数（1~500），超出后自动移除旧记录</div>
+              </div>
+              <div className="settings-config-action">
+                {editingEditorLimit ? (
+                  <div className="editor-limit-edit">
+                    <input
+                      className="text-input editor-limit-input"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={editorLimitInput}
+                      onChange={(e) => setEditorLimitInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEditorLimit()
+                        if (e.key === 'Escape') setEditingEditorLimit(false)
+                      }}
+                      autoFocus
+                    />
+                    <button className="editor-limit-btn" onClick={handleSaveEditorLimit}>✓</button>
+                    <button className="editor-limit-btn cancel" onClick={() => setEditingEditorLimit(false)}>✕</button>
+                  </div>
+                ) : (
+                  <button
+                    className="editor-limit-tag"
+                    onClick={() => {
+                      setEditorLimitInput(String(editorHistoryLimit))
+                      setEditingEditorLimit(true)
+                    }}
+                    title="点击修改"
+                  >
+                    {editorHistoryLimit} 条
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {editorLimitStatus && (
+            <span className={`settings-status ${editorLimitStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                  style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
+              {editorLimitStatus}
+            </span>
+          )}
+        </div>
+
+        {/* ===== 导航设置 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">🚀 导航 — 分类标签管理</div>
+          <div className="settings-section-hint">
+            管理导航页面的分类标签，每个分类会自动分配颜色并显示在链接标题旁
+          </div>
+
+          {/* 添加分类 */}
+          <div className="settings-tag-add-row">
+            <input
+              className="text-input"
+              type="text"
+              value={newCategoryInput}
+              onChange={(e) => setNewCategoryInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newCategoryInput.trim()) {
+                  e.preventDefault()
+                  handleAddCategory()
+                }
+              }}
+              placeholder="输入新分类名称，回车添加"
+              style={{ flex: 1 }}
+            />
+            <button
+              className="settings-tag-add-btn"
+              onClick={handleAddCategory}
+              disabled={!newCategoryInput.trim()}
+            >
+              添加
+            </button>
+          </div>
+
+          {categorySaveStatus && (
+            <span className={`settings-status ${categorySaveStatus.startsWith('✓') ? 'success' : 'warning'}`}
+                  style={{ fontSize: 12, marginTop: 4 }}>
+              {categorySaveStatus}
+            </span>
+          )}
+
+          {/* 分类列表（拖拽排序） */}
+          <div className="settings-tag-list">
+            {launcherCategories.length === 0 ? (
+              <div className="settings-tag-empty">暂无分类标签，请添加</div>
+            ) : (
+              launcherCategories.map((cat, index) => {
+                const color = getTagColor(cat)
+                return (
+                  <div
+                    key={cat}
+                    className={`settings-tag-item${
+                      catDragIndex === index ? ' dragging' : ''
+                    }${catDragOverIndex === index && catDragIndex !== index ? ' drag-over' : ''}`}
+                    draggable
+                    onDragStart={() => setCatDragIndex(index)}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setCatDragOverIndex(index) }}
+                    onDrop={() => handleCatDrop(index)}
+                    onDragEnd={() => { setCatDragIndex(null); setCatDragOverIndex(null) }}
+                  >
+                    <span className="settings-tag-drag-handle" title="拖拽排序">⠿</span>
+                    <span className="settings-tag-index">{index + 1}</span>
+                    <span
+                      className="settings-launcher-category-preview"
+                      style={{ background: color.bg, color: color.text }}
+                    >
+                      {cat}
+                    </span>
+                    <button
+                      className="settings-tag-remove-btn"
+                      onClick={() => handleRemoveCategory(cat)}
+                      title="删除分类"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </>
+    )
+  }
 
   const renderDisplayPage = () => (
     <div className="settings-section">
@@ -1434,6 +1570,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
                     const newConfig = { ...pageVisibility, [item.key]: e.target.checked }
                     setPageVisibility(newConfig)
                     await window.clipToolAPI.savePageVisibility(newConfig)
+                    updateCache({ pageVisibility: newConfig })
                     onPageVisibilityChanged?.()
                   }}
                 />
@@ -1462,6 +1599,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
               setCurrentTheme(theme.id)
               document.documentElement.setAttribute('data-theme', theme.id)
               await window.clipToolAPI.setTheme(theme.id)
+              updateCache({ theme: theme.id })
             }}
           >
             <div className="settings-theme-emoji">{theme.emoji}</div>
@@ -1478,31 +1616,15 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'general': return renderGeneralPage()
+      case 'config': return renderConfigPage()
       case 'appearance': return renderAppearancePage()
-      case 'save': return renderSavePage()
-      case 'editor': return renderEditorPage()
-      case 'search': return renderPlaceholderPage('🔍', '搜索', '搜索功能目前无额外配置项')
-      case 'launcher': return renderLauncherPage()
-      case 'ai': return renderAiConfigPage()
-      case 'favorite': return renderPlaceholderPage('⭐', '收藏', '收藏功能目前无额外配置项')
-      case 'profile': return renderStoragePage()
       case 'shortcuts': return renderShortcutsPage()
-      case 'plugins': return renderPluginsPage()
       case 'display': return renderDisplayPage()
+      case 'plugins': return renderPluginsPage()
       default: return null
     }
   }
-
-  /** 占位页（暂无配置项的页面） */
-  const renderPlaceholderPage = (icon: string, title: string, desc: string) => (
-    <div className="settings-section">
-      <div className="settings-section-title">{icon} {title} 设置</div>
-      <div className="settings-placeholder">
-        <span className="settings-placeholder-icon">{icon}</span>
-        <span className="settings-placeholder-text">{desc}</span>
-      </div>
-    </div>
-  )
 
   return (
     <div className="settings-panel">
