@@ -13,7 +13,7 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-green)](#许可证)
 
-**[🇬🇧 English](./README_EN.md)**
+**[🇬🇧 English](./README.md)**
 
 </div>
 
