@@ -53,7 +53,7 @@ const ClipboardHistoryWindow: React.FC = () => {
     }).catch(() => {})
   }, [])
 
-  // 定时轮询剪贴板变化，自动记录到历史
+  // 定时轮询剪贴板变化，自动记录到历史并实时更新编辑框
   useEffect(() => {
     const pollClipboard = async () => {
       try {
@@ -70,13 +70,26 @@ const ClipboardHistoryWindow: React.FC = () => {
           }
           const updated = await window.clipToolAPI.addClipboardHistory(item)
           setHistory(updated)
+          // 实时更新编辑框内容为最新剪贴板内容（仅在未手动选中历史项时）
+          setSelectedHistoryIndex((prevIndex) => {
+            if (prevIndex === -1) {
+              if (data.isImage) {
+                setSelectedImageSrc(data.content)
+                setEditorContent('')
+              } else {
+                setSelectedImageSrc(null)
+                setEditorContent(data.content)
+              }
+            }
+            return prevIndex
+          })
         }
       } catch {
         // 静默忽略
       }
     }
     pollClipboard()
-    pollTimerRef.current = setInterval(pollClipboard, 2000)
+    pollTimerRef.current = setInterval(pollClipboard, 500)
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     }

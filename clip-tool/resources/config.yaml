@@ -20,3 +20,17 @@ hunyuan:
   secretKey: "SvCxVqxpTs1vaQ1NVO2SeoqgNrY2HI4b"
   # 是否启用
   enabled: true
+
+# 应用默认配置（分发给他人时可预设）
+app:
+  # 存储模式：local（本地存储）或 cos（云端存储）
+  storageMode: "cos"
+  # 是否默认启用 AI 生成标题
+  aiTitleEnabled: true
+  # AI 模型预配置列表（可预填 API Key，用户无需手动配置）
+  aiModels:
+    - provider: "hunyuan"
+      secretId: "AKIDseCWaPzJPGsFNMHRM6bhaEeqmTv98sOg"
+      secretKey: "SvCxVqxpTs1vaQ1NVO2SeoqgNrY2HI4b"
+      model: "hunyuan-lite"
+      enabled: true

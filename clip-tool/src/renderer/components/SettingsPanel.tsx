@@ -240,6 +240,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       openSave: '',
       openSearch: '',
       openEditor: '',
+      openDoc: '',
       openAi: '',
       openFavorite: '',
       openSettings: '',
@@ -444,7 +445,8 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     const defaults: ShortcutConfig = {
       openSave: 'CommandOrControl+Shift+K',
       openSearch: 'CommandOrControl+Shift+S',
-      openEditor: '',
+      openEditor: 'CommandOrControl+Shift+E',
+      openDoc: 'CommandOrControl+Shift+D',
       openAi: '',
       openFavorite: '',
       openSettings: '',
@@ -664,8 +666,13 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
     },
     {
       key: 'openEditor',
-      label: '✏️ 唤起编辑',
-      description: '打开窗口并进入编辑页面',
+      label: '✏️ 唤起历史',
+      description: '打开窗口并进入历史页面',
+    },
+    {
+      key: 'openDoc',
+      label: '📄 唤起速记',
+      description: '打开窗口并进入速记页面',
     },
     {
       key: 'openAi',

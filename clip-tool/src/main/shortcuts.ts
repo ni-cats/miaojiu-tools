@@ -6,7 +6,7 @@ import { globalShortcut, BrowserWindow } from 'electron'
 import { getShortcuts, type ShortcutConfig } from './store'
 
 /** 所有支持通过全局快捷键唤起的模式 */
-type WindowMode = 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher'
+type WindowMode = 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher'
 
 /** 显示窗口并发送模式切换指令 */
 function showWindowWithMode(win: BrowserWindow, mode: WindowMode) {
@@ -29,6 +29,7 @@ const SHORTCUT_MODE_MAP: { key: keyof ShortcutConfig; mode: WindowMode }[] = [
   { key: 'openSave', mode: 'save' },
   { key: 'openSearch', mode: 'search' },
   { key: 'openEditor', mode: 'editor' },
+  { key: 'openDoc', mode: 'doc' },
   { key: 'openAi', mode: 'ai' },
   { key: 'openFavorite', mode: 'favorite' },
   { key: 'openSettings', mode: 'settings' },

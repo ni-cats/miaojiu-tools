@@ -149,8 +149,8 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
     // 初始读取一次
     pollClipboard()
 
-    // 每 2 秒轮询一次
-    pollTimerRef.current = setInterval(pollClipboard, 2000)
+    // 每 500ms 轮询一次
+    pollTimerRef.current = setInterval(pollClipboard, 500)
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     }

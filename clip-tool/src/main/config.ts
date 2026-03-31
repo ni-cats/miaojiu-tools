@@ -24,10 +24,27 @@ export interface HunyuanYamlConfig {
   enabled: boolean
 }
 
+/** AI 模型预配置结构 */
+export interface AiModelYamlConfig {
+  provider: 'hunyuan' | 'deepseek'
+  secretId: string
+  secretKey: string
+  model: string
+  enabled: boolean
+}
+
+/** 应用默认配置结构（从 YAML 预设） */
+export interface AppDefaultsYamlConfig {
+  storageMode: 'local' | 'cos'
+  aiTitleEnabled: boolean
+  aiModels: AiModelYamlConfig[]
+}
+
 /** 完整配置结构 */
 interface AppConfig {
   cos: CosYamlConfig
   hunyuan: HunyuanYamlConfig
+  app: AppDefaultsYamlConfig
 }
 
 /** 默认 COS 配置（未读取到配置文件时使用） */
@@ -45,6 +62,13 @@ const DEFAULT_HUNYUAN_CONFIG: HunyuanYamlConfig = {
   secretKey: '',
   model: 'hunyuan-lite',
   enabled: false,
+}
+
+/** 默认应用配置 */
+const DEFAULT_APP_CONFIG: AppDefaultsYamlConfig = {
+  storageMode: 'local',
+  aiTitleEnabled: false,
+  aiModels: [],
 }
 
 /** 缓存的配置 */
@@ -86,13 +110,17 @@ export function loadAppConfig(): AppConfig {
         ...DEFAULT_HUNYUAN_CONFIG,
         ...(parsed?.hunyuan || {}),
       },
+      app: {
+        ...DEFAULT_APP_CONFIG,
+        ...((parsed as Record<string, unknown>)?.app || {}),
+      } as AppDefaultsYamlConfig,
     }
 
     console.log('已加载配置文件:', configPath)
     return cachedConfig
   } catch (error) {
     console.warn('读取配置文件失败，使用默认配置:', error)
-    cachedConfig = { cos: { ...DEFAULT_COS_CONFIG }, hunyuan: { ...DEFAULT_HUNYUAN_CONFIG } }
+    cachedConfig = { cos: { ...DEFAULT_COS_CONFIG }, hunyuan: { ...DEFAULT_HUNYUAN_CONFIG }, app: { ...DEFAULT_APP_CONFIG } }
     return cachedConfig
   }
 }
@@ -109,6 +137,13 @@ export function getCosYamlConfig(): CosYamlConfig {
  */
 export function getHunyuanYamlConfig(): HunyuanYamlConfig {
   return loadAppConfig().hunyuan
+}
+
+/**
+ * 获取应用默认配置（storageMode、aiTitleEnabled、aiModels 等）
+ */
+export function getAppDefaultsConfig(): AppDefaultsYamlConfig {
+  return loadAppConfig().app
 }
 
 /**

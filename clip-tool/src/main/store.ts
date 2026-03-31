@@ -23,7 +23,7 @@ import {
   deleteFavoriteFromCloud,
   downloadFavorites,
 } from './cos'
-import { getCosYamlConfig } from './config'
+import { getCosYamlConfig, getAppDefaultsConfig } from './config'
 
 /** 内容类型 */
 export type ContentType = 'code' | 'text' | 'url' | 'image' | 'document' | 'other'
@@ -45,7 +45,8 @@ export interface Snippet {
 export interface ShortcutConfig {
   openSave: string      // 唤起保存模式，默认 CommandOrControl+Shift+K
   openSearch: string    // 唤起搜索模式，默认 CommandOrControl+Shift+S
-  openEditor: string    // 唤起编辑模式
+  openEditor: string    // 唤起编辑模式，默认 CommandOrControl+Shift+E
+  openDoc: string       // 唤起速记模式，默认 CommandOrControl+Shift+D
   openAi: string        // 唤起 AI 模式
   openFavorite: string  // 唤起收藏模式
   openSettings: string  // 唤起设置模式
@@ -157,7 +158,8 @@ export interface QuickLink {
 export const DEFAULT_SHORTCUTS: ShortcutConfig = {
   openSave: 'CommandOrControl+Shift+K',
   openSearch: 'CommandOrControl+Shift+S',
-  openEditor: '',
+  openEditor: 'CommandOrControl+Shift+E',
+  openDoc: 'CommandOrControl+Shift+D',
   openAi: '',
   openFavorite: '',
   openSettings: '',
@@ -187,13 +189,22 @@ const store = new Store<StoreSchema>({
         enabled: yamlCfg.enabled,
       }
     })(),
-    storageMode: 'local' as StorageMode,
+    storageMode: (() => {
+      const appCfg = getAppDefaultsConfig()
+      return (appCfg.storageMode || 'local') as StorageMode
+    })(),
     clipboardHistory: [] as ClipboardHistoryItem[],
     clipboardHistoryLimit: 20,
     quickLinks: [] as QuickLink[],
     launcherCategories: ['常用', '工作', '文档', '工具', '社交', '其他'] as string[],
-    aiModels: [] as AiModelConfig[],
-    aiTitleEnabled: false,
+    aiModels: (() => {
+      const appCfg = getAppDefaultsConfig()
+      return (appCfg.aiModels || []) as AiModelConfig[]
+    })(),
+    aiTitleEnabled: (() => {
+      const appCfg = getAppDefaultsConfig()
+      return appCfg.aiTitleEnabled || false
+    })(),
     theme: 'system',
     pageVisibility: {
       save: true,
@@ -780,7 +791,17 @@ export function deleteQuickLink(id: string): QuickLink[] {
 
 /** 获取 AI 模型配置列表 */
 export function getAiModels(): AiModelConfig[] {
-  return store.get('aiModels', [])
+  const models = store.get('aiModels', [])
+  // 如果 store 中为空，尝试从 YAML 预配置回填（兼容已有用户升级场景）
+  if (models.length === 0) {
+    const appCfg = getAppDefaultsConfig()
+    if (appCfg.aiModels && appCfg.aiModels.length > 0) {
+      const yamlModels = appCfg.aiModels as AiModelConfig[]
+      store.set('aiModels', yamlModels)
+      return yamlModels
+    }
+  }
+  return models
 }
 
 /** 保存 AI 模型配置列表 */

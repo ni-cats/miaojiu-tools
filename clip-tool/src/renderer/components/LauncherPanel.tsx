@@ -620,7 +620,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     // 搜索无结果时的特殊键盘处理（链接+工具都没有匹配时）
     if (totalItems === 0 && searchQuery.trim() && !showAiResult && !activeTool) {
-      const fallbackCount = isUrl(searchQuery) ? 3 : 2 // URL 时有 3 个选项，否则 2 个
+      const fallbackCount = 3 // 始终 3 个选项：打开URL、Google搜索、AI搜索
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         setSelectedIndex((prev) => Math.min(prev + 1, fallbackCount - 1))
@@ -629,22 +629,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         setSelectedIndex((prev) => Math.max(prev - 1, 0))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        if (isUrl(searchQuery)) {
-          // URL 模式：0=打开URL, 1=Google搜索, 2=AI搜索
-          if (selectedIndex === 0) {
-            handleOpenUrl(searchQuery.trim())
-          } else if (selectedIndex === 1) {
-            handleBrowserSearch(searchQuery.trim())
-          } else {
-            handleAiSearch(searchQuery.trim())
-          }
+        // 0=打开URL, 1=Google搜索, 2=AI搜索
+        if (selectedIndex === 0) {
+          handleOpenUrl(searchQuery.trim())
+        } else if (selectedIndex === 1) {
+          handleBrowserSearch(searchQuery.trim())
         } else {
-          // 非 URL 模式：0=Google搜索, 1=AI搜索
-          if (selectedIndex === 0) {
-            handleBrowserSearch(searchQuery.trim())
-          } else {
-            handleAiSearch(searchQuery.trim())
-          }
+          handleAiSearch(searchQuery.trim())
         }
       }
       return
@@ -716,6 +707,25 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setSelectedIndex((prev) => Math.max(prev - 1, 0))
+    } else if (e.key === 'Tab') {
+      // Tab 键：如果选中的是带参数的链接，直接进入内联参数输入模式
+      if (selectedIndex < filteredLinks.length) {
+        const link = filteredLinks[selectedIndex]
+        if (link) {
+          const placeholders = parseUrlPlaceholders(link.url)
+          if (placeholders.length > 0) {
+            e.preventDefault()
+            const defaults: Record<string, string> = {}
+            placeholders.forEach((name) => {
+              const paramDef = link.params?.find((p) => p.name === name)
+              defaults[name] = paramDef?.defaultValue || ''
+            })
+            setParamValues(defaults)
+            setParamLink(link)
+            return
+          }
+        }
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault()
       // 判断选中的是链接还是内置工具
@@ -789,7 +799,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       </div>
 
       {/* 分类标签筛选栏 */}
-      {!isAdding && !activeTool && !showAiResult && availableCategories.length > 2 && (
+      {!isAdding && !activeTool && !showAiResult && !paramLink && availableCategories.length > 2 && (
         <div className="launcher-category-filter">
           {availableCategories.map((cat) => (
             <button
@@ -1239,8 +1249,66 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         </div>
       )}
 
+      {/* 内联参数输入区域 */}
+      {paramLink && !showAiResult && !activeTool && (
+        <div className="launcher-list">
+          <div className="launcher-inline-param">
+            <div className="launcher-inline-param-header">
+              <span className="launcher-inline-param-icon">
+                <FaviconIcon favicon={paramLink.favicon} emoji={paramLink.icon} />
+              </span>
+              <span className="launcher-inline-param-name">{paramLink.name}</span>
+              <button
+                className="launcher-inline-param-close"
+                onClick={() => { setParamLink(null); setParamValues({}) }}
+                title="取消 (Esc)"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="launcher-inline-param-url">{paramLink.url}</div>
+            <div className="launcher-inline-param-fields">
+              {parseUrlPlaceholders(paramLink.url).map((name, i) => {
+                const paramDef = paramLink.params?.find((p) => p.name === name)
+                return (
+                  <div key={name} className="launcher-inline-param-field">
+                    <label className="launcher-inline-param-label">{paramDef?.label || name}</label>
+                    <input
+                      className="text-input launcher-inline-param-input"
+                      type="text"
+                      value={paramValues[name] || ''}
+                      onChange={(e) => setParamValues((prev) => ({ ...prev, [name]: e.target.value }))}
+                      placeholder={paramDef?.defaultValue ? `默认: ${paramDef.defaultValue}` : `请输入 ${paramDef?.label || name}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleConfirmParams()
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setParamLink(null)
+                          setParamValues({})
+                          setTimeout(() => searchInputRef.current?.focus(), 0)
+                        } else if (e.key === 'Tab') {
+                          // Tab 在参数输入框之间切换，不阻止默认行为
+                        }
+                      }}
+                      autoFocus={i === 0}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+            <div className="launcher-inline-param-footer">
+              <span className="launcher-inline-param-hint">↵ 打开</span>
+              <span className="launcher-inline-param-hint">Tab 切换参数</span>
+              <span className="launcher-inline-param-hint">Esc 取消</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 链接列表 */}
-      {!showAiResult && !activeTool && (
+      {!showAiResult && !activeTool && !paramLink && (
       <div className="launcher-list">
         {totalItems === 0 ? (
           <div className="launcher-empty">
@@ -1254,43 +1322,41 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                 <span className="launcher-empty-icon">🔍</span>
                 <span>未找到匹配的链接，你可以：</span>
                 <div className="launcher-fallback-actions">
-                  {isUrl(searchQuery) && (
-                    <button
-                      className={`launcher-fallback-btn ${selectedIndex === 0 ? 'selected' : ''}`}
-                      onClick={() => handleOpenUrl(searchQuery.trim())}
-                      onMouseEnter={() => setSelectedIndex(0)}
-                    >
-                      <span className="launcher-fallback-icon">🔗</span>
-                      <div className="launcher-fallback-info">
-                        <span className="launcher-fallback-title">打开 URL</span>
-                        <span className="launcher-fallback-desc">在浏览器中打开「{searchQuery.trim()}」</span>
-                      </div>
-                      {selectedIndex === 0 && <span className="launcher-fallback-hint">↵</span>}
-                    </button>
-                  )}
                   <button
-                    className={`launcher-fallback-btn ${selectedIndex === (isUrl(searchQuery) ? 1 : 0) ? 'selected' : ''}`}
+                    className={`launcher-fallback-btn ${selectedIndex === 0 ? 'selected' : ''}`}
+                    onClick={() => handleOpenUrl(searchQuery.trim())}
+                    onMouseEnter={() => setSelectedIndex(0)}
+                  >
+                    <span className="launcher-fallback-icon">🔗</span>
+                    <div className="launcher-fallback-info">
+                      <span className="launcher-fallback-title">打开 URL</span>
+                      <span className="launcher-fallback-desc">在浏览器中打开「{searchQuery.trim()}」</span>
+                    </div>
+                    {selectedIndex === 0 && <span className="launcher-fallback-hint">↵</span>}
+                  </button>
+                  <button
+                    className={`launcher-fallback-btn ${selectedIndex === 1 ? 'selected' : ''}`}
                     onClick={() => handleBrowserSearch(searchQuery.trim())}
-                    onMouseEnter={() => setSelectedIndex(isUrl(searchQuery) ? 1 : 0)}
+                    onMouseEnter={() => setSelectedIndex(1)}
                   >
                     <span className="launcher-fallback-icon">🌐</span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">Google 搜索</span>
                       <span className="launcher-fallback-desc">在浏览器中搜索「{searchQuery.trim()}」</span>
                     </div>
-                    {selectedIndex === (isUrl(searchQuery) ? 1 : 0) && <span className="launcher-fallback-hint">↵</span>}
+                    {selectedIndex === 1 && <span className="launcher-fallback-hint">↵</span>}
                   </button>
                   <button
-                    className={`launcher-fallback-btn ${selectedIndex === (isUrl(searchQuery) ? 2 : 1) ? 'selected' : ''}`}
+                    className={`launcher-fallback-btn ${selectedIndex === 2 ? 'selected' : ''}`}
                     onClick={() => handleAiSearch(searchQuery.trim())}
-                    onMouseEnter={() => setSelectedIndex(isUrl(searchQuery) ? 2 : 1)}
+                    onMouseEnter={() => setSelectedIndex(2)}
                   >
                     <span className="launcher-fallback-icon">🤖</span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">AI 搜索</span>
                       <span className="launcher-fallback-desc">在当前页面使用 AI 搜索「{searchQuery.trim()}」</span>
                     </div>
-                    {selectedIndex === (isUrl(searchQuery) ? 2 : 1) && <span className="launcher-fallback-hint">↵</span>}
+                    {selectedIndex === 2 && <span className="launcher-fallback-hint">↵</span>}
                   </button>
                 </div>
               </>
@@ -1410,7 +1476,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
 
       {/* 底部提示 */}
       <div className="launcher-footer">
-        {activeTool === 'base64' ? (
+        {paramLink ? (
+          <>
+            <span>↵ 打开</span>
+            <span>Tab 切换参数</span>
+            <span>Esc 取消</span>
+          </>
+        ) : activeTool === 'base64' ? (
           <>
             <span>↑↓ 切换结果</span>
             <span>⌘↵ 复制</span>
@@ -1431,6 +1503,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
           <>
             <span>↑↓ 选择</span>
             <span>↵ 打开</span>
+            <span>Tab 填参数</span>
             <span>⌘1-9 快速打开</span>
           </>
         )}
@@ -1441,52 +1514,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         <div className="launcher-copy-toast">{copyToast}</div>
       )}
 
-      {/* 参数输入弹窗 */}
-      {paramLink && (
-        <div className="launcher-param-overlay">
-          <div className="launcher-param-dialog">
-            <div className="launcher-param-header">
-              <span className="launcher-param-title">
-                <FaviconIcon favicon={paramLink.favicon} emoji={paramLink.icon} />
-                {' '}{paramLink.name}
-              </span>
-              <button className="launcher-param-close" onClick={() => { setParamLink(null); setParamValues({}) }}>✕</button>
-            </div>
-            <div className="launcher-param-url-preview">{paramLink.url}</div>
-            <div className="launcher-param-fields">
-              {parseUrlPlaceholders(paramLink.url).map((name) => {
-                const paramDef = paramLink.params?.find((p) => p.name === name)
-                return (
-                  <div key={name} className="launcher-param-field">
-                    <label className="launcher-param-label">{paramDef?.label || name}</label>
-                    <input
-                      className="text-input launcher-param-input"
-                      type="text"
-                      value={paramValues[name] || ''}
-                      onChange={(e) => setParamValues((prev) => ({ ...prev, [name]: e.target.value }))}
-                      placeholder={paramDef?.defaultValue ? `默认: ${paramDef.defaultValue}` : `请输入 ${paramDef?.label || name}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleConfirmParams()
-                        } else if (e.key === 'Escape') {
-                          setParamLink(null)
-                          setParamValues({})
-                        }
-                      }}
-                      autoFocus={parseUrlPlaceholders(paramLink.url).indexOf(name) === 0}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-            <div className="launcher-param-actions">
-              <button className="launcher-param-cancel" onClick={() => { setParamLink(null); setParamValues({}) }}>取消</button>
-              <button className="launcher-param-confirm" onClick={handleConfirmParams}>打开 ↵</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 })

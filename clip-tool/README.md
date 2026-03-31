@@ -87,9 +87,8 @@
 ### 方式一：DMG 安装包（推荐）
 
 1. 从 Release 页面下载最新的 `ClipTool-x.x.x-arm64.dmg`
-2. 双击打开 DMG 文件
-3. 双击 `安装.command` 脚本自动完成安装（会自动移除安全隔离属性）
-4. 或手动将 `ClipTool.app` 拖拽到 `Applications` 文件夹
+2. 双击打开 DMG 文件，将 `ClipTool.app` 拖拽到 `/Applications` 文件夹
+3. 如果提示"已损坏"，在终端执行：`xattr -cr /Applications/ClipTool.app`
 
 > ⚠️ 首次打开如遇到"无法验证开发者"提示，请前往 **系统设置 → 隐私与安全性** 中点击"仍要打开"。
 

@@ -310,7 +310,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
 
   // 切换到文档页面时自动读取剪贴板
   useEffect(() => {
-    if (activeTab === 'doc' && !hasAutoReadRef.current && !content.trim()) {
+    if (activeTab === 'doc' && !hasAutoReadRef.current) {
       hasAutoReadRef.current = true
       // 通过 Electron API 读取剪贴板
       window.clipToolAPI.readClipboard().then((clipData) => {
@@ -328,6 +328,8 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
           }
           setContent(processedText)
           setLanguage(detected)
+          setTitle('') // 重置标题
+          undoStackRef.current = [] // 重置撤回栈
           showToast(`✓ 已读取剪贴板${detected !== 'plaintext' ? ` · 识别为 ${detected.toUpperCase()}` : ''}`)
         }
       }).catch(() => {

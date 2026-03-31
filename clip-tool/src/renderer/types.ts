@@ -27,6 +27,7 @@ export interface ShortcutConfig {
   openSave: string
   openSearch: string
   openEditor: string
+  openDoc: string
   openAi: string
   openFavorite: string
   openSettings: string
@@ -121,7 +122,7 @@ export interface ClipToolAPI {
   openHistoryWindow: () => void
   closeHistoryWindow: () => void
   isHistoryWindow: () => boolean
-  onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void) => (() => void)
+onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void) => (() => void)
   getShortcuts: () => Promise<ShortcutConfig>
   saveShortcuts: (config: ShortcutConfig) => Promise<ShortcutConfig>
   getCustomTags: () => Promise<string[]>

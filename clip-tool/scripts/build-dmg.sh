@@ -23,10 +23,7 @@ echo "⏳ 步骤 1/4: 构建项目..."
 cd "$PROJECT_DIR"
 npm run build
 
-# 2. 确保安装脚本有执行权限
-chmod +x "$PROJECT_DIR/resources/安装.command"
-
-# 3. 用 electron-builder 打包 app（仅生成 .app，不生成 DMG）
+# 2. 用 electron-builder 打包 app（仅生成 .app，不生成 DMG）
 echo ""
 echo "⏳ 步骤 2/4: 打包 Electron 应用..."
 npx electron-builder --mac --dir
@@ -39,7 +36,7 @@ if [ -z "$APP_PATH" ]; then
 fi
 echo "   找到应用: $APP_PATH"
 
-# 4. 创建 DMG 临时目录
+# 3. 创建 DMG 临时目录
 echo ""
 echo "⏳ 步骤 3/4: 准备 DMG 内容..."
 rm -rf "$STAGING_DIR"
@@ -48,17 +45,13 @@ mkdir -p "$STAGING_DIR"
 # 拷贝 .app
 cp -R "$APP_PATH" "$STAGING_DIR/"
 
-# 创建 Applications 链接
+# 创建 Applications 链接（便于拖拽安装）
 ln -s /Applications "$STAGING_DIR/Applications"
-
-# 拷贝安装脚本
-cp "$PROJECT_DIR/resources/安装.command" "$STAGING_DIR/安装.command"
-chmod +x "$STAGING_DIR/安装.command"
 
 echo "   DMG 内容:"
 ls -la "$STAGING_DIR/"
 
-# 5. 创建 DMG
+# 4. 生成 DMG
 echo ""
 echo "⏳ 步骤 4/4: 生成 DMG..."
 DMG_PATH="$RELEASE_DIR/$DMG_NAME"

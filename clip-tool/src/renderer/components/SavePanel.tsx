@@ -3,7 +3,7 @@
  * 极简交互：自动读取剪贴板 → 预览 → Enter 直接保存并关闭
  * 标签支持从预设枚举中选择，也支持自由输入
  */
-import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react'
+import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react'
 import { useClipboard } from '../hooks/useClipboard'
 import { nanoid } from 'nanoid'
 import type { SnippetData } from '../types'
@@ -28,6 +28,8 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
   // AI 生成标题状态
   const [aiTitleEnabled, setAiTitleEnabled] = useState(false)
   const [aiTitleLoading, setAiTitleLoading] = useState(false)
+  // 记录上次处理过的剪贴板内容，避免重复触发 AI 生成标题
+  const lastContentRef = useRef<string>('')
 
   // 加载自定义标签列表和 AI 标题配置
   useEffect(() => {
@@ -47,9 +49,24 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
     readClipboard()
   }, [readClipboard, triggerRead])
 
+  // 定时轮询剪贴板变化，500ms 刷新一次
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    pollTimerRef.current = setInterval(() => {
+      readClipboard()
+    }, 500)
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+    }
+  }, [readClipboard])
+
   // 剪贴板内容变化时自动设置默认标题
   useEffect(() => {
     if (clipboardData?.content) {
+      // 内容未变化时跳过，避免轮询导致重复触发 AI 生成标题
+      if (clipboardData.content === lastContentRef.current) return
+      lastContentRef.current = clipboardData.content
+
       // 图片类型不取前30字，而是用固定标题
       if (clipboardData.isImage || clipboardData.type === 'image') {
         setTitle('图片片段')

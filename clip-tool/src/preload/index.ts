@@ -122,8 +122,8 @@ const api = {
   closeHistoryWindow: (): void => ipcRenderer.send('historyWindow:close'),
 
   /** 监听窗口模式切换（主进程通过全局快捷键触发） */
-  onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, mode: 'save' | 'search' | 'editor' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => callback(mode)
+  onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher') => callback(mode)
     ipcRenderer.on('window:switchMode', handler)
     return () => {
       ipcRenderer.removeListener('window:switchMode', handler)
