@@ -1,7 +1,7 @@
 
 <div align="center">
 
-<img src="./resources/icon/miaojiu-clip-logo.png" alt="ClipTool Logo" width="128" />
+<img src="./clip-tool/resources/icon/cliptool.png" alt="ClipTool Logo" width="128" />
 
 # ClipTool
 
