@@ -136,9 +136,9 @@ function createMainWindow() {
   if (isFirstOpen) {
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
-    // 窗口宽度取屏幕宽度的 35%，高度取屏幕高度的 70%，并限制在合理范围内
-    windowWidth = Math.max(480, Math.min(Math.round(screenWidth * 0.35), 800))
-    windowHeight = Math.max(500, Math.min(Math.round(screenHeight * 0.7), 1000))
+    // 窗口宽度取屏幕宽度的 45%，高度取屏幕高度的 75%，确保所有 Tab 标题在一行内显示
+    windowWidth = Math.max(580, Math.min(Math.round(screenWidth * 0.45), 960))
+    windowHeight = Math.max(500, Math.min(Math.round(screenHeight * 0.75), 1080))
   }
 
   mainWindow = new BrowserWindow({
@@ -151,7 +151,7 @@ function createMainWindow() {
     frame: false,
     transparent: true,
     resizable: true,
-    minWidth: 400,
+    minWidth: 520,
     minHeight: 400,
     skipTaskbar: true,
     alwaysOnTop: true,

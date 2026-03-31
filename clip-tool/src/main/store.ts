@@ -203,7 +203,7 @@ const store = new Store<StoreSchema>({
     })(),
     aiTitleEnabled: (() => {
       const appCfg = getAppDefaultsConfig()
-      return appCfg.aiTitleEnabled || false
+      return appCfg.aiTitleEnabled !== undefined ? appCfg.aiTitleEnabled : true
     })(),
     theme: 'system',
     pageVisibility: {
@@ -847,7 +847,7 @@ export function saveLauncherCategories(categories: string[]): string[] {
 
 /** 获取是否启用 AI 生成标题 */
 export function getAiTitleEnabled(): boolean {
-  return store.get('aiTitleEnabled', false)
+  return store.get('aiTitleEnabled', true)
 }
 
 /** 设置是否启用 AI 生成标题 */
