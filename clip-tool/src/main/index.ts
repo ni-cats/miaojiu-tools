@@ -8,6 +8,7 @@ import { registerShortcuts, unregisterAllShortcuts } from './shortcuts'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
 import { getWindowBounds, saveWindowBounds, pushSettingsToCloud, pullSettingsFromCloud, getCosConfig } from './store'
+import { startClipboardWatcher, stopClipboardWatcher } from './clipboard-watcher'
 
 let mainWindow: BrowserWindow | null = null
 let historyWindow: BrowserWindow | null = null
@@ -73,7 +74,6 @@ function createHistoryWindow() {
     minWidth: 320,
     minHeight: 300,
     skipTaskbar: true,
-    alwaysOnTop: true,
     vibrancy: 'under-window',
     visualEffectState: 'active',
     titleBarStyle: 'hidden',
@@ -98,26 +98,6 @@ function createHistoryWindow() {
   historyWindow.once('ready-to-show', () => {
     historyWindow?.show()
     historyWindow?.focus()
-  })
-
-  // 始终置顶
-  historyWindow.on('show', () => {
-    if (historyWindow && !historyWindow.isDestroyed()) {
-      historyWindow.setAlwaysOnTop(true, 'floating')
-      historyWindow.focus()
-    }
-  })
-
-  historyWindow.on('blur', () => {
-    if (historyWindow && !historyWindow.isDestroyed()) {
-      historyWindow.setAlwaysOnTop(false)
-    }
-  })
-
-  historyWindow.on('focus', () => {
-    if (historyWindow && !historyWindow.isDestroyed()) {
-      historyWindow.setAlwaysOnTop(true, 'floating')
-    }
   })
 
   historyWindow.on('closed', () => {
@@ -154,7 +134,6 @@ function createMainWindow() {
     minWidth: 520,
     minHeight: 400,
     skipTaskbar: true,
-    alwaysOnTop: true,
     vibrancy: 'under-window',
     visualEffectState: 'active',
     titleBarStyle: 'hidden',
@@ -204,28 +183,6 @@ function createMainWindow() {
 
   // 不再在失焦时自动隐藏窗口，仅通过用户主动操作（Escape、双击空格等）关闭
 
-  // 窗口显示时置顶并聚焦
-  mainWindow.on('show', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setAlwaysOnTop(true, 'floating')
-      mainWindow.focus()
-    }
-  })
-
-  // 窗口失去焦点时取消置顶，让其他窗口可以覆盖
-  mainWindow.on('blur', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setAlwaysOnTop(false)
-    }
-  })
-
-  // 窗口重新获得焦点时恢复置顶
-  mainWindow.on('focus', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setAlwaysOnTop(true, 'floating')
-    }
-  })
-
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -238,6 +195,9 @@ app.whenReady().then(() => {
   createTray(getMainWindow)
   registerShortcuts(getMainWindow)
   registerIpcHandlers(getMainWindow, getHistoryWindow, createHistoryWindow)
+
+  // 启动后台剪贴板监听（不依赖任何窗口）
+  startClipboardWatcher()
 
   // 首次启动自动显示窗口，让用户知道应用已运行
   if (mainWindow) {
@@ -263,6 +223,7 @@ app.whenReady().then(() => {
 })
 
 app.on('will-quit', () => {
+  stopClipboardWatcher()
   unregisterAllShortcuts()
 })
 

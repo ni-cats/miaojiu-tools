@@ -44,6 +44,8 @@ import {
   saveLauncherCategories,
   getAiTitleEnabled,
   setAiTitleEnabled,
+  getAiTagEnabled,
+  setAiTagEnabled,
   getTheme,
   setTheme,
   pushSettingsToCloud,
@@ -68,7 +70,7 @@ import {
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
-import { chatWithHunyuan, isHunyuanAvailable, generateTitle, type ChatMessage } from './hunyuan'
+import { chatWithHunyuan, isHunyuanAvailable, generateTitle, matchTags, type ChatMessage } from './hunyuan'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(
@@ -139,6 +141,24 @@ export function registerIpcHandlers(
   ipcMain.on('window:hide', () => {
     const win = getMainWindow()
     if (win) win.hide()
+  })
+
+  // 最小化窗口
+  ipcMain.on('window:minimize', () => {
+    const win = getMainWindow()
+    if (win) win.minimize()
+  })
+
+  // 最大化/还原窗口
+  ipcMain.on('window:toggleMaximize', () => {
+    const win = getMainWindow()
+    if (win) {
+      if (win.isMaximized()) {
+        win.unmaximize()
+      } else {
+        win.maximize()
+      }
+    }
   })
 
   // 打开独立的剪贴板历史窗口
@@ -373,6 +393,23 @@ export function registerIpcHandlers(
   // 使用 AI 生成标题
   ipcMain.handle('aiTitle:generate', async (_event, content: string, contentType: string) => {
     return generateTitle(content, contentType)
+  })
+
+  // 使用 AI 匹配标签
+  ipcMain.handle('aiTags:match', async (_event, content: string, contentType: string, availableTags: string[]) => {
+    return matchTags(content, contentType, availableTags)
+  })
+
+  // ====== AI 标签匹配配置 ======
+
+  // 获取是否启用 AI 自动匹配标签
+  ipcMain.handle('aiTag:getEnabled', () => {
+    return getAiTagEnabled()
+  })
+
+  // 设置是否启用 AI 自动匹配标签
+  ipcMain.handle('aiTag:setEnabled', (_event, enabled: boolean) => {
+    return setAiTagEnabled(enabled)
   })
 
   // ====== 主题 ======

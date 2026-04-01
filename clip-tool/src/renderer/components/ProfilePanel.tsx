@@ -58,13 +58,6 @@ const ProfilePanel: React.FC = () => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 限制文件大小（最大 200KB）
-    if (file.size > 200 * 1024) {
-      setStatus('⚠ 头像图片不能超过 200KB')
-      setTimeout(() => setStatus(null), 3000)
-      return
-    }
-
     const reader = new FileReader()
     reader.onload = (event) => {
       const base64 = event.target?.result as string

@@ -5,7 +5,6 @@
  * 支持 ↑↓ 选择、Enter 复制并关闭、Escape 关闭、点击填充
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { nanoid } from 'nanoid'
 import type { ClipboardHistoryItem } from '../types'
 
 const ClipboardHistoryWindow: React.FC = () => {
@@ -18,8 +17,6 @@ const ClipboardHistoryWindow: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editorSectionRef = useRef<HTMLDivElement>(null)
   const historyListRef = useRef<HTMLDivElement>(null)
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const lastClipboardRef = useRef<string>('')
 
   // 加载主题和字体大小
   useEffect(() => {
@@ -48,51 +45,29 @@ const ClipboardHistoryWindow: React.FC = () => {
         } else {
           setEditorContent(data.content)
         }
-        lastClipboardRef.current = data.content
       }
     }).catch(() => {})
   }, [])
 
-  // 定时轮询剪贴板变化，自动记录到历史并实时更新编辑框
+  // 监听主进程后台剪贴板变化事件（替代前端轮询）
   useEffect(() => {
-    const pollClipboard = async () => {
-      try {
-        const data = await window.clipToolAPI.readClipboard()
-        if (data.content && data.content.trim() && data.content !== lastClipboardRef.current) {
-          lastClipboardRef.current = data.content
-          const item: ClipboardHistoryItem = {
-            id: nanoid(),
-            content: data.content,
-            type: data.type,
-            language: data.language,
-            isImage: data.isImage,
-            timestamp: new Date().toISOString(),
+    const unsubscribe = window.clipToolAPI.onClipboardChanged(({ newItem, history: updatedHistory }) => {
+      setHistory(updatedHistory)
+      // 实时更新编辑框内容为最新剪贴板内容（仅在未手动选中历史项时）
+      setSelectedHistoryIndex((prevIndex) => {
+        if (prevIndex === -1) {
+          if (newItem.isImage) {
+            setSelectedImageSrc(newItem.content)
+            setEditorContent('')
+          } else {
+            setSelectedImageSrc(null)
+            setEditorContent(newItem.content)
           }
-          const updated = await window.clipToolAPI.addClipboardHistory(item)
-          setHistory(updated)
-          // 实时更新编辑框内容为最新剪贴板内容（仅在未手动选中历史项时）
-          setSelectedHistoryIndex((prevIndex) => {
-            if (prevIndex === -1) {
-              if (data.isImage) {
-                setSelectedImageSrc(data.content)
-                setEditorContent('')
-              } else {
-                setSelectedImageSrc(null)
-                setEditorContent(data.content)
-              }
-            }
-            return prevIndex
-          })
         }
-      } catch {
-        // 静默忽略
-      }
-    }
-    pollClipboard()
-    pollTimerRef.current = setInterval(pollClipboard, 500)
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
-    }
+        return prevIndex
+      })
+    })
+    return () => unsubscribe()
   }, [])
 
   // 监听 textarea 大小变化
@@ -268,7 +243,19 @@ const ClipboardHistoryWindow: React.FC = () => {
   return (
     <div className="app-container">
       {/* 可拖拽区域 */}
-      <div className="drag-region" />
+      <div className="drag-region">
+        <div className="traffic-lights">
+          <button className="traffic-light traffic-light-close" onClick={() => window.clipToolAPI.closeHistoryWindow()} title="关闭">
+            <svg width="6" height="6" viewBox="0 0 6 6"><path d="M0 0L6 6M6 0L0 6" stroke="currentColor" strokeWidth="1.2" /></svg>
+          </button>
+          <button className="traffic-light traffic-light-minimize" onClick={() => window.clipToolAPI.minimizeWindow()} title="最小化">
+            <svg width="8" height="2" viewBox="0 0 8 2"><path d="M0 1h8" stroke="currentColor" strokeWidth="1.2" /></svg>
+          </button>
+          <button className="traffic-light traffic-light-maximize" onClick={() => window.clipToolAPI.toggleMaximizeWindow()} title="最大化">
+            <svg width="6" height="6" viewBox="0 0 6 6"><path d="M0 1.5C0 .67.67 0 1.5 0h3C5.33 0 6 .67 6 1.5v3c0 .83-.67 1.5-1.5 1.5h-3C.67 6 0 5.33 0 4.5z" fill="currentColor" /></svg>
+          </button>
+        </div>
+      </div>
 
       {/* 与 EditorPanel 一致的完整布局 */}
       <div className="editor-panel">

@@ -2,7 +2,7 @@
  * 全局快捷键注册模块
  * 支持根据用户自定义配置动态注册快捷键
  */
-import { globalShortcut, BrowserWindow } from 'electron'
+import { globalShortcut, BrowserWindow, Notification } from 'electron'
 import { getShortcuts, type ShortcutConfig } from './store'
 
 /** 所有支持通过全局快捷键唤起的模式 */
@@ -41,18 +41,41 @@ const SHORTCUT_MODE_MAP: { key: keyof ShortcutConfig; mode: WindowMode }[] = [
 export function registerShortcuts(getMainWindow: () => BrowserWindow | null) {
   const shortcuts = getShortcuts()
 
+  const failedShortcuts: { key: string; accelerator: string }[] = []
+
   for (const { key, mode } of SHORTCUT_MODE_MAP) {
     const accelerator = shortcuts[key]
     if (accelerator) {
       try {
-        globalShortcut.register(accelerator, () => {
+        const success = globalShortcut.register(accelerator, () => {
           const win = getMainWindow()
           if (!win) return
           showWindowWithMode(win, mode)
         })
+        if (!success) {
+          console.warn(`快捷键 ${accelerator}（${key}）注册失败，可能被其他应用占用`)
+          failedShortcuts.push({ key, accelerator })
+        }
       } catch (e) {
-        console.error(`注册快捷键 ${accelerator}（${key}）失败:`, e)
+        console.error(`注册快捷键 ${accelerator}（${key}）异常:`, e)
+        failedShortcuts.push({ key, accelerator })
       }
+    }
+  }
+
+  // 如果有注册失败的快捷键，通过系统通知提醒用户
+  if (failedShortcuts.length > 0) {
+    const details = failedShortcuts.map((f) => `${f.accelerator}`).join('、')
+    const notification = new Notification({
+      title: 'ClipTool 快捷键冲突',
+      body: `以下快捷键注册失败（可能被其他应用占用）：${details}\n请在设置中修改快捷键`,
+    })
+    notification.show()
+
+    // 同时通知渲染进程（如果窗口已就绪）
+    const win = getMainWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('shortcuts:conflict', failedShortcuts)
     }
   }
 }

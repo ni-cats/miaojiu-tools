@@ -199,7 +199,7 @@ export interface SettingsPanelRef {
   blurNav: () => void
 }
 
-const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void; onPageVisibilityChanged?: () => void }>(({ onShortcutsChanged, onDataChanged, onPageVisibilityChanged }, ref) => {
+const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => void; onDataChanged?: () => void; onPageVisibilityChanged?: (config: PageVisibility) => void }>(({ onShortcutsChanged, onDataChanged, onPageVisibilityChanged }, ref) => {
   // 当前激活的子页面
   const [activeSection, setActiveSection] = useState<SettingsSection>('general')
   // 导航栏是否处于键盘聚焦状态
@@ -273,6 +273,8 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
   // AI 生成标题配置
   const [aiTitleEnabled, setAiTitleEnabled] = useState<boolean>((_init.aiTitleEnabled as boolean) ?? false)
+  // AI 自动匹配标签配置
+  const [aiTagEnabled, setAiTagEnabled] = useState<boolean>((_init.aiTagEnabled as boolean) ?? true)
 
   // 编辑 — 剪贴板历史条数
   const [editorHistoryLimit, setEditorHistoryLimit] = useState((_init.clipboardHistoryLimit as number) || 20)
@@ -338,6 +340,9 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       Object.assign(window.clipToolAPI.initialSettings, latest)
       if (latest.aiTitleEnabled !== undefined && latest.aiTitleEnabled !== _init.aiTitleEnabled) {
         setAiTitleEnabled(latest.aiTitleEnabled as boolean)
+      }
+      if (latest.aiTagEnabled !== undefined && latest.aiTagEnabled !== _init.aiTagEnabled) {
+        setAiTagEnabled(latest.aiTagEnabled as boolean)
       }
       if (latest.docEditorTheme && latest.docEditorTheme !== _init.docEditorTheme) {
         setDocEditorTheme(latest.docEditorTheme as string)
@@ -625,6 +630,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
         }
         if (settings.aiModels) setAiModels(settings.aiModels as AiModelConfig[])
         if (settings.aiTitleEnabled !== undefined) setAiTitleEnabled(settings.aiTitleEnabled as boolean)
+        if (settings.aiTagEnabled !== undefined) setAiTagEnabled(settings.aiTagEnabled as boolean)
         if (settings.launcherCategories) setLauncherCategories(settings.launcherCategories as string[])
         if (settings.docEditorTheme) setDocEditorTheme(settings.docEditorTheme as string)
         if (settings.pageVisibility) setPageVisibility(settings.pageVisibility as PageVisibility)
@@ -1339,6 +1345,28 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
             </div>
           </div>
 
+          <div className="settings-config-item" style={{ marginBottom: 16 }}>
+            <div className="settings-config-info">
+              <div className="settings-config-label">🏷️ AI 自动匹配标签</div>
+              <div className="settings-config-desc">保存时自动使用大模型分析内容，从预设标签中匹配最相关的标签</div>
+            </div>
+            <div className="settings-config-action">
+              <label className="settings-cos-switch" title={aiTagEnabled ? '已启用' : '未启用'}>
+                <input
+                  type="checkbox"
+                  checked={aiTagEnabled}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked
+                    const saved = await window.clipToolAPI.setAiTagEnabled(enabled)
+                    setAiTagEnabled(saved)
+                    updateCache({ aiTagEnabled: saved })
+                  }}
+                />
+                <span className="settings-cos-slider"></span>
+              </label>
+            </div>
+          </div>
+
           <div className="settings-section-title">📋 保存 — 预设标签管理</div>
           <div className="settings-section-hint">
             管理保存片段时可快速选择的预设标签
@@ -1576,9 +1604,11 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
                   onChange={async (e) => {
                     const newConfig = { ...pageVisibility, [item.key]: e.target.checked }
                     setPageVisibility(newConfig)
+                    // 立即通知 App.tsx 更新状态，实时生效
+                    onPageVisibilityChanged?.(newConfig)
+                    // 异步保存到 store 和缓存（不影响 UI 即时响应）
                     await window.clipToolAPI.savePageVisibility(newConfig)
                     updateCache({ pageVisibility: newConfig })
-                    onPageVisibilityChanged?.()
                   }}
                 />
                 <span className="settings-cos-slider"></span>

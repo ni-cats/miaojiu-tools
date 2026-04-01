@@ -119,6 +119,8 @@ export interface ClipToolAPI {
   copyToClipboard: (id: string, content: string, contentType?: string) => Promise<SnippetData[]>
   updateSnippet: (id: string, data: Partial<Pick<SnippetData, 'title' | 'tags' | 'content'>>) => Promise<SnippetData[]>
   hideWindow: () => void
+  minimizeWindow: () => void
+  toggleMaximizeWindow: () => void
   openHistoryWindow: () => void
   closeHistoryWindow: () => void
   isHistoryWindow: () => boolean
@@ -153,6 +155,10 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   deleteClipboardHistoryItem: (id: string) => Promise<ClipboardHistoryItem[]>
   getClipboardHistoryLimit: () => Promise<number>
   setClipboardHistoryLimit: (limit: number) => Promise<number>
+  // 监听主进程后台剪贴板变化
+  onClipboardChanged: (
+    callback: (data: { newItem: ClipboardHistoryItem; history: ClipboardHistoryItem[] }) => void
+  ) => (() => void)
   // 快速链接
   getQuickLinks: () => Promise<QuickLink[]>
   saveQuickLinks: (links: QuickLink[]) => Promise<QuickLink[]>
@@ -176,6 +182,10 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   getAiTitleEnabled: () => Promise<boolean>
   setAiTitleEnabled: (enabled: boolean) => Promise<boolean>
   generateAiTitle: (content: string, contentType: string) => Promise<string | null>
+  matchAiTags: (content: string, contentType: string, availableTags: string[]) => Promise<string[]>
+  // AI 标签匹配
+  getAiTagEnabled: () => Promise<boolean>
+  setAiTagEnabled: (enabled: boolean) => Promise<boolean>
   // 设置批量推拉
   pushSettings: () => Promise<boolean>
   pullSettings: () => Promise<Record<string, unknown> | null>

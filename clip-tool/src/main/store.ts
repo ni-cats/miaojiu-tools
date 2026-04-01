@@ -107,6 +107,7 @@ interface StoreSchema {
   launcherCategories: string[]  // 导航分类列表
   aiModels: AiModelConfig[]  // AI 模型配置列表
   aiTitleEnabled: boolean  // 是否启用 AI 生成标题
+  aiTagEnabled: boolean  // 是否启用 AI 自动匹配标签
   theme: string  // 主题名称
   pageVisibility: PageVisibility  // 页面可见性配置
   appFontSize: number  // 全局字体大小
@@ -205,6 +206,7 @@ const store = new Store<StoreSchema>({
       const appCfg = getAppDefaultsConfig()
       return appCfg.aiTitleEnabled !== undefined ? appCfg.aiTitleEnabled : true
     })(),
+    aiTagEnabled: true,
     theme: 'system',
     pageVisibility: {
       save: true,
@@ -354,6 +356,7 @@ const SYNC_SETTING_NAMES = [
   'clipboardHistoryLimit',
   'aiModels',
   'aiTitleEnabled',
+  'aiTagEnabled',
   'launcherCategories',
   'pageVisibility',
   'appFontSize',
@@ -857,6 +860,20 @@ export function setAiTitleEnabled(enabled: boolean): boolean {
   return enabled
 }
 
+// ====== AI 标签匹配配置管理 ======
+
+/** 获取是否启用 AI 自动匹配标签 */
+export function getAiTagEnabled(): boolean {
+  return store.get('aiTagEnabled', true)
+}
+
+/** 设置是否启用 AI 自动匹配标签 */
+export function setAiTagEnabled(enabled: boolean): boolean {
+  store.set('aiTagEnabled', enabled)
+  debounceSyncSetting('aiTagEnabled', enabled)
+  return enabled
+}
+
 // ====== 主题 ======
 
 /** 获取当前主题 */
@@ -935,6 +952,7 @@ export function getAllSyncSettings(): Record<string, unknown> {
     clipboardHistoryLimit: getClipboardHistoryLimit(),
     aiModels: getAiModels(),
     aiTitleEnabled: getAiTitleEnabled(),
+    aiTagEnabled: getAiTagEnabled(),
     launcherCategories: getLauncherCategories(),
     pageVisibility: getPageVisibility(),
     appFontSize: getAppFontSize(),
@@ -1005,6 +1023,9 @@ export async function pullSettingsFromCloud(): Promise<Record<string, unknown> |
   }
   if (cloudSettings.aiTitleEnabled !== undefined) {
     store.set('aiTitleEnabled', cloudSettings.aiTitleEnabled as boolean)
+  }
+  if (cloudSettings.aiTagEnabled !== undefined) {
+    store.set('aiTagEnabled', cloudSettings.aiTagEnabled as boolean)
   }
   // settings 目录中的 launcherCategories
   if (cloudSettings.launcherCategories) {

@@ -169,9 +169,36 @@ export function isHunyuanAvailable(): boolean {
  * @param contentType 内容类型
  * @returns 生成的标题字符串，失败返回 null
  */
+/**
+ * 判断 AI 生成的标题是否有效
+ * 无效情况：空、太短、包含明显的 AI 拒绝/无效标记、与原文几乎相同等
+ */
+function isValidTitle(title: string, originalContent: string): boolean {
+  if (!title || title.length < 2) return false
+  // AI 返回的无效标记
+  const invalidMarkers = ['INVALID', 'invalid', '无法生成', '无法提取', '无意义', '不可读', '乱码']
+  if (invalidMarkers.some((m) => title.includes(m))) return false
+  // 标题不应该太长（超过30字说明 AI 没有正确理解指令）
+  if (title.length > 40) return false
+  // 标题不应该和原文前30字完全相同（说明 AI 只是复读了原文）
+  const contentHead = originalContent.trim().substring(0, 30).replace(/\n/g, ' ')
+  if (title === contentHead) return false
+  return true
+}
+
+/**
+ * 从内容开头截取一段作为 fallback 标题
+ * 取第一行非空文本，最多20个字
+ */
+function fallbackTitle(content: string): string {
+  const firstLine = content.trim().split('\n').find((line) => line.trim().length > 0) || ''
+  const cleaned = firstLine.trim().replace(/^[#/*\-=]+\s*/, '') // 去掉 markdown/注释前缀
+  return cleaned.substring(0, 20) || content.trim().substring(0, 20)
+}
+
 export async function generateTitle(content: string, contentType: string): Promise<string | null> {
   const client = getHunyuanClient()
-  if (!client) return null
+  if (!client) return fallbackTitle(content)
 
   const config = getHunyuanYamlConfig()
   // 截取前500字符避免 token 过长
@@ -182,7 +209,7 @@ export async function generateTitle(content: string, contentType: string): Promi
     Messages: [
       {
         Role: 'system',
-        Content: '你是一个标题生成助手。请为以下内容生成一个简短的中文标题（不超过20个字），只返回标题本身，不要有任何解释、引号或标点。如果内容是无意义的乱码、随机字符、不可读内容或无法提取有效信息，请直接返回 INVALID 这个单词。',
+        Content: '你是一个极简标题提取器。为用户复制的内容生成一个简短的中文摘要标题。规则：1.标题2-20个字，概括核心主题；2.只输出标题文本，不加引号、书名号、序号或任何符号；3.代码内容提取功能描述（如"用户登录验证"、"数组去重工具函数"）；4.URL提取网站或页面用途；5.普通文本提取关键主题。',
       },
       {
         Role: 'user',
@@ -196,15 +223,73 @@ export async function generateTitle(content: string, contentType: string): Promi
     const res = await client.ChatCompletions(params)
     const title = res.Choices?.[0]?.Message?.Content?.trim()
     if (title) {
-      // 如果 AI 判断内容无效，返回 null 以保留原始内容
-      if (title.toUpperCase() === 'INVALID') return null
-      // 清理标题中可能存在的引号
-      return title.replace(/^["'《「【]|["'》」】]$/g, '').trim().substring(0, 30)
+      // 清理标题中可能存在的引号和多余符号
+      const cleaned = title.replace(/^["'《「【\s]|["'》」】\s]$/g, '').trim()
+      // 验证 AI 生成的标题是否有效
+      if (isValidTitle(cleaned, content)) {
+        return cleaned.substring(0, 30)
+      }
     }
-    return null
+    // AI 返回无效结果，使用 fallback
+    return fallbackTitle(content)
   } catch (error) {
     console.error('AI 生成标题失败:', error)
-    return null
+    // 异常时也使用 fallback，而不是返回 null
+    return fallbackTitle(content)
+  }
+}
+
+/**
+ * 使用 AI 为剪贴板内容匹配最合适的预设标签（非流式）
+ * @param content 剪贴板文本内容
+ * @param contentType 内容类型
+ * @param availableTags 可选的预设标签列表
+ * @returns 匹配到的标签数组，失败返回空数组
+ */
+export async function matchTags(
+  content: string,
+  contentType: string,
+  availableTags: string[]
+): Promise<string[]> {
+  if (!availableTags || availableTags.length === 0) return []
+
+  const client = getHunyuanClient()
+  if (!client) return []
+
+  const config = getHunyuanYamlConfig()
+  // 截取前300字符，标签匹配不需要太多内容
+  const truncated = content.length > 300 ? content.substring(0, 300) + '...' : content
+
+  const params = {
+    Model: config.model || 'hunyuan-lite',
+    Messages: [
+      {
+        Role: 'system',
+        Content: `你是一个内容分类助手。根据用户复制的内容，从给定的标签列表中选择最匹配的标签。规则：1.只能从给定的标签列表中选择，不要创造新标签；2.选择1-3个最相关的标签；3.只输出标签名，多个标签用英文逗号分隔；4.如果没有合适的标签，输出 NONE。`,
+      },
+      {
+        Role: 'user',
+        Content: `可选标签：${availableTags.join('、')}\n内容类型：${contentType}\n内容：${truncated}`,
+      },
+    ],
+    Stream: false,
+  }
+
+  try {
+    const res = await client.ChatCompletions(params)
+    const result = res.Choices?.[0]?.Message?.Content?.trim()
+    if (!result || result.toUpperCase() === 'NONE') return []
+
+    // 解析 AI 返回的标签，只保留在预设列表中存在的
+    const matched = result
+      .split(/[,，、]/)
+      .map((t: string) => t.trim())
+      .filter((t: string) => t && availableTags.includes(t))
+
+    return matched
+  } catch (error) {
+    console.error('AI 匹配标签失败:', error)
+    return []
   }
 }
 

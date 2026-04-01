@@ -28,6 +28,9 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
   // AI 生成标题状态
   const [aiTitleEnabled, setAiTitleEnabled] = useState(false)
   const [aiTitleLoading, setAiTitleLoading] = useState(false)
+  // AI 匹配标签状态
+  const [aiTagEnabled, setAiTagEnabled] = useState(false)
+  const [aiTagsLoading, setAiTagsLoading] = useState(false)
   // 记录上次处理过的剪贴板内容，避免重复触发 AI 生成标题
   const lastContentRef = useRef<string>('')
 
@@ -42,6 +45,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       }
     })
     window.clipToolAPI.getAiTitleEnabled().then(setAiTitleEnabled)
+    window.clipToolAPI.getAiTagEnabled().then(setAiTagEnabled)
   }, [])
 
   // 组件挂载时和 triggerRead 变化时自动读取剪贴板
@@ -79,9 +83,11 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       setSelectedTags(customTags.includes('临时') ? ['临时'] : [])
       setCustomTagInput('')
 
-      // 如果启用了 AI 生成标题，异步调用
+      // 如果启用了 AI 生成标题，异步调用 AI 生成标题
       if (aiTitleEnabled && !clipboardData.isImage && clipboardData.type !== 'image') {
         setAiTitleLoading(true)
+
+        // AI 生成标题
         window.clipToolAPI.generateAiTitle(clipboardData.content, clipboardData.type).then((generatedTitle) => {
           if (generatedTitle) {
             setTitle(generatedTitle)
@@ -91,6 +97,23 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         }).finally(() => {
           setAiTitleLoading(false)
         })
+      }
+
+      // 如果启用了 AI 匹配标签，异步调用 AI 匹配标签
+      if (aiTagEnabled && !clipboardData.isImage && clipboardData.type !== 'image') {
+        // AI 匹配标签
+        if (customTags.length > 0) {
+          setAiTagsLoading(true)
+          window.clipToolAPI.matchAiTags(clipboardData.content, clipboardData.type, customTags).then((matchedTags) => {
+            if (matchedTags && matchedTags.length > 0) {
+              setSelectedTags(matchedTags)
+            }
+          }).catch(() => {
+            // AI 匹配失败，保留默认标签
+          }).finally(() => {
+            setAiTagsLoading(false)
+          })
+        }
       }
     }
   }, [clipboardData])
@@ -214,7 +237,11 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
 
       {/* 标签选择 - 枚举标签 */}
       <div className="input-group">
-        <div className="input-label">标签（点击选择，也可自由输入）</div>
+        <div className="input-label">
+          标签（点击选择，也可自由输入）
+          {aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)' }}>✨ AI 匹配中...</span>}
+          {aiTagEnabled && !aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)' }}>🏷️ AI 标签</span>}
+        </div>
         {customTags.length > 0 && (
           <div className="tag-enum-list">
             {customTags.map((tag) => (

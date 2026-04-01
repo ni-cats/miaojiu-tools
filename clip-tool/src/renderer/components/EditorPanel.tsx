@@ -27,8 +27,6 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const editorSectionRef = useRef<HTMLDivElement>(null)
   const historyListRef = useRef<HTMLDivElement>(null)
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const lastClipboardRef = useRef<string>('')
 
   // 暴露上下键选择方法给父组件（全局快捷键调用）
   useImperativeHandle(ref, () => ({
@@ -118,42 +116,16 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
         } else {
           setEditorContent(data.content)
         }
-        lastClipboardRef.current = data.content
       }
     }).catch(() => {})
   }, [])
 
-  // 定时轮询剪贴板变化，自动记录到历史
+  // 监听主进程后台剪贴板变化事件（替代前端轮询）
   useEffect(() => {
-    const pollClipboard = async () => {
-      try {
-        const data = await window.clipToolAPI.readClipboard()
-        if (data.content && data.content.trim() && data.content !== lastClipboardRef.current) {
-          lastClipboardRef.current = data.content
-          const item: ClipboardHistoryItem = {
-            id: nanoid(),
-            content: data.content,
-            type: data.type,
-            language: data.language,
-            isImage: data.isImage,
-            timestamp: new Date().toISOString(),
-          }
-          const updated = await window.clipToolAPI.addClipboardHistory(item)
-          setHistory(updated)
-        }
-      } catch (err) {
-        // 静默忽略
-      }
-    }
-
-    // 初始读取一次
-    pollClipboard()
-
-    // 每 500ms 轮询一次
-    pollTimerRef.current = setInterval(pollClipboard, 500)
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
-    }
+    const unsubscribe = window.clipToolAPI.onClipboardChanged(({ history: updatedHistory }) => {
+      setHistory(updatedHistory)
+    })
+    return () => unsubscribe()
   }, [])
 
   const showToast = useCallback((msg: string) => {

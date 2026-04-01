@@ -115,6 +115,12 @@ const api = {
   /** 隐藏窗口 */
   hideWindow: (): void => ipcRenderer.send('window:hide'),
 
+  /** 最小化窗口 */
+  minimizeWindow: (): void => ipcRenderer.send('window:minimize'),
+
+  /** 最大化/还原窗口 */
+  toggleMaximizeWindow: (): void => ipcRenderer.send('window:toggleMaximize'),
+
   /** 打开独立的剪贴板历史窗口 */
   openHistoryWindow: (): void => ipcRenderer.send('historyWindow:open'),
 
@@ -290,6 +296,18 @@ const api = {
   generateAiTitle: (content: string, contentType: string): Promise<string | null> =>
     ipcRenderer.invoke('aiTitle:generate', content, contentType),
 
+  /** 使用 AI 匹配标签 */
+  matchAiTags: (content: string, contentType: string, availableTags: string[]): Promise<string[]> =>
+    ipcRenderer.invoke('aiTags:match', content, contentType, availableTags),
+
+  // ====== AI 标签匹配 API ======
+
+  /** 获取是否启用 AI 自动匹配标签 */
+  getAiTagEnabled: (): Promise<boolean> => ipcRenderer.invoke('aiTag:getEnabled'),
+
+  /** 设置是否启用 AI 自动匹配标签 */
+  setAiTagEnabled: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('aiTag:setEnabled', enabled),
+
   // ====== 设置批量推拉 API ======
 
   /** 将所有设置推送到云端 */
@@ -329,6 +347,20 @@ const api = {
 
   /** 设置速记编辑器默认主题 */
   setDocEditorTheme: (theme: string): Promise<string> => ipcRenderer.invoke('docEditorTheme:set', theme),
+
+  /** 监听主进程后台剪贴板变化事件 */
+  onClipboardChanged: (
+    callback: (data: { newItem: ClipboardHistoryItem; history: ClipboardHistoryItem[] }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { newItem: ClipboardHistoryItem; history: ClipboardHistoryItem[] }
+    ) => callback(data)
+    ipcRenderer.on('clipboard:changed', handler)
+    return () => {
+      ipcRenderer.removeListener('clipboard:changed', handler)
+    }
+  },
 
   /** 判断当前是否为剪贴板历史窗口 */
   isHistoryWindow: (): boolean => {

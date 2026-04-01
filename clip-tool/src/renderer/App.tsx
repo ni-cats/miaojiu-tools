@@ -145,14 +145,28 @@ const App: React.FC = () => {
     }
   }, [])
 
-  // 加载页面可见性配置
+  // 加载页面可见性配置（初始化时从 store 读取）
   const loadPageVisibility = useCallback(async () => {
     try {
       const config = await window.clipToolAPI.getPageVisibility()
-      setPageVisibility(config)
+      applyPageVisibility(config)
     } catch (error) {
       console.error('加载页面可见性配置失败:', error)
     }
+  }, [])
+
+  // 直接应用页面可见性配置（实时生效，无需再走 IPC 读取）
+  const applyPageVisibility = useCallback((config: PageVisibility) => {
+    setPageVisibility(config)
+    // 如果当前 activeTab 对应的页面被隐藏了，自动切换到第一个可见的 Tab
+    const tabKeys: TabType[] = ['save', 'editor', 'search', 'launcher', 'doc', 'ai', 'favorite', 'settings', 'profile']
+    setActiveTab((prev) => {
+      if (config[prev as keyof PageVisibility] === false) {
+        const firstVisible = tabKeys.find((key) => config[key as keyof PageVisibility] !== false)
+        return firstVisible || 'save'
+      }
+      return prev
+    })
   }, [])
 
   useEffect(() => {
@@ -330,12 +344,12 @@ const App: React.FC = () => {
     onEnterSave: () => {
       savePanelRef.current?.doSave()
     },
-    // ⌘C / Enter（搜索模式）：复制选中项（不关闭页面）
+    // ⌘C / Enter（搜索模式）：复制选中项并关闭窗口
     onCopySelected: () => {
       const results = searchPanelRef.current?.getResults()
       const idx = searchPanelRef.current?.getSelectedIndex() ?? 0
       if (results && results[idx]) {
-        handleCopy(results[idx])
+        handleCopyAndClose(results[idx])
       }
     },
     onArrowUp: () => {
@@ -361,7 +375,7 @@ const App: React.FC = () => {
     onQuickCopy: (index: number) => {
       const results = searchPanelRef.current?.getResults()
       if (results && results[index]) {
-        handleCopy(results[index])
+        handleCopyAndClose(results[index])
       }
     },
     // ← / → 切换 Tab（使用函数式更新避免闭包陷阱）
@@ -455,7 +469,19 @@ const App: React.FC = () => {
   return (
     <div className="app-container">
       {/* 可拖拽区域（窗口标题栏） */}
-      <div className="drag-region" />
+      <div className="drag-region">
+        <div className="traffic-lights">
+          <button className="traffic-light traffic-light-close" onClick={() => window.clipToolAPI.hideWindow()} title="关闭">
+            <svg width="6" height="6" viewBox="0 0 6 6"><path d="M0 0L6 6M6 0L0 6" stroke="currentColor" strokeWidth="1.2" /></svg>
+          </button>
+          <button className="traffic-light traffic-light-minimize" onClick={() => window.clipToolAPI.minimizeWindow()} title="最小化">
+            <svg width="8" height="2" viewBox="0 0 8 2"><path d="M0 1h8" stroke="currentColor" strokeWidth="1.2" /></svg>
+          </button>
+          <button className="traffic-light traffic-light-maximize" onClick={() => window.clipToolAPI.toggleMaximizeWindow()} title="最大化">
+            <svg width="6" height="6" viewBox="0 0 6 6"><path d="M0 1.5C0 .67.67 0 1.5 0h3C5.33 0 6 .67 6 1.5v3c0 .83-.67 1.5-1.5 1.5h-3C.67 6 0 5.33 0 4.5z" fill="currentColor" /></svg>
+          </button>
+        </div>
+      </div>
 
       {/* Tab 导航 */}
       <div className="tab-bar">
@@ -483,7 +509,7 @@ const App: React.FC = () => {
           <SearchPanel
             ref={searchPanelRef}
             snippets={snippets}
-            onCopy={handleCopy}
+            onCopy={handleCopyAndClose}
             onDelete={handleDelete}
             onToggleFavorite={handleToggleFavorite}
             onUpdateTags={handleUpdateTags}
@@ -502,7 +528,7 @@ const App: React.FC = () => {
         )}
         {activeTab === 'doc' && <DocPanel onSave={handleSave} activeTab={activeTab} />}
         {activeTab === 'profile' && <ProfilePanel />}
-        {activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} onPageVisibilityChanged={loadPageVisibility} />}
+{activeTab === 'settings' && <SettingsPanel ref={settingsPanelRef} onShortcutsChanged={loadShortcutHints} onDataChanged={loadSnippets} onPageVisibilityChanged={applyPageVisibility} />}
         {activeTab === 'launcher' && <LauncherPanel ref={launcherPanelRef} onSwitchToAi={(query) => {
           setActiveTab('ai')
           // 将搜索词存入剪贴板以便在 AI 中使用
