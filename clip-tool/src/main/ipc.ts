@@ -182,7 +182,11 @@ export function registerIpcHandlers(
   // 保存快捷键配置并重新注册
   ipcMain.handle('shortcuts:save', (_event, config: ShortcutConfig) => {
     saveShortcuts(config)
-    reRegisterShortcuts(getMainWindow)
+    try {
+      reRegisterShortcuts(getMainWindow)
+    } catch (e) {
+      console.error('重新注册快捷键异常（不影响保存）:', e)
+    }
     return getShortcuts()
   })
 

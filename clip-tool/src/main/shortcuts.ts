@@ -66,16 +66,24 @@ export function registerShortcuts(getMainWindow: () => BrowserWindow | null) {
   // 如果有注册失败的快捷键，通过系统通知提醒用户
   if (failedShortcuts.length > 0) {
     const details = failedShortcuts.map((f) => `${f.accelerator}`).join('、')
-    const notification = new Notification({
-      title: 'ClipTool 快捷键冲突',
-      body: `以下快捷键注册失败（可能被其他应用占用）：${details}\n请在设置中修改快捷键`,
-    })
-    notification.show()
+    try {
+      const notification = new Notification({
+        title: 'ClipTool 快捷键冲突',
+        body: `以下快捷键注册失败（可能被其他应用占用）：${details}\n请在设置中修改快捷键`,
+      })
+      notification.show()
+    } catch (e) {
+      console.warn('发送快捷键冲突通知失败:', e)
+    }
 
     // 同时通知渲染进程（如果窗口已就绪）
-    const win = getMainWindow()
-    if (win && !win.isDestroyed()) {
-      win.webContents.send('shortcuts:conflict', failedShortcuts)
+    try {
+      const win = getMainWindow()
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('shortcuts:conflict', failedShortcuts)
+      }
+    } catch (e) {
+      console.warn('通知渲染进程快捷键冲突失败:', e)
     }
   }
 }

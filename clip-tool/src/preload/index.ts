@@ -28,6 +28,7 @@ export interface ShortcutConfig {
   openSave: string
   openSearch: string
   openEditor: string
+  openDoc: string
   openAi: string
   openFavorite: string
   openSettings: string

@@ -2,7 +2,7 @@
  * 设置面板组件
  * 支持用户自定义全局快捷键和管理预设标签
  */
-import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react'
 import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
 
@@ -35,24 +35,47 @@ function keyEventToAccelerator(e: KeyboardEvent): string | null {
   const ignoredKeys = ['Meta', 'Control', 'Shift', 'Alt', 'CapsLock', 'Tab']
   if (ignoredKeys.includes(e.key)) return null
 
-  // 获取实际按键
-  let key = e.key.toUpperCase()
-
-  // 特殊键映射
-  const specialKeys: Record<string, string> = {
+  // 特殊键映射（基于 e.key）
+  const specialKeyMap: Record<string, string> = {
     ' ': 'Space',
-    'ARROWUP': 'Up',
-    'ARROWDOWN': 'Down',
-    'ARROWLEFT': 'Left',
-    'ARROWRIGHT': 'Right',
-    'BACKSPACE': 'Backspace',
-    'DELETE': 'Delete',
-    'ENTER': 'Return',
-    'ESCAPE': 'Escape',
+    'ArrowUp': 'Up',
+    'ArrowDown': 'Down',
+    'ArrowLeft': 'Left',
+    'ArrowRight': 'Right',
+    'Backspace': 'Backspace',
+    'Delete': 'Delete',
+    'Enter': 'Return',
+    'Escape': 'Escape',
   }
-  if (specialKeys[key]) {
-    key = specialKeys[key]
+  if (specialKeyMap[e.key]) {
+    parts.push(specialKeyMap[e.key])
+    return parts.join('+')
   }
+
+  // F1-F12 功能键
+  if (/^F([1-9]|1[0-2])$/.test(e.key)) {
+    parts.push(e.key)
+    return parts.join('+')
+  }
+
+  // 使用 e.code 从物理按键推断实际键名
+  // 这样可以正确处理 Shift+数字键（macOS 上 e.key 会返回符号如 !@# 而非数字）
+  const code = e.code
+  if (code.startsWith('Key')) {
+    // 字母键：KeyA → A
+    parts.push(code.slice(3).toUpperCase())
+    return parts.join('+')
+  }
+  if (code.startsWith('Digit')) {
+    // 数字键：Digit1 → 1
+    parts.push(code.slice(5))
+    return parts.join('+')
+  }
+
+  // 其他键：使用 e.key 的大写形式
+  const key = e.key.toUpperCase()
+  // 过滤掉不可识别的键（如 Dead、Unidentified 等）
+  if (key === 'DEAD' || key === 'UNIDENTIFIED' || key.length > 10) return null
 
   parts.push(key)
   return parts.join('+')
@@ -228,12 +251,19 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   }))
 
   // 从 preload 缓存的设置初始值（APP启动时同步获取，零延迟）
-  const _init = window.clipToolAPI.initialSettings
-
-  /** 更新 preload 缓存，确保下次打开设置页面时初始值是最新的 */
-  const updateCache = useCallback((updates: Record<string, unknown>) => {
-    Object.assign(window.clipToolAPI.initialSettings, updates)
+  // 注意：contextBridge 暴露的对象属性是只读的，必须深拷贝到本地才能修改
+  const _init = useMemo(() => {
+    try {
+      return JSON.parse(JSON.stringify(window.clipToolAPI.initialSettings))
+    } catch {
+      return { ...window.clipToolAPI.initialSettings }
+    }
   }, [])
+
+  /** 更新本地设置缓存，确保下次打开设置页面时初始值是最新的 */
+  const updateCache = useCallback((updates: Record<string, unknown>) => {
+    Object.assign(_init, updates)
+  }, [_init])
 
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>(
     (_init.shortcuts as ShortcutConfig) || {
@@ -440,8 +470,9 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (error) {
       console.error('保存快捷键配置失败:', error)
-      setSaveStatus('✕ 保存失败')
-      setTimeout(() => setSaveStatus(null), 2000)
+      const msg = error instanceof Error ? error.message : String(error)
+      setSaveStatus(`✕ 保存失败: ${msg}`)
+      setTimeout(() => setSaveStatus(null), 4000)
     }
   }, [shortcuts])
 
