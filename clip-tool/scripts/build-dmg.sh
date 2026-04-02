@@ -1,20 +1,29 @@
 #!/bin/bash
 
 # 自定义 DMG 构建脚本
-# 将 ClipTool.app + 安装.command + Applications 链接打包进 DMG
+# 将 ClipTool.app + Applications 链接打包进 DMG
+# 支持通过 ARCH 环境变量指定架构：arm64（默认）或 x64（Intel）
 
 set -e
+
+# 架构参数：默认 arm64，可通过 ARCH=x64 指定 Intel
+ARCH="${ARCH:-arm64}"
+if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "x64" ]; then
+    echo "❌ 不支持的架构: $ARCH（仅支持 arm64 或 x64）"
+    exit 1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 RELEASE_DIR="$PROJECT_DIR/release"
 APP_NAME="ClipTool"
-DMG_NAME="${APP_NAME}-1.0.0-arm64.dmg"
+DMG_NAME="${APP_NAME}-1.0.0-${ARCH}.dmg"
 VOLUME_NAME="$APP_NAME"
 STAGING_DIR="$RELEASE_DIR/dmg-staging"
 
 echo "========================================="
 echo "  ClipTool 自定义 DMG 构建"
+echo "  架构: $ARCH"
 echo "========================================="
 
 # 1. 先构建前端和主进程
@@ -25,8 +34,8 @@ npm run build
 
 # 2. 用 electron-builder 打包 app（仅生成 .app，不生成 DMG）
 echo ""
-echo "⏳ 步骤 2/4: 打包 Electron 应用..."
-npx electron-builder --mac --dir
+echo "⏳ 步骤 2/4: 打包 Electron 应用 ($ARCH)..."
+npx electron-builder --mac --dir --$ARCH
 
 # 找到生成的 .app
 APP_PATH=$(find "$RELEASE_DIR" -name "${APP_NAME}.app" -maxdepth 2 -type d | head -1)

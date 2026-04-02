@@ -12,6 +12,7 @@
     "build": "npm run build:main && npm run build:preload && npm run build:renderer",
     "start": "npm run build && npx electron .",
     "pack": "bash scripts/build-dmg.sh",
+    "pack:intel": "ARCH=x64 bash scripts/build-dmg.sh",
     "pack:app": "chmod +x resources/安装.command && npm run build && electron-builder --mac",
     "postinstall": "electron-builder install-app-deps"
   },
