@@ -4,8 +4,9 @@
  * 支持配置快速链接并在浏览器中打开
  */
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { nanoid } from 'nanoid'
-import type { QuickLink, QuickLinkParam } from '../types'
+import type { QuickLink, QuickLinkParam, LocalApp } from '../types'
 import { getTagColor } from '../utils/tagColor'
 
 /** 预设的 Emoji 图标列表 */
@@ -145,6 +146,10 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   const [showAiResult, setShowAiResult] = useState(false)
   const aiResultRef = useRef<HTMLDivElement>(null)
 
+  // 本地应用列表（懒加载：仅在用户输入搜索词时才加载）
+  const [localApps, setLocalApps] = useState<LocalApp[]>([])
+  const localAppsLoaded = useRef(false)
+
   // 新增/编辑表单
   const [formName, setFormName] = useState('')
   const [formUrl, setFormUrl] = useState('')
@@ -153,6 +158,23 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   const [formFavicon, setFormFavicon] = useState('')
   const [faviconPreviewFailed, setFaviconPreviewFailed] = useState(false)
   const [formParams, setFormParams] = useState<QuickLinkParam[]>([])
+
+  // 清空搜索框并隐藏窗口
+  // 策略：先直接操作 DOM 清空 input（绕过 React 受控组件的异步渲染），
+  // 再同步更新 React 状态，最后隐藏窗口
+  const resetAndHide = useCallback(() => {
+    // 1. 立即操作 DOM，确保视觉上已清空（防止窗口隐藏后 React 渲染冻结导致残留）
+    if (searchInputRef.current) {
+      searchInputRef.current.value = ''
+    }
+    // 2. 同步更新 React 状态
+    flushSync(() => {
+      setSearchQuery('')
+      setSelectedIndex(0)
+    })
+    // 3. 隐藏窗口
+    window.clipToolAPI.hideWindow()
+  }, [])
 
   // 显示复制提示
   const showCopyToast = useCallback((msg: string) => {
@@ -170,6 +192,38 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 暴露方法
   useImperativeHandle(ref, () => ({
     focusSearch: () => {
+      // 每次唤起时清空搜索框内容并重置所有子状态，确保干净的初始界面
+      // 策略：
+      //   1. 直接操作 DOM 清空 input value（最可靠，不依赖 React 渲染周期）
+      //   2. 用 flushSync 同步重置所有 React 状态
+      //   3. 再次确认 DOM 已清空（双重保险）
+
+      // 1. 立即清空 DOM（绕过 React 受控组件，解决窗口隐藏期间渲染冻结的问题）
+      if (searchInputRef.current) {
+        searchInputRef.current.value = ''
+      }
+
+      // 2. 同步重置所有 React 状态
+      flushSync(() => {
+        setSearchQuery('')
+        setSelectedIndex(0)
+        setActiveTool(null)
+        setShowAiResult(false)
+        setAiResult('')
+        setAiStreamContent('')
+        setAiSearching(false)
+        setParamLink(null)
+        setParamValues({})
+        setIsAdding(false)
+        setEditingId(null)
+      })
+
+      // 3. 双重保险：再次确保 DOM input 值为空
+      //    （防止 flushSync 触发的 React 渲染将旧的 searchQuery 写回 DOM）
+      if (searchInputRef.current) {
+        searchInputRef.current.value = ''
+      }
+
       searchInputRef.current?.focus()
     },
     handleEscape: () => {
@@ -212,9 +266,18 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
 
   // 加载数据
   useEffect(() => {
+    // 快捷链接和分类优先加载（数据量小，不阻塞）
     window.clipToolAPI.getQuickLinks().then(setLinks)
     window.clipToolAPI.getLauncherCategories().then(setCategoryOptions)
   }, [])
+
+  // 本地应用懒加载：仅在用户首次输入搜索词时才触发扫描，减少首屏开销
+  useEffect(() => {
+    if (searchQuery.trim() && !localAppsLoaded.current) {
+      localAppsLoaded.current = true
+      window.clipToolAPI.getInstalledApps().then(setLocalApps)
+    }
+  }, [searchQuery])
 
   // 监听 AI 流式响应
   useEffect(() => {
@@ -303,8 +366,17 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     )
   }, [searchQuery, builtinTools])
 
-  // 合并后的总列表长度（链接 + 内置工具）
-  const totalItems = filteredLinks.length + matchedTools.length
+  // 匹配的本地应用（仅在有搜索词时显示，避免列表过长）
+  const filteredApps = React.useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return localApps.filter((app) =>
+      app.name.toLowerCase().includes(q)
+    ).slice(0, 8) // 最多显示 8 个匹配的应用
+  }, [searchQuery, localApps])
+
+  // 合并后的总列表长度（链接 + 内置工具 + 本地应用）
+  const totalItems = filteredLinks.length + matchedTools.length + filteredApps.length
 
   // Base64 实时编解码
   const handleBase64InputChange = useCallback((value: string) => {
@@ -432,9 +504,9 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       url = 'https://' + url
     }
     window.clipToolAPI.openExternal(url)
-    // 跳转后关闭窗口
-    window.clipToolAPI.hideWindow()
-  }, [])
+    // 跳转后清空搜索框并关闭窗口
+    resetAndHide()
+  }, [resetAndHide])
 
   // 确认参数并打开链接
   const handleConfirmParams = useCallback(() => {
@@ -446,9 +518,9 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     window.clipToolAPI.openExternal(url)
     setParamLink(null)
     setParamValues({})
-    // 跳转后关闭窗口
-    window.clipToolAPI.hideWindow()
-  }, [paramLink, paramValues])
+    // 跳转后清空搜索框并关闭窗口
+    resetAndHide()
+  }, [paramLink, paramValues, resetAndHide])
 
   // 判断输入是否为 URL
   const isUrl = useCallback((text: string) => {
@@ -467,17 +539,17 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       url = 'https://' + url
     }
     window.clipToolAPI.openExternal(url)
-    // 跳转后关闭窗口
-    window.clipToolAPI.hideWindow()
-  }, [])
+    // 跳转后清空搜索框并关闭窗口
+    resetAndHide()
+  }, [resetAndHide])
 
   // 浏览器搜索
   const handleBrowserSearch = useCallback((query: string) => {
     const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`
     window.clipToolAPI.openExternal(url)
-    // 跳转后关闭窗口
-    window.clipToolAPI.hideWindow()
-  }, [])
+    // 跳转后清空搜索框并关闭窗口
+    resetAndHide()
+  }, [resetAndHide])
 
   // AI 搜索（在当前页面内展示结果）
   const handleAiSearch = useCallback(async (query: string) => {
@@ -594,6 +666,9 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 处理内置工具选中
   const handleToolOpen = useCallback((toolKey: string) => {
     setActiveTool(toolKey)
+    // 跳转到工具后清空搜索框
+    setSearchQuery('')
+    setSelectedIndex(0)
     // 重置 Base64 工具状态
     setBase64Input('')
     setBase64Encoded('')
@@ -615,6 +690,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       else if (toolKey === 'timestamp') tsInputRef.current?.focus()
     }, 50)
   }, [])
+
+  // 打开本地应用
+  const handleOpenApp = useCallback((app: LocalApp) => {
+    window.clipToolAPI.openApp(app.path)
+    // 打开后清空搜索框并关闭窗口
+    resetAndHide()
+  }, [resetAndHide])
 
   // 搜索框键盘事件
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -728,15 +810,20 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       }
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      // 判断选中的是链接还是内置工具
+      // 判断选中的是链接、内置工具还是本地应用
       if (selectedIndex < filteredLinks.length) {
         if (filteredLinks[selectedIndex]) {
           handleOpen(filteredLinks[selectedIndex])
         }
-      } else {
+      } else if (selectedIndex < filteredLinks.length + matchedTools.length) {
         const toolIdx = selectedIndex - filteredLinks.length
         if (matchedTools[toolIdx]) {
           handleToolOpen(matchedTools[toolIdx].toolKey)
+        }
+      } else {
+        const appIdx = selectedIndex - filteredLinks.length - matchedTools.length
+        if (filteredApps[appIdx]) {
+          handleOpenApp(filteredApps[appIdx])
         }
       }
     }
@@ -1465,6 +1552,43 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                       </span>
                     </span>
                     <span className="launcher-item-url">{tool.description}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* 本地应用条目（仅搜索时显示） */}
+        {filteredApps.length > 0 && (
+          <div className="launcher-group">
+            <div className="launcher-group-title">本地应用</div>
+            {filteredApps.map((app, i) => {
+              const idx = filteredLinks.length + matchedTools.length + i
+              return (
+                <div
+                  key={app.path}
+                  className={`launcher-item ${idx === selectedIndex ? 'selected' : ''}`}
+                  onClick={() => handleOpenApp(app)}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                >
+                  <span className="launcher-item-icon">
+                    <span>📱</span>
+                  </span>
+                  <div className="launcher-item-info">
+                    <span className="launcher-item-name">
+                      {app.name}
+                      <span
+                        className="launcher-item-category-tag"
+                        style={{
+                          background: getTagColor('应用').bg,
+                          color: getTagColor('应用').text,
+                        }}
+                      >
+                        应用
+                      </span>
+                    </span>
+                    <span className="launcher-item-url">{app.path}</span>
                   </div>
                 </div>
               )

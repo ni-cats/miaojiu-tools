@@ -3,6 +3,7 @@
  * 负责主进程与渲染进程之间的通信
  */
 import { ipcMain, BrowserWindow, shell } from 'electron'
+import { log, timer, getLogFilePath } from './logger'
 import {
   getAllSnippets,
   addSnippet,
@@ -71,6 +72,7 @@ import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
 import { chatWithHunyuan, isHunyuanAvailable, generateTitle, matchTags, type ChatMessage } from './hunyuan'
+import { getInstalledApps, openApp } from './apps'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(
@@ -80,13 +82,19 @@ export function registerIpcHandlers(
 ) {
   // 同步获取所有设置初始值（避免渲染进程异步加载导致UI跳变）
   ipcMain.on('settings:getInitialSync', (event) => {
+    const stopTimer = timer('ipc', 'settings:getInitialSync (同步IPC)')
     const settings = getAllSyncSettings()
+    const cosConfig = getCosConfig()
+    const deviceId = getDeviceId()
+    const storageMode = getStorageMode()
+    const themeVal = getTheme()
+    stopTimer()
     event.returnValue = {
       ...settings,
-      cosConfig: getCosConfig(),
-      deviceId: getDeviceId(),
-      storageMode: getStorageMode(),
-      theme: getTheme(),
+      cosConfig,
+      deviceId,
+      storageMode,
+      theme: themeVal,
     }
   })
 
@@ -474,6 +482,25 @@ export function registerIpcHandlers(
   // 设置速记编辑器默认主题
   ipcMain.handle('docEditorTheme:set', (_event, theme: string) => {
     return setDocEditorTheme(theme)
+  })
+
+  // ====== 本地应用 ======
+
+  // 获取已安装的本地应用列表（异步，不阻塞主进程）
+  ipcMain.handle('apps:getInstalled', async () => {
+    return await getInstalledApps()
+  })
+
+  // 打开本地应用
+  ipcMain.handle('apps:open', (_event, appPath: string) => {
+    return openApp(appPath)
+  })
+
+  // ====== 日志 ======
+
+  // 获取启动日志文件路径
+  ipcMain.handle('logger:getLogFilePath', () => {
+    return getLogFilePath()
   })
 
 }

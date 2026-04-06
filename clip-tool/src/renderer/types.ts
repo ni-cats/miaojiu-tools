@@ -97,6 +97,13 @@ export interface PageVisibility {
   profile: boolean
 }
 
+/** 本地应用 */
+export interface LocalApp {
+  name: string       // 应用名称
+  path: string       // 应用完整路径
+  icon: string       // Emoji 图标
+}
+
 /** AI 模型配置 */
 export interface AiModelConfig {
   provider: 'hunyuan' | 'deepseek'
@@ -166,6 +173,9 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   deleteQuickLink: (id: string) => Promise<QuickLink[]>
   updateQuickLink: (id: string, data: Partial<Omit<QuickLink, 'id'>>) => Promise<QuickLink[]>
   openExternal: (url: string) => Promise<void>
+  // 本地应用
+  getInstalledApps: () => Promise<LocalApp[]>
+  openApp: (appPath: string) => Promise<boolean>
   // 混元大模型
   isHunyuanAvailable: () => Promise<boolean>
   chatWithHunyuan: (messages: { Role: string; Content: string }[]) => Promise<string>

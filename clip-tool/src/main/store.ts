@@ -254,10 +254,6 @@ export function getCosConfig(): CosConfig {
   // 2. 如果 store 无密钥但 YAML 有，使用 YAML 的 enabled
   const finalEnabled = storedConfig.secretId ? storedConfig.enabled : yamlCfg.enabled
 
-  console.log('getCosConfig - finalSecretId:', finalSecretId ? finalSecretId.substring(0, 8) + '...' : '(空)',
-    'enabled:', finalEnabled, '(store:', storedConfig.enabled, 'yaml:', yamlCfg.enabled, ')',
-    'source:', storedConfig.secretId ? 'store' : 'YAML')
-
   return {
     secretId: finalSecretId,
     secretKey: finalSecretKey,

@@ -2,8 +2,8 @@
 
 /* 默认：跟随系统（亮色） */
 :root {
-  --bg-primary: rgba(255, 255, 255, 0.85);
-  --bg-secondary: rgba(245, 245, 247, 0.9);
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ededef;
   --bg-hover: rgba(0, 0, 0, 0.04);
   --bg-active: rgba(0, 122, 255, 0.1);
   --text-primary: #1d1d1f;
@@ -28,8 +28,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]),
   [data-theme="system"] {
-    --bg-primary: rgba(40, 40, 42, 0.85);
-    --bg-secondary: rgba(55, 55, 58, 0.9);
+    --bg-primary: #28282a;
+    --bg-secondary: #37373a;
     --bg-hover: rgba(255, 255, 255, 0.05);
     --bg-active: rgba(90, 165, 255, 0.12);
     --text-primary: #e8e8ea;
@@ -50,8 +50,8 @@
 
 /* 强制亮色 */
 [data-theme="light"] {
-  --bg-primary: rgba(255, 255, 255, 0.92);
-  --bg-secondary: rgba(245, 245, 247, 0.95);
+  --bg-primary: #f8f8fa;
+  --bg-secondary: #f0f0f2;
   --bg-hover: rgba(0, 0, 0, 0.04);
   --bg-active: rgba(0, 122, 255, 0.1);
   --text-primary: #1d1d1f;
@@ -74,8 +74,8 @@
 
 /* 强制暗色 */
 [data-theme="dark"] {
-  --bg-primary: rgba(40, 40, 42, 0.88);
-  --bg-secondary: rgba(55, 55, 58, 0.92);
+  --bg-primary: #2a2a2c;
+  --bg-secondary: #393a3c;
   --bg-hover: rgba(255, 255, 255, 0.05);
   --bg-active: rgba(90, 165, 255, 0.12);
   --text-primary: #e8e8ea;
@@ -98,8 +98,8 @@
 
 /* 🌊 海洋蓝 */
 [data-theme="ocean"] {
-  --bg-primary: rgba(22, 40, 65, 0.90);
-  --bg-secondary: rgba(30, 50, 78, 0.92);
+  --bg-primary: #162841;
+  --bg-secondary: #1e324e;
   --bg-hover: rgba(120, 200, 255, 0.05);
   --bg-active: rgba(100, 200, 255, 0.10);
   --text-primary: #d0daf0;
@@ -122,8 +122,8 @@
 
 /* 🌸 玫瑰粉 */
 [data-theme="rose"] {
-  --bg-primary: rgba(255, 250, 252, 0.92);
-  --bg-secondary: rgba(255, 244, 248, 0.95);
+  --bg-primary: #fffafc;
+  --bg-secondary: #fff4f8;
   --bg-hover: rgba(240, 140, 160, 0.05);
   --bg-active: rgba(240, 140, 160, 0.08);
   --text-primary: #4a3040;
@@ -146,8 +146,8 @@
 
 /* 🌿 森林绿 */
 [data-theme="forest"] {
-  --bg-primary: rgba(28, 45, 32, 0.90);
-  --bg-secondary: rgba(36, 56, 40, 0.92);
+  --bg-primary: #1c2d20;
+  --bg-secondary: #243828;
   --bg-hover: rgba(120, 200, 120, 0.05);
   --bg-active: rgba(120, 200, 120, 0.08);
   --text-primary: #d8e8d4;
@@ -170,8 +170,8 @@
 
 /* 🌅 日落橙 */
 [data-theme="sunset"] {
-  --bg-primary: rgba(255, 252, 248, 0.92);
-  --bg-secondary: rgba(255, 246, 238, 0.95);
+  --bg-primary: #fffcf8;
+  --bg-secondary: #fff6ee;
   --bg-hover: rgba(255, 160, 100, 0.04);
   --bg-active: rgba(255, 160, 100, 0.08);
   --text-primary: #4a3020;
@@ -194,8 +194,8 @@
 
 /* 💜 紫罗兰 */
 [data-theme="purple"] {
-  --bg-primary: rgba(35, 25, 52, 0.90);
-  --bg-secondary: rgba(45, 32, 65, 0.92);
+  --bg-primary: #231934;
+  --bg-secondary: #2d2041;
   --bg-hover: rgba(180, 140, 255, 0.05);
   --bg-active: rgba(180, 140, 255, 0.10);
   --text-primary: #e0d5f0;
@@ -243,8 +243,6 @@ html, body, #root {
   border-radius: 12px;
   overflow: hidden;
   background: var(--bg-primary);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
   position: relative;
 }
@@ -552,8 +550,6 @@ html, body, #root {
   position: absolute;
   inset: 0;
   background: rgba(255, 59, 48, 0.08);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
   border-radius: inherit;
   display: flex;
   align-items: center;
@@ -1111,8 +1107,6 @@ html, body, #root {
   padding: 10px 20px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.75);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
@@ -1175,8 +1169,6 @@ html, body, #root {
   padding: 6px 0;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
 }
 
 .shortcut-hint kbd {
@@ -2914,8 +2906,6 @@ code.profile-info-value {
   padding: 8px 16px;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.75);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
   color: #fff;
   font-size: 12px;
   font-weight: 500;

@@ -9,6 +9,7 @@ import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
 import { getWindowBounds, saveWindowBounds, pushSettingsToCloud, pullSettingsFromCloud, getCosConfig } from './store'
 import { startClipboardWatcher, stopClipboardWatcher } from './clipboard-watcher'
+import { initLog, log, timer } from './logger'
 
 let mainWindow: BrowserWindow | null = null
 let historyWindow: BrowserWindow | null = null
@@ -69,13 +70,10 @@ function createHistoryWindow() {
     ...(x !== undefined && y !== undefined ? { x, y } : {}),
     show: false,
     frame: false,
-    transparent: true,
     resizable: true,
     minWidth: 320,
     minHeight: 300,
     skipTaskbar: true,
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: -999, y: -999 },
     webPreferences: {
@@ -129,13 +127,10 @@ function createMainWindow() {
       : {}),
     show: false,
     frame: false,
-    transparent: true,
     resizable: true,
     minWidth: 520,
     minHeight: 400,
     skipTaskbar: true,
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: -999, y: -999 }, // 隐藏红绿灯按钮
     webPreferences: {
@@ -173,6 +168,7 @@ function createMainWindow() {
 
   // 加载页面
   // 设置 VITE_DEV_SERVER=1 时连接 Vite dev server，否则加载本地文件
+  log('main', '⏱ 开始加载页面...')
   if (process.env.VITE_DEV_SERVER === '1') {
     mainWindow.loadURL('http://localhost:5173').catch(() => {
       mainWindow?.loadFile(path.join(__dirname, '../renderer/index.html'))
@@ -180,6 +176,19 @@ function createMainWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
+  // 追踪渲染进程生命周期事件
+  mainWindow.webContents.on('did-start-loading', () => {
+    log('main', '📄 did-start-loading: 渲染进程开始加载')
+  })
+  mainWindow.webContents.on('dom-ready', () => {
+    log('main', '📄 dom-ready: DOM 已就绪')
+  })
+  mainWindow.webContents.on('did-finish-load', () => {
+    log('main', '📄 did-finish-load: 页面加载完成')
+  })
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
+    log('main', `❌ did-fail-load: 页面加载失败 code=${code} desc=${desc}`)
+  })
 
   // 不再在失焦时自动隐藏窗口，仅通过用户主动操作（Escape、双击空格等）关闭
 
@@ -191,35 +200,61 @@ function createMainWindow() {
 // 保留 Dock 图标，方便用户点击 Dock 唤起窗口
 
 app.whenReady().then(() => {
+  // 初始化启动日志
+  initLog()
+  log('main', '🚀 app.whenReady() 触发')
+
+  let stopTimer = timer('main', '创建主窗口 createMainWindow')
   createMainWindow()
+  stopTimer()
+
+  stopTimer = timer('main', '创建托盘 createTray')
   createTray(getMainWindow)
+  stopTimer()
+
+  stopTimer = timer('main', '注册快捷键 registerShortcuts')
   registerShortcuts(getMainWindow)
+  stopTimer()
+
+  stopTimer = timer('main', '注册IPC处理器 registerIpcHandlers')
   registerIpcHandlers(getMainWindow, getHistoryWindow, createHistoryWindow)
+  stopTimer()
 
   // 启动后台剪贴板监听（不依赖任何窗口）
+  stopTimer = timer('main', '启动剪贴板监听 startClipboardWatcher')
   startClipboardWatcher()
+  stopTimer()
 
   // 首次启动自动显示窗口，让用户知道应用已运行
   if (mainWindow) {
     mainWindow.once('ready-to-show', () => {
+      log('main', '✅ 主窗口 ready-to-show，准备显示')
       mainWindow?.show()
       mainWindow?.focus()
+      log('main', '✅ 主窗口已显示并聚焦')
     })
   }
 
   // 启动时自动同步设置：先从云端拉取（确保本地是最新的），再推送本地到云端
   const cosConfig = getCosConfig()
   if (cosConfig.enabled) {
+    log('main', '☁️ COS 已启用，开始云端同步...')
+    const stopCloudSync = timer('main', '云端同步（拉取+推送）')
     pullSettingsFromCloud().then((result) => {
-      console.log(`[启动同步] 从云端拉取设置: ${result ? '成功' : '云端暂无数据'}`)
-      // 拉取完成后再推送本地数据到云端（确保本地新增的设置项也同步上去）
+      log('main', `☁️ 从云端拉取设置: ${result ? '成功' : '云端暂无数据'}`)
       return pushSettingsToCloud()
     }).then((ok) => {
-      console.log(`[启动同步] 本地数据推送到云端: ${ok ? '成功' : '失败'}`)
+      log('main', `☁️ 本地数据推送到云端: ${ok ? '成功' : '失败'}`)
+      stopCloudSync()
     }).catch((err) => {
-      console.error('[启动同步] 同步失败:', err)
+      log('main', `❌ 云端同步失败: ${err}`)
+      stopCloudSync()
     })
+  } else {
+    log('main', '☁️ COS 未启用，跳过云端同步')
   }
+
+  log('main', '🏁 主进程初始化完成（窗口等待 ready-to-show）')
 })
 
 app.on('will-quit', () => {

@@ -83,9 +83,20 @@ export interface PageVisibility {
   profile: boolean
 }
 
+export interface LocalApp {
+  name: string       // 应用名称
+  path: string       // 应用完整路径
+  icon: string       // Emoji 图标
+}
+
 const api = {
   /** 同步获取所有设置初始值（仅在 preload 加载时执行一次 sendSync，零延迟） */
-  initialSettings: ipcRenderer.sendSync('settings:getInitialSync') as Record<string, unknown>,
+  initialSettings: (() => {
+    const t0 = Date.now()
+    const result = ipcRenderer.sendSync('settings:getInitialSync') as Record<string, unknown>
+    console.log(`[preload] settings:getInitialSync 耗时 ${Date.now() - t0}ms`)
+    return result
+  })(),
 
   /** 异步获取所有同步设置（用于刷新缓存） */
   getAllSyncSettings: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('settings:getAllSync'),
@@ -243,6 +254,14 @@ const api = {
 
   /** 在默认浏览器中打开 URL */
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
+
+  // ====== 本地应用 API ======
+
+  /** 获取已安装的本地应用列表 */
+  getInstalledApps: (): Promise<{ name: string; path: string; icon: string }[]> => ipcRenderer.invoke('apps:getInstalled'),
+
+  /** 打开本地应用 */
+  openApp: (appPath: string): Promise<boolean> => ipcRenderer.invoke('apps:open', appPath),
 
   // ====== 混元大模型 API ======
 

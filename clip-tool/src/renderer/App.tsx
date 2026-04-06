@@ -18,6 +18,12 @@ import { useShortcuts } from './hooks/useShortcuts'
 import { registerTags } from './utils/tagColor'
 import type { SnippetData, PageVisibility } from './types'
 
+/** 渲染进程启动计时 */
+const rendererStartTime = Date.now()
+function rlog(msg: string) {
+  console.log(`[+${Date.now() - rendererStartTime}ms] [renderer] ${msg}`)
+}
+
 type TabType = 'save' | 'editor' | 'search' | 'ai' | 'favorite' | 'doc' | 'profile' | 'settings' | 'launcher'
 
 /** 将 Electron accelerator 格式转换为短标签显示 */
@@ -170,7 +176,9 @@ const App: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    loadSnippets()
+    rlog('⚙️ useEffect 初始化开始')
+    const t0 = Date.now()
+    loadSnippets().then(() => rlog(`✅ loadSnippets 完成 (耗时 ${Date.now() - t0}ms)`))
     loadShortcutHints()
     loadPageVisibility()
     // 初始化标签颜色映射
@@ -185,6 +193,7 @@ const App: React.FC = () => {
       document.documentElement.style.setProperty('--app-zoom', String(scale))
       const appContainer = document.querySelector('.app-container') as HTMLElement
       if (appContainer) appContainer.style.zoom = String(scale)
+      rlog(`✅ 渲染进程初始化完成 (总耗时 ${Date.now() - t0}ms)`)
     })
   }, [loadSnippets, loadShortcutHints])
 
@@ -201,9 +210,11 @@ const App: React.FC = () => {
         }, 100)
       } else if (mode === 'launcher') {
         setActiveTab('launcher')
+        // 切换到 launcher 后清空搜索框并聚焦
+        // 使用 setTimeout 确保 React 状态更新和组件渲染完成后再调用
         setTimeout(() => {
           launcherPanelRef.current?.focusSearch()
-        }, 100)
+        }, 50)
       } else if (mode === 'editor') {
         // 如果当前已在 editor tab，正常切换；否则打开独立历史小窗
         setActiveTab((prev) => {
@@ -498,7 +509,7 @@ const App: React.FC = () => {
       </div>
 
       {/* 面板内容 */}
-      <div className="panel-content" key={activeTab}>
+      <div className="panel-content">
         {activeTab === 'save' && (
           <SavePanel ref={savePanelRef} onSave={handleSaveAndClose} triggerRead={triggerRead} />
         )}

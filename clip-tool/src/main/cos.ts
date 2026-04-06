@@ -23,21 +23,28 @@ let cosClient: COS | null = null
 /**
  * 获取 macOS Hardware UUID 作为设备唯一标识
  * 稳定不变、全局唯一、与硬件绑定
+ * 结果会被缓存，避免重复执行 execSync 系统命令
  */
+let cachedDeviceId: string | null = null
+
 export function getDeviceId(): string {
+  if (cachedDeviceId) return cachedDeviceId
+
   try {
     const uuid = execSync(
       "ioreg -d2 -c IOPlatformExpertDevice | awk -F'\"' '/IOPlatformUUID/{print $(NF-1)}'"
     )
       .toString()
       .trim()
+    cachedDeviceId = uuid
     return uuid
   } catch (error) {
     console.error('获取设备ID失败:', error)
     // 兜底：使用主机名 + 用户名生成标识
     const hostname = execSync('hostname').toString().trim()
     const username = execSync('whoami').toString().trim()
-    return `${hostname}-${username}`
+    cachedDeviceId = `${hostname}-${username}`
+    return cachedDeviceId
   }
 }
 
