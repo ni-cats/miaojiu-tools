@@ -375,6 +375,17 @@ const App: React.FC = () => {
     onEditorDown: () => {
       editorPanelRef.current?.selectDown()
     },
+    // Enter（编辑模式）：复制选中项并关闭窗口
+    onEditorEnter: () => {
+      const content = editorPanelRef.current?.getSelectedContent()
+      if (content) {
+        navigator.clipboard.writeText(content)
+        showToast('✓ 已复制到剪贴板')
+        setTimeout(() => {
+          window.clipToolAPI.hideWindow()
+        }, 300)
+      }
+    },
     onEscape: () => {
       // launcher tab: 先让 LauncherPanel 层层退出子状态
       if (activeTab === 'launcher') {

@@ -17,6 +17,7 @@ interface ShortcutHandlers {
   activeTab?: string                // 当前激活的 Tab
   onEditorUp?: () => void           // 编辑 Tab ↑ 选上一条
   onEditorDown?: () => void         // 编辑 Tab ↓ 选下一条
+  onEditorEnter?: () => void        // 编辑 Tab Enter 复制选中项并关闭
   onSettingsNavFocus?: () => void   // ↓ 进入设置子导航
   onSettingsNavBlur?: () => void    // ↑ 退出设置子导航
   onSettingsNavSwitch?: (direction: 'left' | 'right') => void  // ←→ 切换设置子标签页
@@ -94,6 +95,13 @@ export function useShortcuts(handlers: ShortcutHandlers) {
       if (e.key === 'Enter' && !isMeta && h.activeTab === 'search') {
         e.preventDefault()
         h.onCopySelected?.()
+        return
+      }
+
+      // Enter：在编辑 Tab 下复制选中项并关闭窗口
+      if (e.key === 'Enter' && !isMeta && h.activeTab === 'editor') {
+        e.preventDefault()
+        h.onEditorEnter?.()
         return
       }
 

@@ -1,79 +1,61 @@
 /**
- * 编辑面板组件
- * 上方：文本编辑框 + 保存按钮
- * 下方：剪贴板历史记录列表
+ * 历史面板组件
+ * 顶部：搜索框
+ * 下方：剪贴板历史记录列表（点击直接复制）
  */
-import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
-import { nanoid } from 'nanoid'
-import type { SnippetData, ClipboardHistoryItem } from '../types'
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react'
+import type { ClipboardHistoryItem } from '../types'
 
 interface EditorPanelProps {
-  onSave: (snippet: SnippetData) => void
+  onSave: (snippet: import('../types').SnippetData) => void
 }
 
 export interface EditorPanelRef {
   selectUp: () => void
   selectDown: () => void
+  /** 获取当前选中项的内容（用于 Enter 复制） */
+  getSelectedContent: () => string | null
 }
 
-const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, ref) => {
-  const [editorContent, setEditorContent] = useState('')
-  const [title, setTitle] = useState('')
+const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onSave }, ref) => {
   const [history, setHistory] = useState<ClipboardHistoryItem[]>([])
   const [historyLimit, setHistoryLimit] = useState(20)
   const [toast, setToast] = useState<string | null>(null)
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1)
-  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const editorSectionRef = useRef<HTMLDivElement>(null)
+  const [historySearchQuery, setHistorySearchQuery] = useState('')
   const historyListRef = useRef<HTMLDivElement>(null)
+  const historySearchInputRef = useRef<HTMLInputElement>(null)
+
+  // 模糊匹配过滤后的历史列表
+  const filteredHistory = useMemo(() => {
+    if (!historySearchQuery.trim()) return history
+    const q = historySearchQuery.toLowerCase()
+    return history.filter((item) => {
+      if (item.isImage || item.content.startsWith('data:image/')) return false
+      return item.content.toLowerCase().includes(q) || item.type.toLowerCase().includes(q)
+    })
+  }, [history, historySearchQuery])
 
   // 暴露上下键选择方法给父组件（全局快捷键调用）
   useImperativeHandle(ref, () => ({
     selectUp: () => {
-      if (history.length === 0) return
+      if (filteredHistory.length === 0) return
       setSelectedHistoryIndex((prev) => {
         const next = Math.max(prev - 1, -1)
-        if (next >= 0) {
-          const item = history[next]
-          if (item) {
-            if (item.isImage || item.type === 'image') {
-              setSelectedImageSrc(item.content)
-              setEditorContent('')
-            } else {
-              setSelectedImageSrc(null)
-              setEditorContent(item.content)
-            }
-          }
-          setTimeout(() => {
-            const list = historyListRef.current
+        setTimeout(() => {
+          const list = historyListRef.current
+          if (next >= 0) {
             const el = list?.children[next] as HTMLElement
             if (el) el.scrollIntoView({ block: 'nearest' })
-          }, 0)
-        } else {
-          // 回到 -1 时清空编辑框
-          setEditorContent('')
-          setSelectedImageSrc(null)
-        }
+          }
+        }, 0)
         return next
       })
     },
     selectDown: () => {
-      if (history.length === 0) return
+      if (filteredHistory.length === 0) return
       setSelectedHistoryIndex((prev) => {
-        const next = Math.min(prev + 1, history.length - 1)
-        // 将选中项内容展示到编辑框
-        const item = history[next]
-        if (item) {
-          if (item.isImage || item.type === 'image') {
-            setSelectedImageSrc(item.content)
-            setEditorContent('')
-          } else {
-            setSelectedImageSrc(null)
-            setEditorContent(item.content)
-          }
-        }
-        // 滚动到可见区域
+        const next = Math.min(prev + 1, filteredHistory.length - 1)
         setTimeout(() => {
           const list = historyListRef.current
           const el = list?.children[next] as HTMLElement
@@ -82,42 +64,20 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
         return next
       })
     },
-  }), [history])
+    getSelectedContent: () => {
+      if (filteredHistory.length === 0) return null
+      // 如果没有选中项，默认取第一个
+      const targetIndex = selectedHistoryIndex >= 0 ? selectedHistoryIndex : 0
+      return filteredHistory[targetIndex]?.content ?? null
+    },
+  }), [filteredHistory, selectedHistoryIndex])
 
-  // 监听 textarea 大小变化（用户拖拽 resize 手柄时）
-  // 动态更新编辑区域高度，使其挤压下方历史列表空间
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-
-    const observer = new ResizeObserver(() => {
-      // textarea 被拖拽时，强制父容器重新布局
-      if (editorSectionRef.current) {
-        editorSectionRef.current.style.flexShrink = '0'
-        editorSectionRef.current.style.flexBasis = 'auto'
-      }
-    })
-    observer.observe(textarea)
-
-    return () => observer.disconnect()
-  }, [])
-
-  // 加载剪贴板历史和限制，并读取当前剪贴板内容填充编辑框
+  // 加载剪贴板历史和限制
   useEffect(() => {
     window.clipToolAPI.getClipboardHistory().then(setHistory)
     window.clipToolAPI.getClipboardHistoryLimit().then((limit) => {
       setHistoryLimit(limit)
     })
-    // 读取当前剪贴板内容，实时填充到编辑框
-    window.clipToolAPI.readClipboard().then((data) => {
-      if (data && data.content && data.content.trim()) {
-        if (data.isImage) {
-          setSelectedImageSrc(data.content)
-        } else {
-          setEditorContent(data.content)
-        }
-      }
-    }).catch(() => {})
   }, [])
 
   // 监听主进程后台剪贴板变化事件（替代前端轮询）
@@ -133,40 +93,15 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
     setTimeout(() => setToast(null), 2000)
   }, [])
 
-  // 保存编辑器内容为片段
-  const handleSave = useCallback(() => {
-    const content = editorContent.trim()
-    if (!content) return
-
-    const snippet: SnippetData = {
-      id: nanoid(),
-      title: title.trim() || content.substring(0, 30).replace(/\n/g, ' '),
-      content,
-      tags: ['编辑'],
-      type: 'text',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      copyCount: 0,
-      isFavorite: false,
-    }
-
-    onSave(snippet)
-    setEditorContent('')
-    setTitle('')
-    showToast('✓ 已保存')
-  }, [editorContent, title, onSave, showToast])
-
-  // 点击历史项填充到编辑框
+  // 点击历史项直接复制到剪贴板
   const handleHistoryClick = useCallback((item: ClipboardHistoryItem) => {
     if (item.isImage || item.type === 'image') {
-      // 图片直接复制到剪贴板
       navigator.clipboard.writeText(item.content)
       showToast('✓ 图片地址已复制')
       return
     }
-    setEditorContent(item.content)
-    // 自动聚焦编辑框
-    setTimeout(() => textareaRef.current?.focus(), 100)
+    navigator.clipboard.writeText(item.content)
+    showToast('✓ 已复制到剪贴板')
   }, [showToast])
 
   // 删除单条历史
@@ -203,78 +138,62 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
 
   return (
     <div className="editor-panel">
-      {/* 上方：编辑区域 */}
-      <div className="editor-section" ref={editorSectionRef}>
-        <div className="editor-title-row">
-          <input
-            className="text-input editor-title-input"
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="标题（可选）"
+      {/* 搜索框 - 与搜索页面风格一致 */}
+      <div className="search-box">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10zM14 14l-3.5-3.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
+        </svg>
+        <input
+          ref={historySearchInputRef}
+          className="search-input"
+          type="text"
+          value={historySearchQuery}
+          onChange={(e) => {
+            setHistorySearchQuery(e.target.value)
+            setSelectedHistoryIndex(-1)
+          }}
+          placeholder="搜索剪贴板历史..."
+          autoFocus
+        />
+        {historySearchQuery && (
           <button
-            className="editor-save-btn"
-            onClick={handleSave}
-            disabled={!editorContent.trim()}
+            className="action-btn"
+            onClick={() => {
+              setHistorySearchQuery('')
+              setSelectedHistoryIndex(-1)
+              historySearchInputRef.current?.focus()
+            }}
+            style={{ width: 20, height: 20, fontSize: 12 }}
           >
-            💾 保存
+            ✕
           </button>
-        </div>
-        {selectedImageSrc ? (
-          <div className="editor-image-preview">
-            <img src={selectedImageSrc} alt="图片预览" />
-          </div>
-        ) : (
-          <textarea
-            ref={textareaRef}
-            className="editor-textarea"
-            style={{
-              background: '#ffffff',
-              color: '#1a1a1a',
-              border: '1px solid #d0d0d0',
-              caretColor: '#333',
-            }}
-            value={editorContent}
-            onChange={(e) => {
-              setEditorContent(e.target.value)
-              // 输入内容后取消历史选中
-              if (e.target.value.trim()) {
-                setSelectedHistoryIndex(-1)
-              }
-            }}
-
-            placeholder="在这里编辑内容...&#10;可以直接输入，也可以点击下方历史记录填充&#10;↑↓ 切换剪贴板历史，选中内容自动展示"
-            spellCheck={false}
-          />
+        )}
+        <span className="editor-limit-tag" title="在设置-编辑页面修改" style={{ marginLeft: 4, flexShrink: 0 }}>
+          {filteredHistory.length}/{historyLimit}
+        </span>
+        {history.length > 0 && (
+          <button className="editor-clear-btn" onClick={handleClearHistory} style={{ flexShrink: 0 }}>
+            清空
+          </button>
         )}
       </div>
 
-      {/* 分隔线 */}
-      <div className="editor-divider">
-        <span className="editor-divider-label">📋 剪贴板历史</span>
-        <div className="editor-divider-actions">
-          <span className="editor-limit-tag" title="在设置-编辑页面修改">
-            最多 {historyLimit} 条
-          </span>
-          {history.length > 0 && (
-            <button className="editor-clear-btn" onClick={handleClearHistory}>
-              清空
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 下方：剪贴板历史列表 */}
+      {/* 剪贴板历史列表 */}
       <div className="editor-history-list" ref={historyListRef}>
-        {history.length === 0 ? (
+        {filteredHistory.length === 0 ? (
           <div className="editor-history-empty">
             <span className="editor-history-empty-icon">📋</span>
-            <span className="editor-history-empty-text">暂无剪贴板历史</span>
-            <span className="editor-history-empty-hint">复制内容后会自动记录在这里</span>
+            <span className="editor-history-empty-text">{historySearchQuery.trim() ? '未找到匹配的历史记录' : '暂无剪贴板历史'}</span>
+            <span className="editor-history-empty-hint">{historySearchQuery.trim() ? '试试其他关键词' : '复制内容后会自动记录在这里'}</span>
           </div>
         ) : (
-          history.map((item, index) => (
+          filteredHistory.map((item, index) => (
             <div
               key={item.id}
               className={`editor-history-item${selectedHistoryIndex === index ? ' selected' : ''}`}
@@ -282,7 +201,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
                 handleHistoryClick(item)
                 setSelectedHistoryIndex(-1)
               }}
-              title={item.isImage ? '点击复制图片地址' : '点击填充到编辑框'}
+              title={item.isImage ? '点击复制图片地址' : '点击复制内容'}
             >
               <div className="editor-history-item-content">
                 <span className={`editor-history-type ${item.type}`}>
@@ -322,4 +241,3 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave }, re
 })
 
 export default EditorPanel
-
