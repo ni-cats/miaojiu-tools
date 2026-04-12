@@ -201,6 +201,9 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   const [macShortcuts, setMacShortcuts] = useState<MacShortcut[]>([])
   const macShortcutsLoaded = useRef(false)
 
+  // 导航页操作使用频率计数
+  const [usageCount, setUsageCount] = useState<Record<string, number>>({})
+
   // 新增/编辑表单
   const [formName, setFormName] = useState('')
   const [formUrl, setFormUrl] = useState('')
@@ -320,6 +323,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     // 快捷链接和分类优先加载（数据量小，不阻塞）
     window.clipToolAPI.getQuickLinks().then(setLinks)
     window.clipToolAPI.getLauncherCategories().then(setCategoryOptions)
+    // 加载使用频率计数
+    window.clipToolAPI.getLauncherUsageCount().then(setUsageCount)
   }, [])
 
   // 本地应用懒加载：仅在用户首次输入搜索词时才触发扫描，减少首屏开销
@@ -417,7 +422,15 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       link.url.toLowerCase().includes(q) ||
       link.category.toLowerCase().includes(q)
     )
-  }).sort((a, b) => a.order - b.order)
+  }).sort((a, b) => {
+    // 搜索时按使用频率降序排序，无搜索时按 order 排序
+    if (searchQuery.trim()) {
+      const countA = usageCount[`link:${a.id}`] || 0
+      const countB = usageCount[`link:${b.id}`] || 0
+      if (countA !== countB) return countB - countA
+    }
+    return a.order - b.order
+  })
 
   // 匹配的内置工具
   const matchedTools = React.useMemo(() => {
@@ -426,8 +439,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     return builtinTools.filter((tool) =>
       tool.name.toLowerCase().includes(q) ||
       tool.keywords.some((kw) => kw.toLowerCase().includes(q))
-    )
-  }, [searchQuery, builtinTools])
+    ).sort((a, b) => {
+      // 搜索时按使用频率降序排序
+      const countA = usageCount[`tool:${a.toolKey}`] || 0
+      const countB = usageCount[`tool:${b.toolKey}`] || 0
+      return countB - countA
+    })
+  }, [searchQuery, builtinTools, usageCount])
 
   // 匹配的本地应用（仅在有搜索词时显示，避免列表过长）
   const filteredApps = React.useMemo(() => {
@@ -435,8 +453,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     const q = searchQuery.toLowerCase()
     return localApps.filter((app) =>
       app.name.toLowerCase().includes(q)
-    ).slice(0, 8) // 最多显示 8 个匹配的应用
-  }, [searchQuery, localApps])
+    ).sort((a, b) => {
+      // 搜索时按使用频率降序排序
+      const countA = usageCount[`app:${a.path}`] || 0
+      const countB = usageCount[`app:${b.path}`] || 0
+      return countB - countA
+    }).slice(0, 8) // 最多显示 8 个匹配的应用
+  }, [searchQuery, localApps, usageCount])
 
   // 匹配的 macOS 快捷指令（仅在有搜索词时显示）
   const filteredShortcuts = React.useMemo(() => {
@@ -444,8 +467,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     const q = searchQuery.toLowerCase()
     return macShortcuts.filter((s) =>
       s.name.toLowerCase().includes(q)
-    ).slice(0, 6) // 最多显示 6 个匹配的快捷指令
-  }, [searchQuery, macShortcuts])
+    ).sort((a, b) => {
+      // 搜索时按使用频率降序排序
+      const countA = usageCount[`shortcut:${a.name}`] || 0
+      const countB = usageCount[`shortcut:${b.name}`] || 0
+      return countB - countA
+    }).slice(0, 6) // 最多显示 6 个匹配的快捷指令
+  }, [searchQuery, macShortcuts, usageCount])
 
   // 合并后的总列表长度（链接 + 内置工具 + 本地应用 + 快捷指令）
   const totalItems = filteredLinks.length + matchedTools.length + filteredApps.length + filteredShortcuts.length
@@ -576,6 +604,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       url = 'https://' + url
     }
     window.clipToolAPI.openExternal(url)
+    // 增加使用频率计数
+    window.clipToolAPI.incrementLauncherUsage(`link:${link.id}`).then(setUsageCount)
     // 跳转后清空搜索框并关闭窗口
     resetAndHide()
   }, [resetAndHide])
@@ -588,6 +618,10 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       url = 'https://' + url
     }
     window.clipToolAPI.openExternal(url)
+    // 增加使用频率计数
+    if (paramLink.id) {
+      window.clipToolAPI.incrementLauncherUsage(`link:${paramLink.id}`).then(setUsageCount)
+    }
     setParamLink(null)
     setParamValues({})
     // 跳转后清空搜索框并关闭窗口
@@ -737,6 +771,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
 
   // 处理内置工具选中
   const handleToolOpen = useCallback((toolKey: string) => {
+    // 增加使用频率计数
+    window.clipToolAPI.incrementLauncherUsage(`tool:${toolKey}`).then(setUsageCount)
     setActiveTool(toolKey)
     // 跳转到工具后清空搜索框
     setSearchQuery('')
@@ -766,6 +802,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 打开本地应用
   const handleOpenApp = useCallback((app: LocalApp) => {
     window.clipToolAPI.openApp(app.path)
+    // 增加使用频率计数
+    window.clipToolAPI.incrementLauncherUsage(`app:${app.path}`).then(setUsageCount)
     // 打开后清空搜索框并关闭窗口
     resetAndHide()
   }, [resetAndHide])
@@ -773,6 +811,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 运行 macOS 快捷指令
   const handleRunShortcut = useCallback((shortcut: MacShortcut) => {
     window.clipToolAPI.runMacShortcut(shortcut.name)
+    // 增加使用频率计数
+    window.clipToolAPI.incrementLauncherUsage(`shortcut:${shortcut.name}`).then(setUsageCount)
     resetAndHide()
   }, [resetAndHide])
 

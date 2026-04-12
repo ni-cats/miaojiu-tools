@@ -112,6 +112,7 @@ interface StoreSchema {
   pageVisibility: PageVisibility  // 页面可见性配置
   appFontSize: number  // 全局字体大小
   docEditorTheme: string  // 速记编辑器默认主题
+  launcherUsageCount: Record<string, number>  // 导航页操作使用频率计数
 }
 
 /** AI 模型配置 */
@@ -221,6 +222,7 @@ const store = new Store<StoreSchema>({
     },
     appFontSize: 13,
     docEditorTheme: 'github-dark',
+    launcherUsageCount: {} as Record<string, number>,
     profile: {
       nickname: '',
       avatar: '',
@@ -934,6 +936,21 @@ export function setDocEditorTheme(theme: string): string {
   store.set('docEditorTheme', theme)
   debounceSyncSetting('docEditorTheme', theme)
   return theme
+}
+
+// ====== 导航页使用频率管理 ======
+
+/** 获取导航页操作使用频率计数 */
+export function getLauncherUsageCount(): Record<string, number> {
+  return store.get('launcherUsageCount', {})
+}
+
+/** 增加某个操作的使用频率计数 */
+export function incrementLauncherUsage(itemKey: string): Record<string, number> {
+  const counts = getLauncherUsageCount()
+  counts[itemKey] = (counts[itemKey] || 0) + 1
+  store.set('launcherUsageCount', counts)
+  return counts
 }
 
 // ====== 设置批量推拉 ======

@@ -58,6 +58,8 @@ import {
   setAppFontSize,
   getDocEditorTheme,
   setDocEditorTheme,
+  getLauncherUsageCount,
+  incrementLauncherUsage,
   type Snippet,
   type ShortcutConfig,
   type CosConfig,
@@ -482,6 +484,18 @@ export function registerIpcHandlers(
   // 设置速记编辑器默认主题
   ipcMain.handle('docEditorTheme:set', (_event, theme: string) => {
     return setDocEditorTheme(theme)
+  })
+
+  // ====== 导航页使用频率 ======
+
+  // 获取导航页操作使用频率计数
+  ipcMain.handle('launcherUsage:get', () => {
+    return getLauncherUsageCount()
+  })
+
+  // 增加某个操作的使用频率计数
+  ipcMain.handle('launcherUsage:increment', (_event, itemKey: string) => {
+    return incrementLauncherUsage(itemKey)
   })
 
   // ====== 本地应用 ======

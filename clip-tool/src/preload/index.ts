@@ -257,6 +257,16 @@ const api = {
 
   // ====== 本地应用 API ======
 
+  // ====== 导航页使用频率 API ======
+
+  /** 获取导航页操作使用频率计数 */
+  getLauncherUsageCount: (): Promise<Record<string, number>> => ipcRenderer.invoke('launcherUsage:get'),
+
+  /** 增加某个操作的使用频率计数 */
+  incrementLauncherUsage: (itemKey: string): Promise<Record<string, number>> => ipcRenderer.invoke('launcherUsage:increment', itemKey),
+
+  // ====== 本地应用 API（续） ======
+
   /** 获取已安装的本地应用列表 */
   getInstalledApps: (): Promise<{ name: string; path: string; icon: string }[]> => ipcRenderer.invoke('apps:getInstalled'),
 

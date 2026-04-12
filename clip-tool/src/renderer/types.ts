@@ -182,6 +182,9 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   getInstalledApps: () => Promise<LocalApp[]>
   getAppIcon: (appPath: string) => Promise<string>
   openApp: (appPath: string) => Promise<boolean>
+  // 导航页使用频率
+  getLauncherUsageCount: () => Promise<Record<string, number>>
+  incrementLauncherUsage: (itemKey: string) => Promise<Record<string, number>>
   // macOS 快捷指令
   getMacShortcuts: () => Promise<MacShortcut[]>
   runMacShortcut: (name: string) => Promise<boolean>
