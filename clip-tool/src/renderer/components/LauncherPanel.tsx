@@ -8,7 +8,7 @@ import { flushSync } from 'react-dom'
 import { nanoid } from 'nanoid'
 import type { QuickLink, QuickLinkParam, LocalApp } from '../types'
 import { getTagColor } from '../utils/tagColor'
-import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose } from './LauncherIcons'
+import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool } from './LauncherIcons'
 
 /** 预设的 Emoji 图标列表 */
 const ICON_OPTIONS = ['🌐', '📚', '🔧', '💻', '📊', '🎨', '📝', '🔗', '⚡', '🏠', '📦', '🎯', '🔍', '💡', '🚀', '📮']
@@ -50,11 +50,22 @@ const FaviconIcon: React.FC<{ favicon?: string; emoji: string }> = ({ favicon, e
         alt=""
         className="launcher-favicon"
         onError={() => setFailed(true)}
+        onLoad={(e) => {
+          // Google Favicon Service 对无法解析的域名返回默认小图标（16x16），视为失败
+          const img = e.currentTarget
+          if (img.naturalWidth <= 16 && img.naturalHeight <= 16) {
+            setFailed(true)
+          }
+        }}
         draggable={false}
       />
     )
   }
-  return <span>{emoji}</span>
+  // favicon 不可用时，优先显示用户自定义 emoji，否则显示链接 SVG 兜底
+  if (emoji && emoji !== '🌐') {
+    return <span>{emoji}</span>
+  }
+  return <IconLink size={18} />
 }
 
 /**
@@ -349,9 +360,9 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
 
   /** 内置工具图标映射 */
   const toolIconMap: Record<string, React.ReactNode> = {
-    base64: <IconWrench size={18} />,
-    timestamp: <IconClock size={18} />,
-    imageBase64: <IconImage size={18} />,
+    base64: <IconBase64Tool size={18} />,
+    timestamp: <IconTimestampTool size={18} />,
+    imageBase64: <IconImageBase64Tool size={18} />,
   }
 
   /** 内置工具列表定义 */
@@ -950,7 +961,7 @@ copyWithToast(tsResult)
       {activeTool === 'base64' && (
         <div className="launcher-base64-tool">
           <div className="launcher-base64-header">
-            <span className="launcher-base64-title"><IconWrench size={16} /> Base64 编解码工具</span>
+<span className="launcher-base64-title"><IconBase64Tool size={16} /> Base64 编解码工具</span>
             <button
               className="launcher-base64-close-btn"
               onClick={() => setActiveTool(null)}
@@ -1034,7 +1045,7 @@ copyWithToast(tsResult)
       {activeTool === 'timestamp' && (
         <div className="launcher-base64-tool">
           <div className="launcher-base64-header">
-            <span className="launcher-base64-title"><IconClock size={16} /> 时间戳转换工具</span>
+<span className="launcher-base64-title"><IconTimestampTool size={16} /> 时间戳转换工具</span>
             <button
               className="launcher-base64-close-btn"
               onClick={() => setActiveTool(null)}
@@ -1125,7 +1136,7 @@ copyWithToast(tsResult)
       {activeTool === 'imageBase64' && (
         <div className="launcher-base64-tool">
           <div className="launcher-base64-header">
-            <span className="launcher-base64-title"><IconImage size={16} /> 图片 Base64 转换</span>
+<span className="launcher-base64-title"><IconImageBase64Tool size={16} /> 图片 Base64 转换</span>
             <button
               className="launcher-base64-close-btn"
               onClick={() => setActiveTool(null)}
