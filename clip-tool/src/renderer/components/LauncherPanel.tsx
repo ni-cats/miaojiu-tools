@@ -1481,7 +1481,7 @@ copyWithToast(tsResult)
                     onClick={() => handleAiSearch(searchQuery.trim())}
                     onMouseEnter={() => setSelectedIndex(2)}
                   >
-                    <span className="launcher-fallback-icon"><IconAi size={18} /></span>
+                    <span className="launcher-fallback-icon"><IconAi size={22} /></span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">AI 搜索</span>
                       <span className="launcher-fallback-desc">在当前页面使用 AI 搜索「{searchQuery.trim()}」</span>

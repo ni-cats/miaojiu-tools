@@ -4,8 +4,8 @@
  * 下方：预留的 AI 智能管理功能卡片
  */
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { IconBot, IconUser, IconSearch, IconClipboard } from './TabIcons'
-import { Tag, FileText, Lightbulb, Target, MessageSquare, Trash2, Send, Loader } from 'lucide-react'
+import { IconBot, IconUser, IconSearch, IconClipboard, IconTag } from './TabIcons'
+import { FileText, Lightbulb, Target, MessageSquare, Trash2, Send, Loader } from 'lucide-react'
 
 /** 对话消息 */
 interface ChatMessage {
@@ -26,7 +26,7 @@ interface AiSolution {
 const AI_SOLUTIONS: AiSolution[] = [
   {
     id: 'smart-classify',
-    icon: <Tag size={16} />,
+    icon: <IconTag size={16} color="#FF9800" />,
     title: '智能分类',
     description: 'AI 自动识别剪贴板内容类型，智能归类到对应标签，减少手动整理工作',
     status: 'coming',

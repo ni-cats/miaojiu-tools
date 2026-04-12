@@ -8,8 +8,8 @@ import { useClipboard } from '../hooks/useClipboard'
 import { nanoid } from 'nanoid'
 import type { SnippetData } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
-import { IconClipboard, IconSparkles, IconBot } from './TabIcons'
-import { Tag, Sparkles } from 'lucide-react'
+import { IconClipboard, IconSparkles, IconTag, IconBot } from './TabIcons'
+import { Sparkles } from 'lucide-react'
 
 interface SavePanelProps {
   onSave: (snippet: SnippetData) => void
@@ -226,7 +226,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         <div className="input-label">
           标题（可选，Enter 保存）
           {aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Sparkles size={12} /> AI 生成中...</span>}
-          {aiTitleEnabled && !aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBot size={12} /> AI 标题</span>}
+{aiTitleEnabled && !aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBot size={12} /> AI 标题</span>}
         </div>
         <input
           className="text-input"
@@ -242,7 +242,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         <div className="input-label">
           标签（点击选择，也可自由输入）
           {aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Sparkles size={12} /> AI 匹配中...</span>}
-          {aiTagEnabled && !aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Tag size={11} /> AI 标签</span>}
+{aiTagEnabled && !aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconTag size={11} /> AI 标签</span>}
         </div>
         {customTags.length > 0 && (
           <div className="tag-enum-list">

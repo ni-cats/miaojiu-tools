@@ -3926,8 +3926,8 @@ code.profile-info-value {
 
 /* 本地应用图标样式 */
 .launcher-app-icon {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 5px;
   object-fit: contain;
 }

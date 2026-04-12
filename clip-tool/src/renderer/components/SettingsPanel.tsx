@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
 import { TabSaveIcon, TabEditorIcon, TabSearchIcon, TabLauncherIcon, TabDocIcon, TabAiIcon, TabFavoriteIcon, TabSettingsIcon, TabProfileIcon, IconBot, IconClipboard, IconPlugin, IconSettings, NavConfigIcon, NavShortcutIcon, NavThemeIcon, NavPageIcon, NavPluginIcon, IconFont, IconTag, IconPreview, IconTranslate, IconToJSON, IconOCR, IconSensitive, IconWorkflow } from './TabIcons'
-import { Brain, Keyboard, Lightbulb, Eye, Palette, Tag, Wrench } from 'lucide-react'
+import { Brain, Keyboard, Lightbulb, Eye, Palette, Wrench } from 'lucide-react'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -1380,7 +1380,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
           <div className="settings-config-item" style={{ marginBottom: 16 }}>
             <div className="settings-config-info">
-          <div className="settings-config-label"><Tag size={14} style={{ verticalAlign: -2, marginRight: 4 }} />AI 自动匹配标签</div>
+          <div className="settings-config-label"><IconTag size={14} color="#FF9800" style={{ verticalAlign: -2, marginRight: 4 }} />AI 自动匹配标签</div>
               <div className="settings-config-desc">保存时自动使用大模型分析内容，从预设标签中匹配最相关的标签</div>
             </div>
             <div className="settings-config-action">
