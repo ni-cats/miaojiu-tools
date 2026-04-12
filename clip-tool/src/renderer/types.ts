@@ -104,6 +104,11 @@ export interface LocalApp {
   icon: string       // Emoji 图标
 }
 
+/** macOS 快捷指令 */
+export interface MacShortcut {
+  name: string  // 快捷指令名称
+}
+
 /** AI 模型配置 */
 export interface AiModelConfig {
   provider: 'hunyuan' | 'deepseek'
@@ -177,6 +182,9 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   getInstalledApps: () => Promise<LocalApp[]>
   getAppIcon: (appPath: string) => Promise<string>
   openApp: (appPath: string) => Promise<boolean>
+  // macOS 快捷指令
+  getMacShortcuts: () => Promise<MacShortcut[]>
+  runMacShortcut: (name: string) => Promise<boolean>
   // 混元大模型
   isHunyuanAvailable: () => Promise<boolean>
   chatWithHunyuan: (messages: { Role: string; Content: string }[]) => Promise<string>

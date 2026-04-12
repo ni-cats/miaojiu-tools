@@ -231,3 +231,65 @@ export function clearAppCache(): void {
   cachedApps = null
   cacheTimestamp = 0
 }
+
+// ====== macOS 快捷指令（Shortcuts）支持 ======
+
+export interface MacShortcut {
+  name: string  // 快捷指令名称
+}
+
+/** 快捷指令缓存 */
+let cachedShortcuts: MacShortcut[] | null = null
+let shortcutsCacheTimestamp = 0
+const SHORTCUTS_CACHE_TTL = 120 * 1000 // 缓存 120 秒
+
+/**
+ * 获取 macOS 快捷指令列表
+ * 通过 `shortcuts list` 命令获取
+ */
+export async function getMacShortcuts(): Promise<MacShortcut[]> {
+  const now = Date.now()
+  if (cachedShortcuts && now - shortcutsCacheTimestamp < SHORTCUTS_CACHE_TTL) {
+    return cachedShortcuts
+  }
+
+  try {
+    const result = execSync('shortcuts list 2>/dev/null', {
+      encoding: 'utf-8',
+      timeout: 5000,
+    }).trim()
+
+    if (!result) {
+      cachedShortcuts = []
+    } else {
+      cachedShortcuts = result
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((name) => ({ name }))
+    }
+  } catch (err) {
+    console.error('获取 macOS 快捷指令列表失败:', err)
+    cachedShortcuts = []
+  }
+
+  shortcutsCacheTimestamp = now
+  return cachedShortcuts
+}
+
+/**
+ * 运行 macOS 快捷指令
+ */
+export function runMacShortcut(name: string): boolean {
+  try {
+    // 使用 spawn 异步执行，避免阻塞主进程
+    execSync(`shortcuts run "${name.replace(/"/g, '\\"')}" &`, {
+      encoding: 'utf-8',
+      timeout: 3000,
+    })
+    return true
+  } catch (err) {
+    console.error(`运行快捷指令失败 [${name}]:`, err)
+    return false
+  }
+}

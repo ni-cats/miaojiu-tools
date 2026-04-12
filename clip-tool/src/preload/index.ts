@@ -266,6 +266,14 @@ const api = {
   /** 打开本地应用 */
   openApp: (appPath: string): Promise<boolean> => ipcRenderer.invoke('apps:open', appPath),
 
+  // ====== macOS 快捷指令 API ======
+
+  /** 获取 macOS 快捷指令列表 */
+  getMacShortcuts: (): Promise<{ name: string }[]> => ipcRenderer.invoke('shortcuts:getMacShortcuts'),
+
+  /** 运行 macOS 快捷指令 */
+  runMacShortcut: (name: string): Promise<boolean> => ipcRenderer.invoke('shortcuts:runMacShortcut', name),
+
   // ====== 混元大模型 API ======
 
   /** 检查混元是否可用 */

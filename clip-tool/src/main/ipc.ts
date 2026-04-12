@@ -72,7 +72,7 @@ import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
 import { chatWithHunyuan, isHunyuanAvailable, generateTitle, matchTags, type ChatMessage } from './hunyuan'
-import { getInstalledApps, openApp, getAppIcon } from './apps'
+import { getInstalledApps, openApp, getAppIcon, getMacShortcuts, runMacShortcut } from './apps'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(
@@ -499,6 +499,18 @@ export function registerIpcHandlers(
   // 打开本地应用
   ipcMain.handle('apps:open', (_event, appPath: string) => {
     return openApp(appPath)
+  })
+
+  // ====== macOS 快捷指令 ======
+
+  // 获取 macOS 快捷指令列表
+  ipcMain.handle('shortcuts:getMacShortcuts', async () => {
+    return await getMacShortcuts()
+  })
+
+  // 运行 macOS 快捷指令
+  ipcMain.handle('shortcuts:runMacShortcut', (_event, name: string) => {
+    return runMacShortcut(name)
   })
 
   // ====== 日志 ======

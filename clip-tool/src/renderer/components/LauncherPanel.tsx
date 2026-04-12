@@ -6,9 +6,9 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { nanoid } from 'nanoid'
-import type { QuickLink, QuickLinkParam, LocalApp } from '../types'
+import type { QuickLink, QuickLinkParam, LocalApp, MacShortcut } from '../types'
 import { getTagColor } from '../utils/tagColor'
-import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool } from './LauncherIcons'
+import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool, IconMacShortcut } from './LauncherIcons'
 
 /** 预设的 Emoji 图标列表 */
 const ICON_OPTIONS = ['🌐', '📚', '🔧', '💻', '📊', '🎨', '📝', '🔗', '⚡', '🏠', '📦', '🎯', '🔍', '💡', '🚀', '📮']
@@ -197,6 +197,10 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   const [localApps, setLocalApps] = useState<LocalApp[]>([])
   const localAppsLoaded = useRef(false)
 
+  // macOS 快捷指令列表（懒加载）
+  const [macShortcuts, setMacShortcuts] = useState<MacShortcut[]>([])
+  const macShortcutsLoaded = useRef(false)
+
   // 新增/编辑表单
   const [formName, setFormName] = useState('')
   const [formUrl, setFormUrl] = useState('')
@@ -324,6 +328,11 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       localAppsLoaded.current = true
       window.clipToolAPI.getInstalledApps().then(setLocalApps)
     }
+    // macOS 快捷指令懒加载
+    if (searchQuery.trim() && !macShortcutsLoaded.current) {
+      macShortcutsLoaded.current = true
+      window.clipToolAPI.getMacShortcuts().then(setMacShortcuts)
+    }
   }, [searchQuery])
 
   // 监听 AI 流式响应
@@ -429,8 +438,17 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     ).slice(0, 8) // 最多显示 8 个匹配的应用
   }, [searchQuery, localApps])
 
-  // 合并后的总列表长度（链接 + 内置工具 + 本地应用）
-  const totalItems = filteredLinks.length + matchedTools.length + filteredApps.length
+  // 匹配的 macOS 快捷指令（仅在有搜索词时显示）
+  const filteredShortcuts = React.useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return macShortcuts.filter((s) =>
+      s.name.toLowerCase().includes(q)
+    ).slice(0, 6) // 最多显示 6 个匹配的快捷指令
+  }, [searchQuery, macShortcuts])
+
+  // 合并后的总列表长度（链接 + 内置工具 + 本地应用 + 快捷指令）
+  const totalItems = filteredLinks.length + matchedTools.length + filteredApps.length + filteredShortcuts.length
 
   // Base64 实时编解码
   const handleBase64InputChange = useCallback((value: string) => {
@@ -752,6 +770,12 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     resetAndHide()
   }, [resetAndHide])
 
+  // 运行 macOS 快捷指令
+  const handleRunShortcut = useCallback((shortcut: MacShortcut) => {
+    window.clipToolAPI.runMacShortcut(shortcut.name)
+    resetAndHide()
+  }, [resetAndHide])
+
   // 搜索框键盘事件
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     // 搜索无结果时的特殊键盘处理（链接+工具都没有匹配时）
@@ -874,10 +898,15 @@ copyWithToast(tsResult)
         if (matchedTools[toolIdx]) {
           handleToolOpen(matchedTools[toolIdx].toolKey)
         }
-      } else {
+      } else if (selectedIndex < filteredLinks.length + matchedTools.length + filteredApps.length) {
         const appIdx = selectedIndex - filteredLinks.length - matchedTools.length
         if (filteredApps[appIdx]) {
           handleOpenApp(filteredApps[appIdx])
+        }
+      } else {
+        const shortcutIdx = selectedIndex - filteredLinks.length - matchedTools.length - filteredApps.length
+        if (filteredShortcuts[shortcutIdx]) {
+          handleRunShortcut(filteredShortcuts[shortcutIdx])
         }
       }
     }
@@ -1643,6 +1672,43 @@ copyWithToast(tsResult)
                       </span>
                     </span>
                     <span className="launcher-item-url">{app.path}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* macOS 快捷指令条目 */}
+        {filteredShortcuts.length > 0 && (
+          <div className="launcher-group">
+            <div className="launcher-group-title">快捷指令</div>
+            {filteredShortcuts.map((shortcut, i) => {
+              const idx = filteredLinks.length + matchedTools.length + filteredApps.length + i
+              return (
+                <div
+                  key={shortcut.name}
+                  className={`launcher-item ${idx === selectedIndex ? 'selected' : ''}`}
+                  onClick={() => handleRunShortcut(shortcut)}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                >
+                  <span className="launcher-item-icon">
+                    <IconMacShortcut size={18} />
+                  </span>
+                  <div className="launcher-item-info">
+                    <span className="launcher-item-name">
+                      {shortcut.name}
+                      <span
+                        className="launcher-item-category-tag"
+                        style={{
+                          background: getTagColor('快捷指令').bg,
+                          color: getTagColor('快捷指令').text,
+                        }}
+                      >
+                        快捷指令
+                      </span>
+                    </span>
+                    <span className="launcher-item-url">macOS 快捷指令</span>
                   </div>
                 </div>
               )
