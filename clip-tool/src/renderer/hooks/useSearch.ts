@@ -2,9 +2,12 @@
  * 搜索 Hook
  * 基于 fuse.js 实现模糊搜索，支持标签筛选和内容类型筛选
  */
+import React from 'react'
 import { useState, useMemo, useCallback } from 'react'
 import Fuse from 'fuse.js'
 import type { SnippetData, ContentType } from '../types'
+import { IconCode, IconText, IconImage, IconDocument, IconRocket } from '../components/TabIcons'
+import { Link, Package } from 'lucide-react'
 
 const fuseOptions: Fuse.IFuseOptions<SnippetData> = {
   keys: [
@@ -17,13 +20,13 @@ const fuseOptions: Fuse.IFuseOptions<SnippetData> = {
 }
 
 /** 内容类型的显示名称和图标 */
-export const CONTENT_TYPE_MAP: Record<ContentType, { label: string; icon: string }> = {
-  code: { label: '代码', icon: '💻' },
-  text: { label: '文本', icon: '📝' },
-  url: { label: '链接', icon: '🔗' },
-  image: { label: '图片', icon: '🖼️' },
-  document: { label: '文档', icon: '📄' },
-  other: { label: '其他', icon: '📦' },
+export const CONTENT_TYPE_MAP: Record<ContentType, { label: string; icon: React.ReactNode }> = {
+  code: { label: '代码', icon: React.createElement(IconCode, { size: 12 }) },
+  text: { label: '文本', icon: React.createElement(IconText, { size: 12 }) },
+  url: { label: '链接', icon: React.createElement(Link, { size: 12 }) },
+  image: { label: '图片', icon: React.createElement(IconImage, { size: 12 }) },
+  document: { label: '文档', icon: React.createElement(IconDocument, { size: 12 }) },
+  other: { label: '其他', icon: React.createElement(Package, { size: 12 }) },
 }
 
 export function useSearch(snippets: SnippetData[]) {

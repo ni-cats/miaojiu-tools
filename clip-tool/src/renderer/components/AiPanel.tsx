@@ -4,6 +4,8 @@
  * 下方：预留的 AI 智能管理功能卡片
  */
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { IconBot, IconUser, IconSearch, IconClipboard } from './TabIcons'
+import { Tag, FileText, Lightbulb, Target, MessageSquare, Trash2, Send, Loader } from 'lucide-react'
 
 /** 对话消息 */
 interface ChatMessage {
@@ -14,7 +16,7 @@ interface ChatMessage {
 /** AI 方案卡片数据 */
 interface AiSolution {
   id: string
-  icon: string
+  icon: React.ReactNode
   title: string
   description: string
   status: 'coming' | 'beta' | 'active'
@@ -24,42 +26,42 @@ interface AiSolution {
 const AI_SOLUTIONS: AiSolution[] = [
   {
     id: 'smart-classify',
-    icon: '🏷️',
+    icon: <Tag size={16} />,
     title: '智能分类',
     description: 'AI 自动识别剪贴板内容类型，智能归类到对应标签，减少手动整理工作',
     status: 'coming',
   },
   {
     id: 'content-summary',
-    icon: '📝',
+    icon: <FileText size={16} />,
     title: '内容摘要',
     description: 'AI 自动提取长文本关键信息，生成简洁摘要，方便快速回顾和检索',
     status: 'coming',
   },
   {
     id: 'code-explain',
-    icon: '💡',
+    icon: <Lightbulb size={16} />,
     title: '代码解读',
     description: 'AI 分析复制的代码片段，自动添加注释说明，理解代码逻辑和功能',
     status: 'coming',
   },
   {
     id: 'duplicate-detect',
-    icon: '🔍',
+    icon: <IconSearch size={16} />,
     title: '重复检测',
     description: 'AI 智能识别语义相似的片段，合并重复内容，保持片段库整洁',
     status: 'coming',
   },
   {
     id: 'smart-template',
-    icon: '📋',
+    icon: <IconClipboard size={16} />,
     title: '模板生成',
     description: '根据历史使用习惯，AI 自动生成常用文本模板，一键复用高频内容',
     status: 'coming',
   },
   {
     id: 'context-recommend',
-    icon: '🎯',
+    icon: <Target size={16} />,
     title: '上下文推荐',
     description: '根据当前工作上下文，AI 智能推荐可能需要的历史片段，提升效率',
     status: 'coming',
@@ -229,7 +231,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
       <div className="ai-chat-container">
         <div className="ai-chat-header">
           <div className="ai-chat-header-left">
-            <span className="ai-chat-header-icon">🤖</span>
+            <span className="ai-chat-header-icon"><IconBot size={16} /></span>
             <span className="ai-chat-header-title">混元对话</span>
             {!isAvailable && (
               <span className="ai-chat-status-badge ai-status-coming">未配置</span>
@@ -237,7 +239,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
           </div>
           {messages.length > 0 && (
             <button className="ai-chat-clear-btn" onClick={handleClear} title="清除对话">
-              🗑️
+              <Trash2 size={14} />
             </button>
           )}
         </div>
@@ -246,7 +248,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
         <div className="ai-chat-messages">
           {messages.length === 0 && !streamingContent && (
             <div className="ai-chat-empty">
-              <div className="ai-chat-empty-icon">💬</div>
+              <div className="ai-chat-empty-icon"><MessageSquare size={28} /></div>
               <div className="ai-chat-empty-text">
                 {isAvailable ? '向混元 AI 提问任何问题' : '请在 config.yaml 中配置混元大模型密钥'}
               </div>
@@ -255,7 +257,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
           {messages.map((msg, index) => (
             <div key={index} className={`ai-chat-message ai-chat-message-${msg.role}`}>
               <div className="ai-chat-message-avatar">
-                {msg.role === 'user' ? '👤' : '🤖'}
+                {msg.role === 'user' ? <IconUser size={14} /> : <IconBot size={14} />}
               </div>
               <div className="ai-chat-message-content">
                 <pre className="ai-chat-message-text">{msg.content}</pre>
@@ -265,7 +267,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
           {/* 流式响应中 */}
           {streamingContent && (
             <div className="ai-chat-message ai-chat-message-assistant">
-              <div className="ai-chat-message-avatar">🤖</div>
+              <div className="ai-chat-message-avatar"><IconBot size={14} /></div>
               <div className="ai-chat-message-content">
                 <pre className="ai-chat-message-text">{streamingContent}<span className="ai-chat-cursor">▍</span></pre>
               </div>
@@ -274,7 +276,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
           {/* 加载指示器 */}
           {isLoading && !streamingContent && (
             <div className="ai-chat-message ai-chat-message-assistant">
-              <div className="ai-chat-message-avatar">🤖</div>
+              <div className="ai-chat-message-avatar"><IconBot size={14} /></div>
               <div className="ai-chat-message-content">
                 <div className="ai-chat-typing">
                   <span></span><span></span><span></span>
@@ -302,7 +304,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
             onClick={handleSend}
             disabled={!inputValue.trim() || isLoading || !isAvailable}
           >
-            {isLoading ? '⏳' : '📤'}
+            {isLoading ? <Loader size={14} className="ai-send-loading" /> : <Send size={14} />}
           </button>
         </div>
       </div>
@@ -330,7 +332,7 @@ const AiPanel = forwardRef<AiPanelRef>((_, ref) => {
 
       {/* 底部提示 */}
       <div className="ai-footer">
-        <span className="ai-footer-text">💬 有想法或建议？欢迎反馈，帮助我们优先开发你最需要的功能</span>
+        <span className="ai-footer-text"><MessageSquare size={12} style={{ verticalAlign: -2, marginRight: 4 }} />有想法或建议？欢迎反馈，帮助我们优先开发你最需要的功能</span>
       </div>
     </div>
   )

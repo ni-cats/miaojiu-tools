@@ -175,6 +175,7 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   openExternal: (url: string) => Promise<void>
   // 本地应用
   getInstalledApps: () => Promise<LocalApp[]>
+  getAppIcon: (appPath: string) => Promise<string>
   openApp: (appPath: string) => Promise<boolean>
   // 混元大模型
   isHunyuanAvailable: () => Promise<boolean>

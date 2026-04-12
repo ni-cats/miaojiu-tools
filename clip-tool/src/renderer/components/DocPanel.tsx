@@ -8,6 +8,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { nanoid } from 'nanoid'
 import type { SnippetData, ContentType } from '../types'
+import { IconBot, IconDoc, IconClipboard, IconCode } from './TabIcons'
+import { Sparkles, Wrench, FileText, BarChart2, Type, Clipboard, Copy, Trash2, Save } from 'lucide-react'
 
 /** 支持的编辑器主题列表 */
 const EDITOR_THEMES: { id: string; label: string; dark: boolean }[] = [
@@ -605,7 +607,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
             disabled={!content.trim() || aiTitleLoading}
             title="使用 AI 生成标题"
           >
-            {aiTitleLoading ? '✨ 生成中...' : '🤖 AI标题'}
+            {aiTitleLoading ? <><Sparkles size={12} style={{ verticalAlign: -2 }} /> 生成中...</> : <><IconBot size={12} style={{ verticalAlign: -2 }} /> AI标题</>}
           </button>
         </div>
         <div className="doc-toolbar-right">
@@ -617,7 +619,7 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
               disabled={!content.trim()}
               title="格式化 (⌘⇧F)"
             >
-              🔧 格式化
+              <Wrench size={12} style={{ verticalAlign: -2 }} /> 格式化
             </button>
             {showFormatMenu && (
               <div className="doc-format-menu">
@@ -718,13 +720,13 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
           </div>
         ) : (
           <div className="doc-empty-preview">
-            <div className="doc-empty-icon">📄</div>
+            <div className="doc-empty-icon"><IconDoc size={48} color="var(--text-tertiary)" /></div>
             <div className="doc-empty-title">粘贴文档内容</div>
             <div className="doc-empty-desc">
               切换到此页面时会自动读取剪贴板
             </div>
             <div className="doc-empty-desc">
-              也可以按 <kbd>⌘V</kbd> 粘贴，或点击下方「📋 粘贴」按钮
+              也可以按 <kbd>⌘V</kbd> 粘贴，或点击下方「粘贴」按钮
             </div>
             <div className="doc-empty-desc">
               支持自动识别 JSON、Go、SQL、JavaScript、Python 等语言
@@ -737,32 +739,32 @@ const DocPanel: React.FC<DocPanelProps> = ({ onSave, activeTab }) => {
       <div className="doc-statusbar">
         <div className="doc-statusbar-left">
           <span className="doc-status-item">
-            📝 {lineCount} 行
+            <FileText size={12} style={{ verticalAlign: -2 }} /> {lineCount} 行
           </span>
           <span className="doc-status-item">
-            📊 {content.length} 字符
+            <BarChart2 size={12} style={{ verticalAlign: -2 }} /> {content.length} 字符
           </span>
           {language !== 'plaintext' && (
             <span className="doc-status-lang">
-              🔤 {getLangLabel(language)}
+              <Type size={12} style={{ verticalAlign: -2 }} /> {getLangLabel(language)}
             </span>
           )}
         </div>
         <div className="doc-statusbar-right">
           <button className="doc-action-btn" onClick={() => window.clipToolAPI.openHistoryWindow()} title="打开剪贴板历史窗口">
-            📋 历史
+            <Clipboard size={12} style={{ verticalAlign: -2 }} /> 历史
           </button>
           <button className="doc-action-btn" onClick={handlePaste} title="从剪贴板粘贴">
-            📋 粘贴
+            <Clipboard size={12} style={{ verticalAlign: -2 }} /> 粘贴
           </button>
           <button className="doc-action-btn" onClick={handleCopy} disabled={!content.trim()} title="复制内容">
-            📄 复制
+            <Copy size={12} style={{ verticalAlign: -2 }} /> 复制
           </button>
           <button className="doc-action-btn" onClick={handleClear} disabled={!content.trim()} title="清空内容">
-            🗑 清空
+            <Trash2 size={12} style={{ verticalAlign: -2 }} /> 清空
           </button>
           <button className="doc-action-btn primary" onClick={handleSave} disabled={!content.trim()} title="保存为片段">
-            💾 保存
+            <Save size={12} style={{ verticalAlign: -2 }} /> 保存
           </button>
         </div>
       </div>

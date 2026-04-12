@@ -5,6 +5,8 @@
  */
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react'
 import type { ClipboardHistoryItem } from '../types'
+import { IconClipboard } from './TabIcons'
+import { Image as ImageIcon } from 'lucide-react'
 
 interface EditorPanelProps {
   onSave: (snippet: import('../types').SnippetData) => void
@@ -131,7 +133,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
 
   // 内容预览（截断）
   const previewContent = (content: string, isImage?: boolean) => {
-    if (isImage || content.startsWith('data:image/')) return '🖼️ [图片]'
+    if (isImage || content.startsWith('data:image/')) return '[图片]'
     const text = content.replace(/\n/g, ' ').trim()
     return text.length > 60 ? text.substring(0, 60) + '...' : text
   }
@@ -188,7 +190,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
       <div className="editor-history-list" ref={historyListRef}>
         {filteredHistory.length === 0 ? (
           <div className="editor-history-empty">
-            <span className="editor-history-empty-icon">📋</span>
+            <span className="editor-history-empty-icon"><IconClipboard size={28} /></span>
             <span className="editor-history-empty-text">{historySearchQuery.trim() ? '未找到匹配的历史记录' : '暂无剪贴板历史'}</span>
             <span className="editor-history-empty-hint">{historySearchQuery.trim() ? '试试其他关键词' : '复制内容后会自动记录在这里'}</span>
           </div>

@@ -8,6 +8,8 @@ import { useClipboard } from '../hooks/useClipboard'
 import { nanoid } from 'nanoid'
 import type { SnippetData } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
+import { IconClipboard, IconSparkles, IconBot } from './TabIcons'
+import { Tag, Sparkles } from 'lucide-react'
 
 interface SavePanelProps {
   onSave: (snippet: SnippetData) => void
@@ -184,7 +186,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
 
       {/* 剪贴板预览 */}
       <div className="input-group">
-        <div className="input-label">📋 剪贴板内容预览</div>
+        <div className="input-label"><IconClipboard size={13} style={{ verticalAlign: -2, marginRight: 4 }} />剪贴板内容预览</div>
         {hasContent ? (
           clipboardData!.isImage || clipboardData!.type === 'image' ? (
             <div className="clipboard-preview clipboard-image-preview">
@@ -195,7 +197,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
           )
         ) : (
           <div className="clipboard-empty-guide">
-            <span className="clipboard-empty-guide-icon">📋</span>
+            <span className="clipboard-empty-guide-icon"><IconClipboard size={24} /></span>
             <span className="clipboard-empty-guide-text">剪贴板为空</span>
             <span className="clipboard-empty-guide-hint">请先复制内容，然后回到这里保存</span>
           </div>
@@ -223,8 +225,8 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       <div className="input-group">
         <div className="input-label">
           标题（可选，Enter 保存）
-          {aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)' }}>✨ AI 生成中...</span>}
-          {aiTitleEnabled && !aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)' }}>🤖 AI 标题</span>}
+          {aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Sparkles size={12} /> AI 生成中...</span>}
+          {aiTitleEnabled && !aiTitleLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBot size={12} /> AI 标题</span>}
         </div>
         <input
           className="text-input"
@@ -239,8 +241,8 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
       <div className="input-group">
         <div className="input-label">
           标签（点击选择，也可自由输入）
-          {aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)' }}>✨ AI 匹配中...</span>}
-          {aiTagEnabled && !aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)' }}>🏷️ AI 标签</span>}
+          {aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent-color)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Sparkles size={12} /> AI 匹配中...</span>}
+          {aiTagEnabled && !aiTagsLoading && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Tag size={11} /> AI 标签</span>}
         </div>
         {customTags.length > 0 && (
           <div className="tag-enum-list">

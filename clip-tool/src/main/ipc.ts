@@ -72,7 +72,7 @@ import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
 import { chatWithHunyuan, isHunyuanAvailable, generateTitle, matchTags, type ChatMessage } from './hunyuan'
-import { getInstalledApps, openApp } from './apps'
+import { getInstalledApps, openApp, getAppIcon } from './apps'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(
@@ -489,6 +489,11 @@ export function registerIpcHandlers(
   // 获取已安装的本地应用列表（异步，不阻塞主进程）
   ipcMain.handle('apps:getInstalled', async () => {
     return await getInstalledApps()
+  })
+
+  // 获取单个应用的图标（按需加载，避免一次性加载所有图标导致卡顿）
+  ipcMain.handle('apps:getIcon', async (_event, appPath: string) => {
+    return await getAppIcon(appPath)
   })
 
   // 打开本地应用

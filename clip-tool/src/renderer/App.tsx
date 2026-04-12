@@ -14,6 +14,7 @@ import DocPanel from './components/DocPanel'
 import SettingsPanel, { type SettingsPanelRef } from './components/SettingsPanel'
 import ProfilePanel from './components/ProfilePanel'
 import LauncherPanel, { type LauncherPanelRef } from './components/LauncherPanel'
+import { TabSaveIcon, TabEditorIcon, TabSearchIcon, TabLauncherIcon, TabDocIcon, TabAiIcon, TabFavoriteIcon, TabSettingsIcon, TabProfileIcon } from './components/TabIcons'
 import { useShortcuts } from './hooks/useShortcuts'
 import { registerTags } from './utils/tagColor'
 import type { SnippetData, PageVisibility } from './types'
@@ -473,16 +474,16 @@ const App: React.FC = () => {
     aiCardFocused,
   })
 
-  const allTabs: { key: TabType; label: string; hint: string }[] = [
-    { key: 'save', label: '📋 速存', hint: shortcutHints.save },
-    { key: 'editor', label: '✏️ 历史', hint: shortcutHints.editor },
-    { key: 'search', label: '🔍 搜索', hint: shortcutHints.search },
-    { key: 'launcher', label: '🚀 导航', hint: shortcutHints.launcher },
-    { key: 'doc', label: '📄 速记', hint: shortcutHints.doc },
-    { key: 'ai', label: '🤖 AI', hint: shortcutHints.ai },
-    { key: 'favorite', label: '⭐ 收藏', hint: shortcutHints.favorite },
-    { key: 'settings', label: '⚙ 设置', hint: shortcutHints.settings },
-    { key: 'profile', label: '👤 我的', hint: shortcutHints.profile },
+  const allTabs: { key: TabType; label: string; hint: string; icon: React.ReactNode }[] = [
+    { key: 'save', label: '速存', hint: shortcutHints.save, icon: <TabSaveIcon size={14} /> },
+    { key: 'editor', label: '历史', hint: shortcutHints.editor, icon: <TabEditorIcon size={14} /> },
+    { key: 'search', label: '搜索', hint: shortcutHints.search, icon: <TabSearchIcon size={14} /> },
+    { key: 'launcher', label: '导航', hint: shortcutHints.launcher, icon: <TabLauncherIcon size={14} /> },
+    { key: 'doc', label: '速记', hint: shortcutHints.doc, icon: <TabDocIcon size={14} /> },
+    { key: 'ai', label: 'AI', hint: shortcutHints.ai, icon: <TabAiIcon size={14} /> },
+    { key: 'favorite', label: '收藏', hint: shortcutHints.favorite, icon: <TabFavoriteIcon size={14} /> },
+    { key: 'settings', label: '设置', hint: shortcutHints.settings, icon: <TabSettingsIcon size={14} /> },
+    { key: 'profile', label: '我的', hint: shortcutHints.profile, icon: <TabProfileIcon size={14} /> },
   ]
 
   // 根据页面可见性过滤 Tab
@@ -513,6 +514,7 @@ const App: React.FC = () => {
             className={`tab-item ${activeTab === tab.key ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.key)}
           >
+            <span className="tab-icon">{tab.icon}</span>
             {tab.label}
             {tab.hint && <span className="tab-hint">{tab.hint}</span>}
           </div>

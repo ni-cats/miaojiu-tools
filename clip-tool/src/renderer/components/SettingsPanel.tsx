@@ -5,6 +5,8 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react'
 import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
+import { TabSaveIcon, TabEditorIcon, TabSearchIcon, TabLauncherIcon, TabDocIcon, TabAiIcon, TabFavoriteIcon, TabSettingsIcon, TabProfileIcon, IconBot, IconClipboard, IconPlugin, IconSettings, NavConfigIcon, NavShortcutIcon, NavThemeIcon, NavPageIcon, NavPluginIcon, IconFont, IconTag, IconPreview, IconTranslate, IconToJSON, IconOCR, IconSensitive, IconWorkflow } from './TabIcons'
+import { Brain, Keyboard, Lightbulb, Eye, Palette, Tag, Wrench } from 'lucide-react'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -143,19 +145,19 @@ const THEMES: { id: string; name: string; emoji: string; desc: string; dark: boo
 ]
 
 /** 设置导航按钮配置 */
-const SETTINGS_NAV: { key: SettingsSection; icon: string; label: string }[] = [
-  { key: 'general', icon: '⚙️', label: '通用' },
-  { key: 'config', icon: '🔧', label: '配置' },
-  { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
-  { key: 'display', icon: '👁', label: '页面' },
-  { key: 'appearance', icon: '🎨', label: '主题' },
-  { key: 'plugins', icon: '🧩', label: '插件' },
+const SETTINGS_NAV: { key: SettingsSection; icon: React.ReactNode; label: string }[] = [
+  { key: 'general', icon: <IconSettings size={14} />, label: '通用' },
+  { key: 'config', icon: <NavConfigIcon size={14} />, label: '配置' },
+  { key: 'shortcuts', icon: <NavShortcutIcon size={14} />, label: '快捷键' },
+  { key: 'display', icon: <NavPageIcon size={14} />, label: '页面' },
+  { key: 'appearance', icon: <NavThemeIcon size={14} />, label: '主题' },
+  { key: 'plugins', icon: <NavPluginIcon size={14} />, label: '插件' },
 ]
 
 /** 预留插件列表 */
 interface PluginItem {
   id: string
-  icon: string
+  icon: React.ReactNode
   name: string
   description: string
   status: 'coming' | 'beta' | 'active'
@@ -164,42 +166,42 @@ interface PluginItem {
 const PLUGIN_LIST: PluginItem[] = [
   {
     id: 'format-json',
-    icon: '📐',
+    icon: <IconToJSON size={18} />,
     name: 'JSON 格式化',
     description: '自动检测并格式化剪贴板中的 JSON 内容，支持压缩和美化',
     status: 'coming',
   },
   {
     id: 'translate',
-    icon: '🌐',
+    icon: <IconTranslate size={18} />,
     name: '即时翻译',
     description: '自动翻译剪贴板内容，支持中英日韩等多语言互译',
     status: 'coming',
   },
   {
     id: 'markdown-preview',
-    icon: '📖',
+    icon: <IconPreview size={18} />,
     name: 'Markdown 预览',
     description: '实时预览剪贴板中的 Markdown 内容，支持代码高亮',
     status: 'coming',
   },
   {
     id: 'sensitive-mask',
-    icon: '🔒',
+    icon: <IconSensitive size={18} />,
     name: '敏感信息脱敏',
     description: '自动识别并遮盖密码、密钥、手机号等敏感信息',
     status: 'coming',
   },
   {
     id: 'ocr',
-    icon: '👁',
+    icon: <IconOCR size={18} />,
     name: 'OCR 文字识别',
     description: '从剪贴板图片中提取文字内容，支持多语言识别',
     status: 'coming',
   },
   {
     id: 'workflow',
-    icon: '⚡',
+    icon: <IconWorkflow size={18} />,
     name: '自动化工作流',
     description: '根据剪贴板内容自动触发预设动作，如格式转换、存储等',
     status: 'coming',
@@ -693,47 +695,47 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   }[] = [
     {
       key: 'openSave',
-      label: '📋 唤起保存',
+      label: '唤起保存',
       description: '打开窗口并进入保存模式，自动读取剪贴板',
     },
     {
       key: 'openSearch',
-      label: '🔍 唤起搜索',
+      label: '唤起搜索',
       description: '打开窗口并进入搜索模式，自动聚焦搜索框',
     },
     {
       key: 'openEditor',
-      label: '✏️ 唤起历史',
+      label: '唤起历史',
       description: '打开窗口并进入历史页面',
     },
     {
       key: 'openDoc',
-      label: '📄 唤起速记',
+      label: '唤起速记',
       description: '打开窗口并进入速记页面',
     },
     {
       key: 'openAi',
-      label: '🤖 唤起 AI',
+      label: '唤起 AI',
       description: '打开窗口并进入 AI 页面',
     },
     {
       key: 'openFavorite',
-      label: '⭐ 唤起收藏',
+      label: '唤起收藏',
       description: '打开窗口并进入收藏页面',
     },
     {
       key: 'openSettings',
-      label: '⚙ 唤起设置',
+      label: '唤起设置',
       description: '打开窗口并进入设置页面',
     },
     {
       key: 'openProfile',
-      label: '👤 唤起我的',
+      label: '唤起我的',
       description: '打开窗口并进入个人中心页面',
     },
     {
       key: 'openLauncher',
-      label: '🚀 唤起导航',
+      label: '唤起导航',
       description: '打开窗口并进入快速导航页面',
     },
   ]
@@ -744,7 +746,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const renderShortcutsPage = () => (
     <>
       <div className="settings-section">
-        <div className="settings-section-title">⌨️ 全局快捷键</div>
+        <div className="settings-section-title"><Keyboard size={14} style={{ verticalAlign: -2, marginRight: 4 }} />全局快捷键</div>
         <div className="settings-section-hint">
           点击按键区域后按下新的快捷键组合，按 Esc 取消录制
         </div>
@@ -788,7 +790,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
       {/* 窗口内快捷键说明 */}
       <div className="settings-section" style={{ marginTop: 8 }}>
-        <div className="settings-section-title">💡 窗口内快捷键</div>
+        <div className="settings-section-title"><Lightbulb size={14} style={{ verticalAlign: -2, marginRight: 4 }} />窗口内快捷键</div>
         <div className="settings-section-hint">
           以下快捷键在窗口激活时生效，不可自定义
         </div>
@@ -829,18 +831,18 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   /** 配置页面（合并了 AI 模型配置 + 存储配置） */
   const renderConfigPage = () => {
     /** 模型提供商列表 */
-    const AI_PROVIDERS: { key: AiModelConfig['provider']; name: string; icon: string; models: string[]; needSecretId: boolean }[] = [
+    const AI_PROVIDERS: { key: AiModelConfig['provider']; name: string; icon: React.ReactNode; models: string[]; needSecretId: boolean }[] = [
       {
         key: 'hunyuan',
         name: '腾讯混元',
-        icon: '🤖',
+        icon: <IconBot size={14} />,
         models: ['hunyuan-lite', 'hunyuan-standard', 'hunyuan-pro'],
         needSecretId: true,
       },
       {
         key: 'deepseek',
         name: 'DeepSeek',
-        icon: '🧠',
+        icon: <Brain size={14} />,
         models: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
         needSecretId: false,
       },
@@ -901,7 +903,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       <>
         {/* ===== AI 模型配置 ===== */}
         <div className="settings-section">
-          <div className="settings-section-title">🤖 AI 模型配置</div>
+          <div className="settings-section-title"><IconBot size={14} style={{ verticalAlign: -2, marginRight: 4 }} />AI 模型配置</div>
           <div className="settings-section-hint">
             配置 AI 大模型的密钥信息，启用后可在 AI 页面中使用对话功能。同一时间只能启用一个模型。
           </div>
@@ -995,7 +997,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
           {aiModels.length === 0 && (
             <div className="settings-placeholder" style={{ padding: '20px 0' }}>
-              <span className="settings-placeholder-icon">🤖</span>
+              <span className="settings-placeholder-icon"><IconBot size={24} /></span>
               <span className="settings-placeholder-text">点击上方按钮添加 AI 模型</span>
             </div>
           )}
@@ -1147,7 +1149,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   /** 插件子页面（预留功能） */
   const renderPluginsPage = () => (
     <div className="settings-section">
-      <div className="settings-section-title">🧩 插件市场</div>
+      <div className="settings-section-title"><IconPlugin size={14} style={{ verticalAlign: -2, marginRight: 4 }} />插件市场</div>
       <div className="settings-section-hint">
         通过插件扩展 ClipTool 的能力，以下插件正在开发中
       </div>
@@ -1168,23 +1170,23 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       </div>
 
       <div className="plugin-footer">
-        <span className="plugin-footer-text">🔧 更多插件持续开发中，敬请期待...</span>
+        <span className="plugin-footer-text"><Wrench size={12} style={{ verticalAlign: -2, marginRight: 4 }} />更多插件持续开发中，敬请期待...</span>
       </div>
     </div>
   )
 
   /** 根据当前激活的子页面渲染内容 */
   /** 页面展示配置子页面 */
-  const PAGE_DISPLAY_ITEMS: { key: keyof PageVisibility; icon: string; label: string; desc: string; required?: boolean }[] = [
-    { key: 'save', icon: '📋', label: '速存', desc: '快速保存剪贴板内容' },
-    { key: 'editor', icon: '✏️', label: '历史', desc: '查看和编辑剪贴板历史' },
-    { key: 'search', icon: '🔍', label: '搜索', desc: '搜索已保存的片段' },
-    { key: 'launcher', icon: '🚀', label: '导航', desc: '快速链接导航面板' },
-    { key: 'doc', icon: '📄', label: '速记', desc: '快速记录笔记' },
-    { key: 'ai', icon: '🤖', label: 'AI', desc: 'AI 智能助手' },
-    { key: 'favorite', icon: '⭐', label: '收藏', desc: '收藏的片段管理' },
-    { key: 'settings', icon: '⚙', label: '设置', desc: '应用设置（建议保持开启）', required: true },
-    { key: 'profile', icon: '👤', label: '我的', desc: '个人中心' },
+  const PAGE_DISPLAY_ITEMS: { key: keyof PageVisibility; icon: React.ReactNode; label: string; desc: string; required?: boolean }[] = [
+    { key: 'save', icon: <TabSaveIcon size={14} />, label: '速存', desc: '快速保存剪贴板内容' },
+    { key: 'editor', icon: <TabEditorIcon size={14} />, label: '历史', desc: '查看和编辑剪贴板历史' },
+    { key: 'search', icon: <TabSearchIcon size={14} />, label: '搜索', desc: '搜索已保存的片段' },
+    { key: 'launcher', icon: <TabLauncherIcon size={14} />, label: '导航', desc: '快速链接导航面板' },
+    { key: 'doc', icon: <TabDocIcon size={14} />, label: '速记', desc: '快速记录笔记' },
+    { key: 'ai', icon: <TabAiIcon size={14} />, label: 'AI', desc: 'AI 智能助手' },
+    { key: 'favorite', icon: <TabFavoriteIcon size={14} />, label: '收藏', desc: '收藏的片段管理' },
+    { key: 'settings', icon: <TabSettingsIcon size={14} />, label: '设置', desc: '应用设置（建议保持开启）', required: true },
+    { key: 'profile', icon: <TabProfileIcon size={14} />, label: '我的', desc: '个人中心' },
   ]
 
   /** 通用设置页面（合并了保存、编辑、导航设置） */
@@ -1248,7 +1250,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       <>
         {/* ===== 通用 ===== */}
         <div className="settings-section">
-          <div className="settings-section-title">⚙️ 通用设置</div>
+          <div className="settings-section-title"><IconSettings size={14} style={{ verticalAlign: -2, marginRight: 4 }} />通用设置</div>
           <div className="settings-section-hint">
             调整应用的通用配置项
           </div>
@@ -1256,7 +1258,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
           {/* 字体大小设置 */}
           <div className="settings-config-item">
             <div className="settings-config-info">
-              <div className="settings-config-label">🔤 字体大小</div>
+          <div className="settings-config-label"><IconFont size={14} style={{ verticalAlign: -2, marginRight: 4 }} />字体大小</div>
               <div className="settings-config-desc">调整全局字体大小，范围 10-20px，默认 13px</div>
             </div>
             <div className="settings-config-action settings-font-size-control">
@@ -1315,7 +1317,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
           {/* 速记页面默认主题 */}
           <div className="settings-config-item">
             <div className="settings-config-info">
-              <div className="settings-config-label">🎨 速记页面默认主题</div>
+          <div className="settings-config-label"><Palette size={14} style={{ verticalAlign: -2, marginRight: 4 }} />速记页面默认主题</div>
               <div className="settings-config-desc">设置速记页面编辑器的默认主题，在速记页面中可临时切换（一次性）</div>
             </div>
             <div className="settings-config-action">
@@ -1349,14 +1351,14 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
         {/* ===== 保存设置 ===== */}
         <div className="settings-section">
-          <div className="settings-section-title">📋 保存 — 智能标题</div>
+          <div className="settings-section-title"><IconClipboard size={14} style={{ verticalAlign: -2, marginRight: 4 }} />保存 — 智能标题</div>
           <div className="settings-section-hint">
             启用后，保存片段时将自动调用 AI 大模型为剪贴板内容生成简短标题（需先在配置页面配置模型密钥）
           </div>
 
           <div className="settings-config-item" style={{ marginBottom: 16 }}>
             <div className="settings-config-info">
-              <div className="settings-config-label">🤖 AI 自动生成标题</div>
+              <div className="settings-config-label"><IconBot size={12} style={{ verticalAlign: -2, marginRight: 4 }} />AI 自动生成标题</div>
               <div className="settings-config-desc">保存时自动使用大模型分析内容并生成标题，替代默认的前30字截取</div>
             </div>
             <div className="settings-config-action">
@@ -1378,7 +1380,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
           <div className="settings-config-item" style={{ marginBottom: 16 }}>
             <div className="settings-config-info">
-              <div className="settings-config-label">🏷️ AI 自动匹配标签</div>
+          <div className="settings-config-label"><Tag size={14} style={{ verticalAlign: -2, marginRight: 4 }} />AI 自动匹配标签</div>
               <div className="settings-config-desc">保存时自动使用大模型分析内容，从预设标签中匹配最相关的标签</div>
             </div>
             <div className="settings-config-action">
@@ -1398,7 +1400,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
             </div>
           </div>
 
-          <div className="settings-section-title">📋 保存 — 预设标签管理</div>
+          <div className="settings-section-title"><IconClipboard size={14} style={{ verticalAlign: -2, marginRight: 4 }} />保存 — 预设标签管理</div>
           <div className="settings-section-hint">
             管理保存片段时可快速选择的预设标签
           </div>
@@ -1475,7 +1477,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
         {/* ===== 编辑设置 ===== */}
         <div className="settings-section">
-          <div className="settings-section-title">✏️ 编辑设置</div>
+          <div className="settings-section-title"><TabEditorIcon size={14} style={{ verticalAlign: -2, marginRight: 4 }} />编辑设置</div>
           <div className="settings-section-hint">
             配置编辑页面的行为参数
           </div>
@@ -1483,7 +1485,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
           <div className="settings-editor-config">
             <div className="settings-config-item">
               <div className="settings-config-info">
-                <div className="settings-config-label">📋 剪贴板历史最大条数</div>
+                <div className="settings-config-label"><IconClipboard size={12} style={{ verticalAlign: -2, marginRight: 4 }} />剪贴板历史最大条数</div>
                 <div className="settings-config-desc">控制编辑页面下方剪贴板历史列表保存的最大条数（1~500），超出后自动移除旧记录</div>
               </div>
               <div className="settings-config-action">
@@ -1531,7 +1533,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
         {/* ===== 导航设置 ===== */}
         <div className="settings-section">
-          <div className="settings-section-title">🚀 导航 — 分类标签管理</div>
+          <div className="settings-section-title"><TabLauncherIcon size={14} style={{ verticalAlign: -2, marginRight: 4 }} />导航 — 分类标签管理</div>
           <div className="settings-section-hint">
             管理导航页面的分类标签，每个分类会自动分配颜色并显示在链接标题旁
           </div>
@@ -1614,7 +1616,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
   const renderDisplayPage = () => (
     <div className="settings-section">
-      <div className="settings-section-title">👁 页面展示配置</div>
+        <div className="settings-section-title"><Eye size={14} style={{ verticalAlign: -2, marginRight: 4 }} />页面展示配置</div>
       <div className="settings-section-hint">
         控制顶部 Tab 栏中各页面是否显示，关闭后对应页面将被隐藏
       </div>
@@ -1654,7 +1656,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   /** 外观主题子页面 */
   const renderAppearancePage = () => (
     <div className="settings-section">
-      <div className="settings-section-title">🎨 主题选择</div>
+        <div className="settings-section-title"><Palette size={14} style={{ verticalAlign: -2, marginRight: 4 }} />主题选择</div>
       <div className="settings-section-hint">
         选择你喜欢的界面主题风格，切换后立即生效
       </div>

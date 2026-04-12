@@ -260,6 +260,9 @@ const api = {
   /** 获取已安装的本地应用列表 */
   getInstalledApps: (): Promise<{ name: string; path: string; icon: string }[]> => ipcRenderer.invoke('apps:getInstalled'),
 
+  /** 获取单个应用的图标（按需加载） */
+  getAppIcon: (appPath: string): Promise<string> => ipcRenderer.invoke('apps:getIcon', appPath),
+
   /** 打开本地应用 */
   openApp: (appPath: string): Promise<boolean> => ipcRenderer.invoke('apps:open', appPath),
 

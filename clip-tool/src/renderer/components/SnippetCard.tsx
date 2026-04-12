@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { SnippetData, ContentType } from '../types'
 import { formatTime } from '../utils/formatTime'
 import { getTagStyle, getTagColor } from '../utils/tagColor'
+import { Tag } from 'lucide-react'
 
 /** 内容类型样式映射 */
 const TYPE_LABELS: Record<ContentType, string> = {
@@ -275,7 +276,7 @@ const SnippetCard: React.FC<SnippetCardProps> = ({
             onClick={openTagEditor}
             title="编辑标签"
           >
-            🏷️
+            <Tag size={12} />
           </button>
         )}
       </div>

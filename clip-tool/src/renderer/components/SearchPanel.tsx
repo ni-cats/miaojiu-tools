@@ -9,6 +9,7 @@ import type { SnippetData, ContentType } from '../types'
 import SnippetCard from './SnippetCard'
 import TagFilter from './TagFilter'
 import EmptyState from './EmptyState'
+import { IconSearch } from './TabIcons'
 
 interface SearchPanelProps {
   snippets: SnippetData[]
@@ -148,7 +149,7 @@ const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(
         <div className="panel-content" ref={listRef} style={{ flex: 1, padding: '0' }}>
           {results.length === 0 ? (
             <EmptyState
-              icon="🔍"
+              icon={<IconSearch size={28} />}
               title={query || selectedTag || selectedType ? '没有找到匹配的片段' : '暂无保存的片段'}
               description={query || selectedTag || selectedType ? '试试更换筛选条件' : '使用 ⌘⇧K 保存剪贴板内容'}
             />

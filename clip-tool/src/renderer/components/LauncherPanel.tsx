@@ -8,6 +8,7 @@ import { flushSync } from 'react-dom'
 import { nanoid } from 'nanoid'
 import type { QuickLink, QuickLinkParam, LocalApp } from '../types'
 import { getTagColor } from '../utils/tagColor'
+import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose } from './LauncherIcons'
 
 /** 预设的 Emoji 图标列表 */
 const ICON_OPTIONS = ['🌐', '📚', '🔧', '💻', '📊', '🎨', '📝', '🔗', '⚡', '🏠', '📦', '🎯', '🔍', '💡', '🚀', '📮']
@@ -54,6 +55,41 @@ const FaviconIcon: React.FC<{ favicon?: string; emoji: string }> = ({ favicon, e
     )
   }
   return <span>{emoji}</span>
+}
+
+/**
+ * 本地应用图标组件
+ * 按需懒加载：组件挂载时异步获取应用图标
+ * 获取到后显示真实图标，否则显示默认图标
+ */
+const AppIconImg: React.FC<{ appPath: string; appName: string }> = ({ appPath, appName }) => {
+  const [iconUrl, setIconUrl] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    window.clipToolAPI.getAppIcon(appPath).then((url) => {
+      if (!cancelled && url) {
+        setIconUrl(url)
+      }
+      if (!cancelled) {
+        setLoaded(true)
+      }
+    }).catch(() => {
+      if (!cancelled) setLoaded(true)
+    })
+    return () => { cancelled = true }
+  }, [appPath])
+
+  if (iconUrl) {
+    return <img src={iconUrl} alt={appName} className="launcher-app-icon" draggable={false} />
+  }
+  if (!loaded) {
+    // 加载中：显示一个占位
+    return <IconApp size={20} />
+  }
+  // 加载完成但无图标
+  return <IconApp size={20} />
 }
 
 interface LauncherPanelProps {
@@ -289,7 +325,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         setAiStreamContent('')
         setAiSearching(false)
       } else if (data.type === 'error') {
-        setAiResult(`❌ 错误：${data.content}`)
+        setAiResult(`错误：${data.content}`)
         setAiStreamContent('')
         setAiSearching(false)
       }
@@ -310,6 +346,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     links.forEach((link) => cats.add(link.category))
     return ['全部', ...Array.from(cats)]
   }, [links])
+
+  /** 内置工具图标映射 */
+  const toolIconMap: Record<string, React.ReactNode> = {
+    base64: <IconWrench size={18} />,
+    timestamp: <IconClock size={18} />,
+    imageBase64: <IconImage size={18} />,
+  }
 
   /** 内置工具列表定义 */
   const builtinTools = React.useMemo(() => [
@@ -418,17 +461,17 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       if (!isNaN(date.getTime())) {
         const pad = (n: number) => n.toString().padStart(2, '0')
         const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-        setTsResult(`📅 ${formatted}\n⏱️ 秒级: ${Math.floor(ts / 1000)}\n⏱️ 毫秒级: ${ts}`)
+        setTsResult(`${formatted}\n秒级: ${Math.floor(ts / 1000)}\n毫秒级: ${ts}`)
         return
       }
     }
     // 尝试解析为日期字符串
     const date = new Date(trimmed)
     if (!isNaN(date.getTime())) {
-      setTsResult(`⏱️ 秒级时间戳: ${Math.floor(date.getTime() / 1000)}\n⏱️ 毫秒级时间戳: ${date.getTime()}`)
+      setTsResult(`秒级时间戳: ${Math.floor(date.getTime() / 1000)}\n毫秒级时间戳: ${date.getTime()}`)
       return
     }
-    setTsResult('❌ 无法识别的格式，请输入时间戳或日期字符串')
+    setTsResult('无法识别的格式，请输入时间戳或日期字符串')
   }, [])
 
   // 实时更新当前时间戳
@@ -561,7 +604,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     try {
       const isAvailable = await window.clipToolAPI.isHunyuanAvailable()
       if (!isAvailable) {
-        setAiResult('❌ AI 模型未配置，请先在设置中配置密钥')
+        setAiResult('AI 模型未配置，请先在设置中配置密钥')
         setAiSearching(false)
         return
       }
@@ -768,7 +811,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         } else if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()
           if (tsSelectedIndex === 0 && tsResult) {
-            copyWithToast(tsResult.replace(/📅 |⏱️ |❌ /g, ''))
+copyWithToast(tsResult)
           } else if (tsSelectedIndex === 1 && tsNow) {
             copyWithToast(tsNow.split('  |  ')[0])
           }
@@ -849,7 +892,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     <div className="launcher-panel">
       {/* 搜索栏 - RayCast 风格 */}
       <div className="launcher-search-bar">
-        <span className="launcher-search-icon">🚀</span>
+        <span className="launcher-search-icon"><IconCommand size={18} /></span>
           <input
           ref={searchInputRef}
           className="launcher-search-input"
@@ -907,7 +950,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       {activeTool === 'base64' && (
         <div className="launcher-base64-tool">
           <div className="launcher-base64-header">
-            <span className="launcher-base64-title">🔧 Base64 编解码工具</span>
+            <span className="launcher-base64-title"><IconWrench size={16} /> Base64 编解码工具</span>
             <button
               className="launcher-base64-close-btn"
               onClick={() => setActiveTool(null)}
@@ -948,7 +991,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
               onClick={() => setBase64SelectedIndex(0)}
             >
               <div className="launcher-base64-result-label">
-                <span>📤 Encode 结果 {base64SelectedIndex === 0 ? '◀' : ''}</span>
+                <span><IconUpload size={14} /> Encode 结果 {base64SelectedIndex === 0 ? '◀' : ''}</span>
                 {base64Encoded && base64Encoded !== '编码失败' && (
                   <button
                     className="launcher-base64-copy-btn"
@@ -967,7 +1010,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
               onClick={() => setBase64SelectedIndex(1)}
             >
               <div className="launcher-base64-result-label">
-                <span>📥 Decode 结果 {base64SelectedIndex === 1 ? '◀' : ''}</span>
+                <span><IconDownload size={14} /> Decode 结果 {base64SelectedIndex === 1 ? '◀' : ''}</span>
                 {base64Decoded && !base64Decoded.startsWith('（') && (
                   <button
                     className="launcher-base64-copy-btn"
@@ -991,7 +1034,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       {activeTool === 'timestamp' && (
         <div className="launcher-base64-tool">
           <div className="launcher-base64-header">
-            <span className="launcher-base64-title">🕐 时间戳转换工具</span>
+            <span className="launcher-base64-title"><IconClock size={16} /> 时间戳转换工具</span>
             <button
               className="launcher-base64-close-btn"
               onClick={() => setActiveTool(null)}
@@ -1001,7 +1044,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
             </button>
           </div>
           <div className="launcher-ts-now-bar">
-            <span className="launcher-ts-now-label">⏱️ 当前时间</span>
+            <span className="launcher-ts-now-label"><IconTimer size={14} /> 当前时间</span>
             <span className="launcher-ts-now-value">{tsNow}</span>
             <button
               className="launcher-base64-copy-btn"
@@ -1027,7 +1070,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                 } else if (e.key === 'Enter' && !e.shiftKey && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
                   if (tsSelectedIndex === 0 && tsResult) {
-                    copyWithToast(tsResult.replace(/📅 |⏱️ |❌ /g, ''))
+copyWithToast(tsResult)
                   } else if (tsSelectedIndex === 1 && tsNow) {
                     copyWithToast(tsNow.split('  |  ')[0])
                   }
@@ -1042,13 +1085,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
               onClick={() => setTsSelectedIndex(0)}
             >
               <div className="launcher-base64-result-label">
-                <span>📅 转换结果 {tsSelectedIndex === 0 ? '◀' : ''}</span>
-                {tsResult && !tsResult.startsWith('❌') && (
+                <span><IconCalendar size={14} /> 转换结果 {tsSelectedIndex === 0 ? '◀' : ''}</span>
+                {tsResult && !tsResult.startsWith('无法识别') && (
                   <button
                     className="launcher-base64-copy-btn"
                     onClick={(e) => {
                       e.stopPropagation()
-                      copyWithToast(tsResult.replace(/📅 |⏱️ |❌ /g, ''))
+copyWithToast(tsResult)
                     }}
                   >
                     {tsSelectedIndex === 0 ? '⌘↵ 复制' : '复制'}
@@ -1061,7 +1104,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
               onClick={() => setTsSelectedIndex(1)}
             >
               <div className="launcher-base64-result-label">
-                <span>⏱️ 当前时间戳 {tsSelectedIndex === 1 ? '◀' : ''}</span>
+                <span><IconTimer size={14} /> 当前时间戳 {tsSelectedIndex === 1 ? '◀' : ''}</span>
                 <button
                   className="launcher-base64-copy-btn"
                   onClick={(e) => {
@@ -1082,7 +1125,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       {activeTool === 'imageBase64' && (
         <div className="launcher-base64-tool">
           <div className="launcher-base64-header">
-            <span className="launcher-base64-title">🖼️ 图片 Base64 转换</span>
+            <span className="launcher-base64-title"><IconImage size={16} /> 图片 Base64 转换</span>
             <button
               className="launcher-base64-close-btn"
               onClick={() => setActiveTool(null)}
@@ -1102,7 +1145,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                 setImgBase64Input('')
               }}
             >
-              📤 图片 → Base64
+              <IconUpload size={14} /> 图片 → Base64
             </button>
             <button
               className={`launcher-img-mode-tab ${imgBase64Mode === 'toImage' ? 'active' : ''}`}
@@ -1113,7 +1156,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                 setImgBase64Input('')
               }}
             >
-              📥 Base64 → 图片
+              <IconDownload size={14} /> Base64 → 图片
             </button>
           </div>
 
@@ -1134,7 +1177,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                   <img src={imgPreviewSrc} alt="预览" className="launcher-img-preview" />
                 ) : (
                   <div className="launcher-img-drop-hint">
-                    <span className="launcher-img-drop-icon">📁</span>
+                    <span className="launcher-img-drop-icon"><IconFolder size={32} /></span>
                     <span>点击选择图片文件</span>
                     <span className="launcher-img-drop-sub">支持 PNG、JPG、GIF、SVG 等格式</span>
                   </div>
@@ -1144,7 +1187,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                 <div className="launcher-base64-results">
                   <div className="launcher-base64-result-block selected">
                     <div className="launcher-base64-result-label">
-                      <span>📤 Base64 结果（{(imgBase64Result.length / 1024).toFixed(1)} KB）</span>
+                      <span><IconUpload size={14} /> Base64 结果（{(imgBase64Result.length / 1024).toFixed(1)} KB）</span>
                       <button
                         className="launcher-base64-copy-btn"
                         onClick={() => copyWithToast(imgBase64Result)}
@@ -1171,7 +1214,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
               {imgPreviewSrc && (
                 <div className="launcher-img-preview-area">
                   <div className="launcher-base64-result-label">
-                    <span>🖼️ 图片预览</span>
+                    <span><IconImage size={14} /> 图片预览</span>
                   </div>
                   <div className="launcher-img-preview-box">
                     <img
@@ -1246,7 +1289,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
           {/* URL 占位符参数提示与配置 */}
           {formParams.length > 0 && (
             <div className="launcher-form-params">
-              <div className="launcher-form-params-title">🔗 URL 参数配置（检测到 {formParams.length} 个占位符）</div>
+              <div className="launcher-form-params-title"><IconLink2 size={14} /> URL 参数配置（检测到 {formParams.length} 个占位符）</div>
               {formParams.map((param, i) => (
                 <div key={param.name} className="launcher-form-param-row">
                   <span className="launcher-form-param-name">{`{${param.name}}`}</span>
@@ -1307,7 +1350,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       {showAiResult && (
         <div className="launcher-ai-result" ref={aiResultRef}>
           <div className="launcher-ai-result-header">
-            <span className="launcher-ai-result-title">🤖 AI 搜索结果</span>
+            <span className="launcher-ai-result-title"><IconAi size={16} /> AI 搜索结果</span>
             <button
               className="launcher-ai-result-close"
               onClick={() => {
@@ -1323,7 +1366,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
           <div className="launcher-ai-result-content">
             {aiSearching && !aiStreamContent && (
               <div className="launcher-ai-result-loading">
-                <span>✨</span> AI 正在思考中...
+                <IconSparkles size={16} /> AI 正在思考中...
               </div>
             )}
             {aiStreamContent && (
@@ -1401,12 +1444,12 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
           <div className="launcher-empty">
             {links.length === 0 && !searchQuery.trim() ? (
               <>
-                <span className="launcher-empty-icon">🚀</span>
+                <span className="launcher-empty-icon"><IconRocket size={32} /></span>
                 <span>点击右上角 <strong>+</strong> 添加你的第一个快速链接</span>
               </>
             ) : searchQuery.trim() && matchedTools.length === 0 ? (
               <>
-                <span className="launcher-empty-icon">🔍</span>
+                <span className="launcher-empty-icon"><IconSearch size={32} /></span>
                 <span>未找到匹配的链接，你可以：</span>
                 <div className="launcher-fallback-actions">
                   <button
@@ -1414,7 +1457,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                     onClick={() => handleOpenUrl(searchQuery.trim())}
                     onMouseEnter={() => setSelectedIndex(0)}
                   >
-                    <span className="launcher-fallback-icon">🔗</span>
+                    <span className="launcher-fallback-icon"><IconLink size={18} /></span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">打开 URL</span>
                       <span className="launcher-fallback-desc">在浏览器中打开「{searchQuery.trim()}」</span>
@@ -1426,7 +1469,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                     onClick={() => handleBrowserSearch(searchQuery.trim())}
                     onMouseEnter={() => setSelectedIndex(1)}
                   >
-                    <span className="launcher-fallback-icon">🌐</span>
+                    <span className="launcher-fallback-icon"><IconGlobe size={18} /></span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">Google 搜索</span>
                       <span className="launcher-fallback-desc">在浏览器中搜索「{searchQuery.trim()}」</span>
@@ -1438,7 +1481,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                     onClick={() => handleAiSearch(searchQuery.trim())}
                     onMouseEnter={() => setSelectedIndex(2)}
                   >
-                    <span className="launcher-fallback-icon">🤖</span>
+                    <span className="launcher-fallback-icon"><IconAi size={18} /></span>
                     <div className="launcher-fallback-info">
                       <span className="launcher-fallback-title">AI 搜索</span>
                       <span className="launcher-fallback-desc">在当前页面使用 AI 搜索「{searchQuery.trim()}」</span>
@@ -1449,7 +1492,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
               </>
             ) : (
               <>
-                <span className="launcher-empty-icon">🔍</span>
+                <span className="launcher-empty-icon"><IconSearch size={32} /></span>
                 <span>未找到匹配的链接</span>
               </>
             )}
@@ -1499,7 +1542,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                         }}
                         title="编辑"
                       >
-                        ✏️
+                        <IconEdit size={14} />
                       </button>
                       <button
                         className="launcher-item-btn danger"
@@ -1509,7 +1552,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                         }}
                         title="删除"
                       >
-                        🗑️
+                        <IconTrash size={14} />
                       </button>
                     </div>
                     {idx < 9 && (
@@ -1536,7 +1579,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                   onMouseEnter={() => setSelectedIndex(idx)}
                 >
                   <span className="launcher-item-icon">
-                    <span>{tool.icon}</span>
+                    <span>{toolIconMap[tool.toolKey] || tool.icon}</span>
                   </span>
                   <div className="launcher-item-info">
                     <span className="launcher-item-name">
@@ -1573,7 +1616,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
                   onMouseEnter={() => setSelectedIndex(idx)}
                 >
                   <span className="launcher-item-icon">
-                    <span>📱</span>
+                    <AppIconImg appPath={app.path} appName={app.name} />
                   </span>
                   <div className="launcher-item-info">
                     <span className="launcher-item-name">

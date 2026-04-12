@@ -370,6 +370,16 @@ html, body, #root {
   position: relative;
   white-space: nowrap;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .tab-item:hover {
@@ -3358,6 +3368,19 @@ code.profile-info-value {
   cursor: not-allowed;
 }
 
+.ai-chat-send-btn svg {
+  color: white;
+}
+
+.ai-send-loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ===== AI 设置页面 - 模型配置 ===== */
 .ai-provider-add-row {
   display: flex;
@@ -3491,6 +3514,9 @@ code.profile-info-value {
 
 .settings-nav-icon {
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .settings-nav-label {
@@ -3628,6 +3654,10 @@ code.profile-info-value {
 .launcher-search-icon {
   font-size: 18px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
 }
 
 .launcher-search-input {
@@ -3894,6 +3924,14 @@ code.profile-info-value {
   object-fit: contain;
 }
 
+/* 本地应用图标样式 */
+.launcher-app-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  object-fit: contain;
+}
+
 .launcher-item-info {
   flex: 1;
   min-width: 0;
@@ -3994,6 +4032,10 @@ code.profile-info-value {
 
 .launcher-empty-icon {
   font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
 }
 
 /* 搜索无结果时的回退操作 */
@@ -4031,13 +4073,18 @@ code.profile-info-value {
 .launcher-fallback-btn:hover .launcher-fallback-desc,
 .launcher-fallback-btn.selected .launcher-fallback-desc,
 .launcher-fallback-btn:hover .launcher-fallback-hint,
-.launcher-fallback-btn.selected .launcher-fallback-hint {
+.launcher-fallback-btn.selected .launcher-fallback-hint,
+.launcher-fallback-btn:hover .launcher-fallback-icon,
+.launcher-fallback-btn.selected .launcher-fallback-icon {
   color: #fff;
 }
 
 .launcher-fallback-icon {
   font-size: 20px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .launcher-fallback-info {
@@ -4084,6 +4131,9 @@ code.profile-info-value {
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .launcher-form-param-row {
@@ -4423,6 +4473,9 @@ code.profile-info-value {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .launcher-ai-result-close {
@@ -4573,6 +4626,9 @@ code.profile-info-value {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .launcher-base64-input-area {
@@ -4642,6 +4698,12 @@ code.profile-info-value {
   color: var(--text-secondary);
 }
 
+.launcher-base64-result-label > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .launcher-base64-copy-btn {
   padding: 1px 8px;
   border-radius: 4px;
@@ -4707,6 +4769,9 @@ code.profile-info-value {
   color: var(--text-secondary);
   font-weight: 500;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .launcher-ts-now-value {
@@ -4759,6 +4824,10 @@ code.profile-info-value {
   cursor: pointer;
   transition: all 0.15s ease;
   -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .launcher-img-mode-tab:hover {
@@ -4801,6 +4870,10 @@ code.profile-info-value {
 
 .launcher-img-drop-icon {
   font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
 }
 
 .launcher-img-drop-sub {

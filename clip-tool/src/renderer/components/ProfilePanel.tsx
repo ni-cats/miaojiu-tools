@@ -4,6 +4,8 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { ProfileData, StorageMode } from '../types'
+import { IconUser } from './TabIcons'
+import { Upload, Download } from 'lucide-react'
 
 const DEFAULT_PROFILE: ProfileData = {
   nickname: '',
@@ -151,7 +153,7 @@ const ProfilePanel: React.FC = () => {
             <img src={profile.avatar} alt="头像" className="profile-avatar-img" />
           ) : (
             <div className="profile-avatar-placeholder">
-              <span className="profile-avatar-icon">👤</span>
+              <span className="profile-avatar-icon"><IconUser size={32} color="var(--text-tertiary)" /></span>
               <span className="profile-avatar-hint">点击上传</span>
             </div>
           )}
@@ -254,14 +256,14 @@ const ProfilePanel: React.FC = () => {
               onClick={handlePush}
               disabled={syncing}
             >
-              {syncing ? '⏳ 同步中...' : '⬆️ 推送到云端'}
+            {syncing ? <><Download size={12} style={{ verticalAlign: -2 }} /> 同步中...</> : <><Upload size={12} style={{ verticalAlign: -2 }} /> 推送到云端</>}
             </button>
             <button
               className="profile-btn"
               onClick={handlePull}
               disabled={syncing}
             >
-              {syncing ? '⏳ 同步中...' : '⬇️ 从云端拉取'}
+            {syncing ? <><Download size={12} style={{ verticalAlign: -2 }} /> 同步中...</> : <><Download size={12} style={{ verticalAlign: -2 }} /> 从云端拉取</>}
             </button>
           </>
         )}

@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { SnippetData } from '../types'
 import SnippetCard from './SnippetCard'
 import EmptyState from './EmptyState'
+import { TabFavoriteIcon } from './TabIcons'
 
 interface FavoritePanelProps {
   snippets: SnippetData[]
@@ -113,7 +114,7 @@ const FavoritePanel: React.FC<FavoritePanelProps> = ({ snippets, onCopy, onDelet
   if (favorites.length === 0) {
     return (
       <EmptyState
-        icon="⭐"
+        icon={<TabFavoriteIcon size={36} />}
         title="暂无收藏的片段"
         description="点击片段上的 ☆ 按钮来收藏常用片段"
       />
