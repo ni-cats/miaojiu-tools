@@ -113,6 +113,8 @@ interface StoreSchema {
   appFontSize: number  // 全局字体大小
   docEditorTheme: string  // 速记编辑器默认主题
   launcherUsageCount: Record<string, number>  // 导航页操作使用频率计数
+  yuqueConfig: YuqueConfig  // 语雀配置
+  yuqueSyncMap: YuqueSyncMap  // 语雀同步映射表
 }
 
 /** AI 模型配置 */
@@ -136,6 +138,25 @@ export interface PageVisibility {
   settings: boolean
   profile: boolean
 }
+
+/** 语雀配置 */
+export interface YuqueConfig {
+  token: string           // 语雀 API Token
+  login: string           // 用户 login（用于拼接 API 路径）
+  userName: string        // 用户显示名称
+  targetRepoId: number    // 目标知识库 ID
+  targetRepoName: string  // 目标知识库名称
+  targetRepoNamespace: string // 目标知识库 namespace（如 "user/repo-slug"）
+}
+
+/** 语雀同步映射项 */
+export interface YuqueSyncItem {
+  yuqueDocId: number      // 语雀文档 ID
+  yuqueSyncedAt: string   // 最后同步时间（ISO 8601）
+}
+
+/** 语雀同步映射表：片段 ID -> 同步信息 */
+export type YuqueSyncMap = Record<string, YuqueSyncItem>
 
 /** 快速链接参数定义 */
 export interface QuickLinkParam {
@@ -223,6 +244,15 @@ const store = new Store<StoreSchema>({
     appFontSize: 13,
     docEditorTheme: 'github-dark',
     launcherUsageCount: {} as Record<string, number>,
+    yuqueConfig: {
+      token: '',
+      login: '',
+      userName: '',
+      targetRepoId: 0,
+      targetRepoName: '',
+      targetRepoNamespace: '',
+    },
+    yuqueSyncMap: {} as YuqueSyncMap,
     profile: {
       nickname: '',
       avatar: '',
@@ -1063,4 +1093,49 @@ export async function pullSettingsFromCloud(): Promise<Record<string, unknown> |
   const merged = { ...cloudSettings, ...cloudLauncherConfigs }
   console.log(`[pullSettingsFromCloud] 从云端拉取了 ${Object.keys(cloudSettings).length} 项设置 + ${Object.keys(cloudLauncherConfigs).length} 项导航配置`)
   return merged
+}
+
+// ====== 语雀配置管理 ======
+
+/** 获取语雀配置 */
+export function getYuqueConfig(): YuqueConfig {
+  return store.get('yuqueConfig', {
+    token: '',
+    login: '',
+    userName: '',
+    targetRepoId: 0,
+    targetRepoName: '',
+    targetRepoNamespace: '',
+  })
+}
+
+/** 保存语雀配置 */
+export function saveYuqueConfig(config: YuqueConfig): YuqueConfig {
+  store.set('yuqueConfig', config)
+  return config
+}
+
+/** 获取语雀同步映射表 */
+export function getYuqueSyncMap(): YuqueSyncMap {
+  return store.get('yuqueSyncMap', {} as YuqueSyncMap)
+}
+
+/** 保存语雀同步映射表 */
+export function saveYuqueSyncMap(map: YuqueSyncMap): YuqueSyncMap {
+  store.set('yuqueSyncMap', map)
+  return map
+}
+
+/** 更新单个片段的语雀同步状态 */
+export function updateYuqueSyncItem(snippetId: string, item: YuqueSyncItem): void {
+  const map = getYuqueSyncMap()
+  map[snippetId] = item
+  store.set('yuqueSyncMap', map)
+}
+
+/** 删除单个片段的语雀同步状态 */
+export function deleteYuqueSyncItem(snippetId: string): void {
+  const map = getYuqueSyncMap()
+  delete map[snippetId]
+  store.set('yuqueSyncMap', map)
 }

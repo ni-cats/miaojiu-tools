@@ -118,6 +118,74 @@ export interface AiModelConfig {
   enabled: boolean
 }
 
+/** 语雀配置 */
+export interface YuqueConfig {
+  token: string
+  login: string
+  userName: string
+  targetRepoId: number
+  targetRepoName: string
+  targetRepoNamespace: string
+}
+
+/** 语雀同步映射项 */
+export interface YuqueSyncItem {
+  yuqueDocId: number
+  yuqueSyncedAt: string
+}
+
+/** 语雀同步映射表 */
+export type YuqueSyncMap = Record<string, YuqueSyncItem>
+
+/** 语雀搜索结果项 */
+export interface YuqueSearchResult {
+  id: number
+  type: string
+  title: string
+  summary: string
+  url: string
+  target: {
+    id: number
+    slug: string
+    title: string
+    book_id: number
+    description: string
+    created_at: string
+    updated_at: string
+    content_updated_at: string
+    book?: {
+      id: number
+      slug: string
+      name: string
+      namespace: string
+    }
+  }
+}
+
+/** 语雀文档详情 */
+export interface YuqueDoc {
+  id: number
+  slug: string
+  title: string
+  body: string
+  body_html: string
+  book_id: number
+  description: string
+  created_at: string
+  updated_at: string
+  content_updated_at: string
+  word_count: number
+}
+
+/** 语雀知识库 */
+export interface YuqueRepo {
+  id: number
+  slug: string
+  name: string
+  namespace: string
+  description: string
+}
+
 export interface ClipToolAPI {
   // 同步设置缓存（APP启动时获取，零延迟）
   initialSettings: Record<string, unknown>
@@ -220,6 +288,15 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   // 全局字体大小
   getAppFontSize: () => Promise<number>
   setAppFontSize: (size: number) => Promise<number>
+  // 语雀集成
+  getYuqueConfig: () => Promise<YuqueConfig>
+  saveYuqueConfig: (config: YuqueConfig) => Promise<YuqueConfig>
+  verifyYuqueToken: (token: string) => Promise<{ success: boolean; user?: { id: number; login: string; name: string; avatar_url: string }; error?: string }>
+  getYuqueRepos: (token: string, login: string) => Promise<{ success: boolean; repos?: YuqueRepo[]; error?: string }>
+  searchYuqueDocs: (query: string, options?: { type?: string; page?: number; limit?: number }) => Promise<{ success: boolean; data?: YuqueSearchResult[]; total?: number; error?: string }>
+  getYuqueDocDetail: (bookId: number, docId: number) => Promise<{ success: boolean; doc?: YuqueDoc; error?: string }>
+  syncSnippetToYuque: (snippetId: string, title: string, content: string) => Promise<{ success: boolean; docId?: number; action?: 'created' | 'updated'; error?: string }>
+  getYuqueSyncMap: () => Promise<YuqueSyncMap>
 }
 
 declare global {

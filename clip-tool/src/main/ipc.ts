@@ -69,12 +69,32 @@ import {
   type QuickLink,
   type AiModelConfig,
   type PageVisibility,
+  getYuqueConfig,
+  saveYuqueConfig,
+  getYuqueSyncMap,
+  updateYuqueSyncItem,
+  deleteYuqueSyncItem,
+  type YuqueConfig,
+  type YuqueSyncMap,
 } from './store'
 import { reRegisterShortcuts } from './shortcuts'
 import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
 import { chatWithHunyuan, isHunyuanAvailable, generateTitle, matchTags, type ChatMessage } from './hunyuan'
 import { getInstalledApps, openApp, getAppIcon, getMacShortcuts, runMacShortcut } from './apps'
+import {
+  verifyToken,
+  getUserRepos,
+  searchDocs,
+  getDocDetail,
+  createDoc,
+  updateDoc,
+  getRepoToc,
+  appendDocToToc,
+  createTocTitleNode,
+  YuqueApiError,
+  type SearchOptions,
+} from './yuque'
 
 /** 注册所有 IPC 事件处理器 */
 export function registerIpcHandlers(
@@ -532,6 +552,254 @@ export function registerIpcHandlers(
   // 获取启动日志文件路径
   ipcMain.handle('logger:getLogFilePath', () => {
     return getLogFilePath()
+  })
+
+  // ====== 语雀集成 ======
+
+  // 获取语雀配置
+  ipcMain.handle('yuque:getConfig', () => {
+    return getYuqueConfig()
+  })
+
+  // 保存语雀配置
+  ipcMain.handle('yuque:saveConfig', (_event, config: YuqueConfig) => {
+    return saveYuqueConfig(config)
+  })
+
+  // 验证语雀 Token
+  ipcMain.handle('yuque:verifyToken', async (_event, token: string) => {
+    log('ipc', `[yuque:verifyToken] 开始验证, token长度=${token?.length || 0}`)
+    try {
+      const user = await verifyToken(token)
+      log('ipc', `[yuque:verifyToken] 验证成功: ${user.name} (${user.login})`)
+      return { success: true, user }
+    } catch (error) {
+      const msg = error instanceof YuqueApiError ? error.message : '验证失败'
+      log('ipc', `[yuque:verifyToken] 验证失败: ${msg}, error=${error}`)
+      return { success: false, error: msg }
+    }
+  })
+
+  // 获取用户知识库列表
+  ipcMain.handle('yuque:getRepos', async (_event, token: string, login: string) => {
+    try {
+      const repos = await getUserRepos(token, login)
+      return { success: true, repos }
+    } catch (error) {
+      const msg = error instanceof YuqueApiError ? error.message : '获取知识库失败'
+      return { success: false, error: msg }
+    }
+  })
+
+  // 搜索语雀文档
+  ipcMain.handle('yuque:search', async (_event, query: string, options?: SearchOptions) => {
+    log('ipc', `[yuque:search] 搜索关键词="${query}", options=${JSON.stringify(options)}`)
+    try {
+      const config = getYuqueConfig()
+      if (!config.token) {
+        log('ipc', `[yuque:search] 失败: Token 未配置`)
+        return { success: false, error: '语雀 Token 未配置，请先在设置中配置语雀 Token' }
+      }
+      log('ipc', `[yuque:search] Token长度=${config.token.length}, 开始搜索...`)
+      const result = await searchDocs(config.token, query, options)
+      log('ipc', `[yuque:search] 搜索成功, 返回 ${result.data?.length || 0} 条结果`)
+      return { success: true, ...result }
+    } catch (error) {
+      const msg = error instanceof YuqueApiError ? error.message : '搜索失败'
+      log('ipc', `[yuque:search] 搜索异常: ${msg}, error=${error}`)
+      return { success: false, error: msg }
+    }
+  })
+
+  // 获取文档详情
+  ipcMain.handle('yuque:getDocDetail', async (_event, bookId: number, docId: number) => {
+    try {
+      const config = getYuqueConfig()
+      if (!config.token) {
+        return { success: false, error: '语雀 Token 未配置' }
+      }
+      const doc = await getDocDetail(config.token, bookId, docId)
+      return { success: true, doc }
+    } catch (error) {
+      const msg = error instanceof YuqueApiError ? error.message : '获取文档失败'
+      return { success: false, error: msg }
+    }
+  })
+
+  /**
+   * 确保文档挂载到知识库目录的 clip-tool 分组下
+   * 如果 clip-tool 分组不存在则自动创建
+   */
+  async function ensureDocInToc(token: string, namespace: string, docId: number): Promise<void> {
+    try {
+      const toc = await getRepoToc(token, namespace)
+      // 统一用 replace 去掉连字符后匹配，兼容 'ClipTool' / 'clip-tool' / 'Clip-Tool' 等写法
+      let clipToolNode = toc.find(item => item.type === 'TITLE' && item.title.toLowerCase().replace(/-/g, '').includes('cliptool'))
+
+      if (!clipToolNode) {
+        // 自动创建 clip-tool 分组节点
+        log('ipc', `[yuque:ensureDocInToc] 未找到 clip-tool 目录节点，自动创建...`)
+        const newToc = await createTocTitleNode(token, namespace, 'clip-tool')
+        clipToolNode = newToc.find(item => item.type === 'TITLE' && item.title.toLowerCase().replace(/-/g, '').includes('cliptool'))
+        if (!clipToolNode) {
+          log('ipc', `[yuque:ensureDocInToc] 创建 clip-tool 分组节点后仍未找到，跳过目录插入`)
+          return
+        }
+        log('ipc', `[yuque:ensureDocInToc] 已创建 clip-tool 分组节点: uuid=${clipToolNode.uuid}`)
+      }
+
+      // 检查文档是否已经在 clip-tool 目录下，避免重复插入
+      const alreadyInToc = toc.some(item => item.type === 'DOC' && item.doc_id === docId && item.parent_uuid === clipToolNode!.uuid)
+      if (alreadyInToc) {
+        log('ipc', `[yuque:ensureDocInToc] 文档已在目录中，跳过: docId=${docId}`)
+        return
+      }
+
+      await appendDocToToc(token, namespace, clipToolNode.uuid, docId)
+      log('ipc', `[yuque:ensureDocInToc] 已插入目录: parentUuid=${clipToolNode.uuid}, docId=${docId}`)
+    } catch (tocError) {
+      // 插入目录失败不影响主流程
+      log('ipc', `[yuque:ensureDocInToc] 插入目录失败: ${tocError instanceof Error ? tocError.message : '未知错误'}`)
+    }
+  }
+
+  // 同步单个片段到语雀（创建或更新）
+  ipcMain.handle('yuque:syncSnippet', async (_event, snippetId: string, title: string, content: string) => {
+    log('ipc', `[yuque:syncSnippet] 开始同步: snippetId=${snippetId}, title="${title}", contentLen=${content?.length || 0}`)
+    try {
+      const config = getYuqueConfig()
+      if (!config.token) {
+        log('ipc', `[yuque:syncSnippet] 失败: Token 未配置`)
+        return { success: false, error: '语雀 Token 未配置，请先在设置中配置' }
+      }
+      if (!config.targetRepoNamespace) {
+        log('ipc', `[yuque:syncSnippet] 失败: 未选择目标知识库, config=${JSON.stringify({ ...config, token: config.token ? '***' : '' })}`)
+        return { success: false, error: '未选择目标知识库，请先在设置中选择要导出到的语雀知识库' }
+      }
+      log('ipc', `[yuque:syncSnippet] 配置: namespace=${config.targetRepoNamespace}, repoName=${config.targetRepoName}`)
+
+      const syncMap = getYuqueSyncMap()
+      const existingSync = syncMap[snippetId]
+
+      if (existingSync?.yuqueDocId) {
+        // 已同步过，尝试更新
+        try {
+          const doc = await updateDoc(config.token, config.targetRepoNamespace, existingSync.yuqueDocId, {
+            title,
+            body: content,
+            format: 'markdown',
+          })
+          updateYuqueSyncItem(snippetId, {
+            yuqueDocId: doc.id,
+            yuqueSyncedAt: new Date().toISOString(),
+          })
+
+          // 确保文档挂载到 clip-tool 目录下
+          await ensureDocInToc(config.token, config.targetRepoNamespace, doc.id)
+
+          return { success: true, docId: doc.id, action: 'updated' }
+        } catch (updateError) {
+          // 如果 404，说明语雀端文档已删除，清除映射并重新创建
+          if (updateError instanceof YuqueApiError && updateError.status === 404) {
+            deleteYuqueSyncItem(snippetId)
+            // 继续执行下面的创建逻辑
+          } else {
+            throw updateError
+          }
+        }
+      }
+
+      // 创建新文档
+      const doc = await createDoc(config.token, config.targetRepoNamespace, {
+        title,
+        body: content,
+        format: 'markdown',
+      })
+      updateYuqueSyncItem(snippetId, {
+        yuqueDocId: doc.id,
+        yuqueSyncedAt: new Date().toISOString(),
+      })
+
+      // 将新创建的文档插入到 clip-tool 目录下
+      await ensureDocInToc(config.token, config.targetRepoNamespace, doc.id)
+
+      return { success: true, docId: doc.id, action: 'created' }
+    } catch (error) {
+      const msg = error instanceof YuqueApiError ? error.message : '同步失败'
+      return { success: false, error: msg }
+    }
+  })
+
+  // 批量导出所有收藏为一篇语雀文档
+  ipcMain.handle('yuque:exportAll', async (_event, title: string, body: string) => {
+    log('ipc', `[yuque:exportAll] 开始导出: title="${title}", bodyLen=${body?.length || 0}`)
+    try {
+      const config = getYuqueConfig()
+      if (!config.token) {
+        return { success: false, error: '语雀 Token 未配置，请先在设置中配置' }
+      }
+      if (!config.targetRepoNamespace) {
+        return { success: false, error: '未选择目标知识库，请先在设置中选择要导出到的语雀知识库' }
+      }
+
+      // 检查是否已有导出记录（用固定 key "clip-tool-export-all" 存储）
+      const syncMap = getYuqueSyncMap()
+      const existingSync = syncMap['clip-tool-export-all']
+
+      if (existingSync?.yuqueDocId) {
+        // 已导出过，尝试更新
+        try {
+          const doc = await updateDoc(config.token, config.targetRepoNamespace, existingSync.yuqueDocId, {
+            title,
+            body,
+            format: 'markdown',
+          })
+          updateYuqueSyncItem('clip-tool-export-all', {
+            yuqueDocId: doc.id,
+            yuqueSyncedAt: new Date().toISOString(),
+          })
+          log('ipc', `[yuque:exportAll] 更新成功: docId=${doc.id}`)
+
+          // 确保文档挂载到 clip-tool 目录下（可能之前创建时未成功挂载）
+          await ensureDocInToc(config.token, config.targetRepoNamespace, doc.id)
+
+          return { success: true, docId: doc.id, action: 'updated' }
+        } catch (updateError) {
+          if (updateError instanceof YuqueApiError && updateError.status === 404) {
+            deleteYuqueSyncItem('clip-tool-export-all')
+            // 文档已被删除，继续创建新文档
+          } else {
+            throw updateError
+          }
+        }
+      }
+
+      // 创建新文档
+      const doc = await createDoc(config.token, config.targetRepoNamespace, {
+        title,
+        body,
+        format: 'markdown',
+      })
+      updateYuqueSyncItem('clip-tool-export-all', {
+        yuqueDocId: doc.id,
+        yuqueSyncedAt: new Date().toISOString(),
+      })
+      log('ipc', `[yuque:exportAll] 创建成功: docId=${doc.id}`)
+
+      // 将文档插入到知识库目录中（查找或创建 clip-tool 分组节点）
+      await ensureDocInToc(config.token, config.targetRepoNamespace, doc.id)
+
+      return { success: true, docId: doc.id, action: 'created' }
+    } catch (error) {
+      const msg = error instanceof YuqueApiError ? error.message : '导出失败'
+      log('ipc', `[yuque:exportAll] 失败: ${msg}`)
+      return { success: false, error: msg }
+    }
+  })
+
+  // 获取语雀同步映射表
+  ipcMain.handle('yuque:getSyncMap', () => {
+    return getYuqueSyncMap()
   })
 
 }

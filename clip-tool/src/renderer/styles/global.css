@@ -5963,3 +5963,234 @@ code.profile-info-value {
   gap: 6px;
   margin-top: 8px;
 }
+
+/* ===== 语雀文档搜索工具样式 ===== */
+.yuque-search-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.yuque-search-input-wrap {
+  padding: 0 0 8px 0;
+  flex-shrink: 0;
+}
+
+.yuque-search-input {
+  width: 100%;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--bg-secondary) !important;
+  box-sizing: border-box;
+}
+
+.yuque-search-input:focus {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.yuque-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.yuque-error {
+  text-align: center;
+  padding: 16px;
+  color: #ff3b30;
+  font-size: 12px;
+  background: rgba(255, 59, 48, 0.06);
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+.yuque-empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.yuque-result-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yuque-result-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.yuque-result-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color);
+  border-radius: 2px;
+}
+
+.yuque-result-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  border: 1px solid transparent;
+}
+
+.yuque-result-item:hover,
+.yuque-result-item.selected {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.yuque-result-item:hover *,
+.yuque-result-item.selected * {
+  color: #fff !important;
+}
+
+.yuque-result-index {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  min-width: 24px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.yuque-result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.yuque-result-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yuque-result-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.yuque-result-book {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.yuque-result-time {
+  flex-shrink: 0;
+}
+
+.yuque-result-summary {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.yuque-result-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* 语雀文档预览区域 */
+.yuque-preview-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.yuque-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(52, 199, 89, 0.06), rgba(0, 122, 255, 0.06));
+}
+
+.yuque-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.yuque-preview-close {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.yuque-preview-close:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.yuque-preview-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+
+.yuque-preview-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.yuque-preview-content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color);
+  border-radius: 2px;
+}
+
+.yuque-preview-body {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  margin: 0;
+}

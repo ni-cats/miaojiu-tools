@@ -407,6 +407,84 @@ const api = {
   isHistoryWindow: (): boolean => {
     return window.location.hash === '#clipboard-history'
   },
+
+  // ====== 语雀集成 API ======
+
+  /** 获取语雀配置 */
+  getYuqueConfig: (): Promise<{
+    token: string
+    login: string
+    userName: string
+    targetRepoId: number
+    targetRepoName: string
+    targetRepoNamespace: string
+  }> => ipcRenderer.invoke('yuque:getConfig'),
+
+  /** 保存语雀配置 */
+  saveYuqueConfig: (config: {
+    token: string
+    login: string
+    userName: string
+    targetRepoId: number
+    targetRepoName: string
+    targetRepoNamespace: string
+  }): Promise<{
+    token: string
+    login: string
+    userName: string
+    targetRepoId: number
+    targetRepoName: string
+    targetRepoNamespace: string
+  }> => ipcRenderer.invoke('yuque:saveConfig', config),
+
+  /** 验证语雀 Token */
+  verifyYuqueToken: (token: string): Promise<{
+    success: boolean
+    user?: { id: number; login: string; name: string; avatar_url: string }
+    error?: string
+  }> => ipcRenderer.invoke('yuque:verifyToken', token),
+
+  /** 获取用户知识库列表 */
+  getYuqueRepos: (token: string, login: string): Promise<{
+    success: boolean
+    repos?: { id: number; slug: string; name: string; namespace: string; description: string }[]
+    error?: string
+  }> => ipcRenderer.invoke('yuque:getRepos', token, login),
+
+  /** 搜索语雀文档 */
+  searchYuqueDocs: (query: string, options?: { type?: string; page?: number; limit?: number }): Promise<{
+    success: boolean
+    data?: unknown[]
+    total?: number
+    error?: string
+  }> => ipcRenderer.invoke('yuque:search', query, options),
+
+  /** 获取语雀文档详情 */
+  getYuqueDocDetail: (bookId: number, docId: number): Promise<{
+    success: boolean
+    doc?: { id: number; slug: string; title: string; body: string; book_id: number; updated_at: string }
+    error?: string
+  }> => ipcRenderer.invoke('yuque:getDocDetail', bookId, docId),
+
+  /** 批量导出所有收藏为一篇语雀文档 */
+  exportAllToYuque: (title: string, body: string): Promise<{
+    success: boolean
+    docId?: number
+    action?: 'created' | 'updated'
+    error?: string
+  }> => ipcRenderer.invoke('yuque:exportAll', title, body),
+
+  /** 同步片段到语雀 */
+  syncSnippetToYuque: (snippetId: string, title: string, content: string): Promise<{
+    success: boolean
+    docId?: number
+    action?: 'created' | 'updated'
+    error?: string
+  }> => ipcRenderer.invoke('yuque:syncSnippet', snippetId, title, content),
+
+  /** 获取语雀同步映射表 */
+  getYuqueSyncMap: (): Promise<Record<string, { yuqueDocId: number; yuqueSyncedAt: string }>> =>
+    ipcRenderer.invoke('yuque:getSyncMap'),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

@@ -71,7 +71,11 @@
     },
     "files": [
       "dist/**/*",
-      "resources/**/*"
+      "resources/**/*",
+      "!dist/renderer/assets/*.map"
+    ],
+    "asarUnpack": [
+      "dist/renderer/**/*"
     ]
   }
 }

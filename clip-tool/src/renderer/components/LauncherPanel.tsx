@@ -6,9 +6,9 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { nanoid } from 'nanoid'
-import type { QuickLink, QuickLinkParam, LocalApp, MacShortcut } from '../types'
+import type { QuickLink, QuickLinkParam, LocalApp, MacShortcut, YuqueSearchResult, YuqueDoc } from '../types'
 import { getTagColor } from '../utils/tagColor'
-import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool, IconMacShortcut } from './LauncherIcons'
+import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool, IconMacShortcut, IconYuqueSearch } from './LauncherIcons'
 
 /** 预设的 Emoji 图标列表 */
 const ICON_OPTIONS = ['🌐', '📚', '🔧', '💻', '📊', '🎨', '📝', '🔗', '⚡', '🏠', '📦', '🎯', '🔍', '💡', '🚀', '📮']
@@ -204,6 +204,17 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   // 导航页操作使用频率计数
   const [usageCount, setUsageCount] = useState<Record<string, number>>({})
 
+  // 语雀搜索工具状态
+  const [yuqueResults, setYuqueResults] = useState<YuqueSearchResult[]>([])
+  const [yuqueLoading, setYuqueLoading] = useState(false)
+  const [yuqueError, setYuqueError] = useState('')
+  const [yuqueSelectedIndex, setYuqueSelectedIndex] = useState(0)
+  const [yuquePreviewDoc, setYuquePreviewDoc] = useState<YuqueDoc | null>(null)
+  const [yuquePreviewLoading, setYuquePreviewLoading] = useState(false)
+  const yuqueSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const yuqueInputRef = useRef<HTMLInputElement>(null)
+  const [yuqueQuery, setYuqueQuery] = useState('')
+
   // 新增/编辑表单
   const [formName, setFormName] = useState('')
   const [formUrl, setFormUrl] = useState('')
@@ -377,6 +388,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     base64: <IconBase64Tool size={18} />,
     timestamp: <IconTimestampTool size={18} />,
     imageBase64: <IconImageBase64Tool size={18} />,
+    yuqueSearch: <IconYuqueSearch size={18} />,
   }
 
   /** 内置工具列表定义 */
@@ -407,6 +419,15 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       description: '图片转 Base64 / Base64 转图片',
       keywords: ['图片', 'image', 'base64', '转换', '编码', 'img', 'png', 'jpg', '工具'],
       toolKey: 'imageBase64',
+    },
+    {
+      id: '__builtin_yuque_search__',
+      name: '语雀文档搜索',
+      icon: '📗',
+      category: '工具',
+      description: '搜索语雀文档，预览并复制内容',
+      keywords: ['yuque', '语雀', '搜索', '文档', 'yq', '知识库', '工具'],
+      toolKey: 'yuqueSearch',
     },
   ], [])
 
@@ -792,10 +813,17 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     setImgPreviewSrc('')
     setImgBase64Input('')
     setImgBase64Mode('toBase64')
+    // 重置语雀搜索工具状态
+    setYuqueQuery('')
+    setYuqueResults([])
+    setYuqueError('')
+    setYuqueSelectedIndex(0)
+    setYuquePreviewDoc(null)
     // 自动聚焦到对应工具输入框
     setTimeout(() => {
       if (toolKey === 'base64') base64InputRef.current?.focus()
       else if (toolKey === 'timestamp') tsInputRef.current?.focus()
+      else if (toolKey === 'yuqueSearch') yuqueInputRef.current?.focus()
     }, 50)
   }, [])
 
@@ -1311,6 +1339,203 @@ copyWithToast(tsResult)
         </div>
       )}
 
+      {/* 内置工具区域 - 语雀文档搜索 */}
+      {activeTool === 'yuqueSearch' && (
+        <div className="launcher-tool-area yuque-search-area">
+          <div className="launcher-tool-header">
+            <span className="launcher-tool-title"><IconYuqueSearch size={14} /> 语雀文档搜索</span>
+            <button className="launcher-tool-close" onClick={() => {
+              setActiveTool(null)
+              setYuqueResults([])
+              setYuqueQuery('')
+              setYuquePreviewDoc(null)
+              setYuqueError('')
+            }}>✕</button>
+          </div>
+          <div className="yuque-search-input-wrap">
+            <input
+              ref={yuqueInputRef}
+              className="text-input yuque-search-input"
+              type="text"
+              value={yuqueQuery}
+              onChange={(e) => {
+                const q = e.target.value
+                setYuqueQuery(q)
+                setYuqueSelectedIndex(0)
+                setYuquePreviewDoc(null)
+                // 300ms 防抖搜索
+                if (yuqueSearchTimer.current) clearTimeout(yuqueSearchTimer.current)
+                if (q.trim().length >= 2) {
+                  setYuqueLoading(true)
+                  setYuqueError('')
+                  yuqueSearchTimer.current = setTimeout(async () => {
+                    try {
+                      const result = await window.clipToolAPI.searchYuqueDocs(q.trim())
+                      if (result.success && result.data) {
+                        setYuqueResults(result.data as YuqueSearchResult[])
+                      } else {
+                        setYuqueError(result.error || '搜索失败')
+                        setYuqueResults([])
+                      }
+                    } catch {
+                      setYuqueError('搜索请求失败')
+                      setYuqueResults([])
+                    } finally {
+                      setYuqueLoading(false)
+                    }
+                  }, 300)
+                } else {
+                  setYuqueResults([])
+                  setYuqueLoading(false)
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  if (yuquePreviewDoc) return
+                  setYuqueSelectedIndex((prev) => Math.min(prev + 1, yuqueResults.length - 1))
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  if (yuquePreviewDoc) return
+                  setYuqueSelectedIndex((prev) => Math.max(prev - 1, 0))
+                } else if (e.key === 'Enter' && !e.metaKey) {
+                  e.preventDefault()
+                  if (yuquePreviewDoc) return
+                  const selected = yuqueResults[yuqueSelectedIndex]
+                  if (selected) {
+                    // 打开预览
+                    setYuquePreviewLoading(true)
+                    window.clipToolAPI.getYuqueDocDetail(selected.target.book_id, selected.target.id).then((result) => {
+                      if (result.success && result.doc) {
+                        setYuquePreviewDoc(result.doc as YuqueDoc)
+                      }
+                      setYuquePreviewLoading(false)
+                    })
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault()
+                  if (yuquePreviewDoc) {
+                    setYuquePreviewDoc(null)
+                  } else {
+                    setActiveTool(null)
+                    setYuqueResults([])
+                    setYuqueQuery('')
+                    setYuqueError('')
+                  }
+                } else if (e.metaKey && e.key === 'c' && yuquePreviewDoc) {
+                  e.preventDefault()
+                  navigator.clipboard.writeText(yuquePreviewDoc.body || '')
+                  setCopyToast('已复制文档内容')
+                  if (copyToastTimer.current) clearTimeout(copyToastTimer.current)
+                  copyToastTimer.current = setTimeout(() => setCopyToast(null), 1500)
+                } else if (e.metaKey && e.key === 'Enter' && yuquePreviewDoc) {
+                  e.preventDefault()
+                  navigator.clipboard.writeText(yuquePreviewDoc.body || '')
+                  setCopyToast('已复制文档内容')
+                  if (copyToastTimer.current) clearTimeout(copyToastTimer.current)
+                  copyToastTimer.current = setTimeout(() => {
+                    setCopyToast(null)
+                    window.clipToolAPI.hideWindow()
+                  }, 300)
+                } else if (e.metaKey && e.key === 'o' && yuquePreviewDoc) {
+                  e.preventDefault()
+                  const selected = yuqueResults[yuqueSelectedIndex]
+                  if (selected?.url) {
+                    window.clipToolAPI.openExternal(`https://www.yuque.com${selected.url}`)
+                  }
+                } else if (e.metaKey && e.key >= '1' && e.key <= '9') {
+                  e.preventDefault()
+                  const idx = parseInt(e.key) - 1
+                  if (idx < yuqueResults.length) {
+                    setYuqueSelectedIndex(idx)
+                    const selected = yuqueResults[idx]
+                    setYuquePreviewLoading(true)
+                    window.clipToolAPI.getYuqueDocDetail(selected.target.book_id, selected.target.id).then((result) => {
+                      if (result.success && result.doc) {
+                        setYuquePreviewDoc(result.doc as YuqueDoc)
+                      }
+                      setYuquePreviewLoading(false)
+                    })
+                  }
+                }
+              }}
+              placeholder="搜索语雀文档..."
+              autoFocus
+            />
+          </div>
+
+          {/* 预览模式 */}
+          {yuquePreviewDoc && (
+            <div className="yuque-preview-area">
+              <div className="yuque-preview-header">
+                <span className="yuque-preview-title">{yuquePreviewDoc.title}</span>
+                <button className="yuque-preview-close" onClick={() => setYuquePreviewDoc(null)}>← 返回</button>
+              </div>
+              <div className="yuque-preview-content">
+                <pre className="yuque-preview-body">{yuquePreviewDoc.body || '(无内容)'}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* 预览加载中 */}
+          {yuquePreviewLoading && !yuquePreviewDoc && (
+            <div className="yuque-loading">⏳ 加载文档内容...</div>
+          )}
+
+          {/* 搜索结果列表 */}
+          {!yuquePreviewDoc && !yuquePreviewLoading && (
+            <>
+              {yuqueLoading && (
+                <div className="yuque-loading">⏳ 搜索中...</div>
+              )}
+              {yuqueError && (
+                <div className="yuque-error">{yuqueError}</div>
+              )}
+              {!yuqueLoading && !yuqueError && yuqueResults.length === 0 && yuqueQuery.trim().length >= 2 && (
+                <div className="yuque-empty">未找到相关文档</div>
+              )}
+              {!yuqueLoading && yuqueResults.length > 0 && (
+                <div className="yuque-result-list">
+                  {yuqueResults.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`yuque-result-item ${index === yuqueSelectedIndex ? 'selected' : ''}`}
+                      onMouseEnter={() => setYuqueSelectedIndex(index)}
+                      onClick={() => {
+                        setYuqueSelectedIndex(index)
+                        setYuquePreviewLoading(true)
+                        window.clipToolAPI.getYuqueDocDetail(item.target.book_id, item.target.id).then((result) => {
+                          if (result.success && result.doc) {
+                            setYuquePreviewDoc(result.doc as YuqueDoc)
+                          }
+                          setYuquePreviewLoading(false)
+                        })
+                      }}
+                    >
+                      <div className="yuque-result-index">{index < 9 ? `⌘${index + 1}` : ''}</div>
+                      <div className="yuque-result-info">
+                        <div className="yuque-result-title">{item.target?.title || item.title}</div>
+                        <div className="yuque-result-meta">
+                          {item.target?.book?.name && <span className="yuque-result-book">📚 {item.target.book.name}</span>}
+                          {item.target?.content_updated_at && (
+                            <span className="yuque-result-time">{new Date(item.target.content_updated_at).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                        {item.summary && <div className="yuque-result-summary">{item.summary.replace(/<[^>]+>/g, '').substring(0, 80)}</div>}
+                      </div>
+                      {index === yuqueSelectedIndex && <span className="yuque-result-hint">↵</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!yuqueLoading && !yuqueError && yuqueQuery.trim().length < 2 && yuqueResults.length === 0 && (
+                <div className="yuque-empty" style={{ color: 'var(--text-tertiary)' }}>输入关键词搜索语雀文档（至少 2 个字符）</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* 添加/编辑表单 */}
       {isAdding && (
         <div className="launcher-form">
@@ -1781,6 +2006,14 @@ copyWithToast(tsResult)
         ) : activeTool === 'imageBase64' ? (
           <>
             <span>↵ 复制结果</span>
+            <span>Esc 退出</span>
+          </>
+        ) : activeTool === 'yuqueSearch' ? (
+          <>
+            <span>↑↓ 选择</span>
+            <span>↵ 预览</span>
+            <span>⌘C 复制</span>
+            <span>⌘O 打开</span>
             <span>Esc 退出</span>
           </>
         ) : (

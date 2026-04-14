@@ -3,7 +3,7 @@
  * 支持用户自定义全局快捷键和管理预设标签
  */
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react'
-import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility } from '../types'
+import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility, YuqueConfig, YuqueRepo } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
 import { TabSaveIcon, TabEditorIcon, TabSearchIcon, TabLauncherIcon, TabDocIcon, TabAiIcon, TabFavoriteIcon, TabSettingsIcon, TabProfileIcon, IconBot, IconClipboard, IconPlugin, IconSettings, NavConfigIcon, NavShortcutIcon, NavThemeIcon, NavPageIcon, NavPluginIcon, IconFont, IconTag, IconPreview, IconTranslate, IconToJSON, IconOCR, IconSensitive, IconWorkflow } from './TabIcons'
 import { Brain, Keyboard, Lightbulb, Eye, Palette, Wrench } from 'lucide-react'
@@ -337,6 +337,21 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [aiStatus, setAiStatus] = useState<string | null>(null)
   const [showAiSecretKeys, setShowAiSecretKeys] = useState<Record<number, boolean>>({})
 
+  // 语雀配置状态
+  const [yuqueConfig, setYuqueConfig] = useState<YuqueConfig>({
+    token: '',
+    login: '',
+    userName: '',
+    targetRepoId: 0,
+    targetRepoName: '',
+    targetRepoNamespace: '',
+  })
+  const [yuqueStatus, setYuqueStatus] = useState<string | null>(null)
+  const [yuqueVerifying, setYuqueVerifying] = useState(false)
+  const [yuqueRepos, setYuqueRepos] = useState<YuqueRepo[]>([])
+  const [showYuqueToken, setShowYuqueToken] = useState(false)
+  const [yuqueReposLoading, setYuqueReposLoading] = useState(false)
+
 
   // 导航分类管理状态
   const [launcherCategories, setLauncherCategories] = useState<string[]>((_init.launcherCategories as string[]) || [])
@@ -412,6 +427,23 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       }
       if (latest.storageMode && latest.storageMode !== _init.storageMode) {
         setStorageModeState(latest.storageMode as StorageMode)
+      }
+    })
+  }, [])
+
+  // 加载语雀配置
+  useEffect(() => {
+    window.clipToolAPI.getYuqueConfig().then((config) => {
+      if (config && config.token) {
+        setYuqueConfig(config)
+        // 如果已有 token 和 login，自动加载知识库列表
+        if (config.login) {
+          window.clipToolAPI.getYuqueRepos(config.token, config.login).then((result) => {
+            if (result.success && result.repos) {
+              setYuqueRepos(result.repos as YuqueRepo[])
+            }
+          })
+        }
       }
     })
   }, [])
@@ -1140,6 +1172,140 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
 
           <div className="settings-section-hint" style={{ marginTop: 8 }}>
             💡 推送/拉取会同步：片段数据、标签、快捷键、AI 模型配置、导航分类、快速链接等所有设置
+          </div>
+        </div>
+
+        {/* ===== 语雀集成配置 ===== */}
+        <div className="settings-section">
+          <div className="settings-section-title">📗 语雀集成</div>
+          <div className="settings-section-hint">
+            配置语雀 API Token，启用后可在导航栏搜索语雀文档，并将收藏片段同步到语雀知识库
+          </div>
+
+          <div className="settings-cos-field">
+            <label className="settings-cos-label">API Token</label>
+            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+              <input
+                className="text-input"
+                type={showYuqueToken ? 'text' : 'password'}
+                value={yuqueConfig.token}
+                onChange={(e) => setYuqueConfig((prev) => ({ ...prev, token: e.target.value }))}
+                placeholder="输入语雀 API Token"
+                style={{ flex: 1 }}
+                spellCheck={false}
+              />
+              <button
+                className="settings-cos-toggle-btn"
+                onClick={() => setShowYuqueToken(!showYuqueToken)}
+                title={showYuqueToken ? '隐藏' : '显示'}
+              >
+                {showYuqueToken ? '🙈' : '👁'}
+              </button>
+            </div>
+          </div>
+
+          {yuqueConfig.userName && (
+            <div className="settings-cos-field">
+              <label className="settings-cos-label">已连接用户</label>
+              <span style={{ fontSize: 12, color: '#34c759' }}>✓ {yuqueConfig.userName} ({yuqueConfig.login})</span>
+            </div>
+          )}
+
+          {yuqueRepos.length > 0 && (
+            <div className="settings-cos-field">
+              <label className="settings-cos-label">目标知识库</label>
+              <select
+                className="text-input"
+                value={yuqueConfig.targetRepoId || ''}
+                onChange={(e) => {
+                  const repoId = Number(e.target.value)
+                  const repo = yuqueRepos.find((r) => r.id === repoId)
+                  if (repo) {
+                    setYuqueConfig((prev) => ({
+                      ...prev,
+                      targetRepoId: repo.id,
+                      targetRepoName: repo.name,
+                      targetRepoNamespace: repo.namespace,
+                    }))
+                  }
+                }}
+                style={{ flex: 1, padding: '4px 8px', fontSize: 12 }}
+              >
+                <option value="">请选择知识库...</option>
+                {yuqueRepos.map((repo) => (
+                  <option key={repo.id} value={repo.id}>{repo.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="settings-cos-actions">
+            <button
+              className="settings-cos-btn"
+              onClick={async () => {
+                if (!yuqueConfig.token) {
+                  setYuqueStatus('⚠ 请先输入 Token')
+                  setTimeout(() => setYuqueStatus(null), 2000)
+                  return
+                }
+                setYuqueVerifying(true)
+                setYuqueStatus(null)
+                try {
+                  const result = await window.clipToolAPI.verifyYuqueToken(yuqueConfig.token)
+                  if (result.success && result.user) {
+                    setYuqueConfig((prev) => ({
+                      ...prev,
+                      login: result.user!.login,
+                      userName: result.user!.name,
+                    }))
+                    setYuqueStatus(`✓ 验证成功：${result.user.name}`)
+                    // 自动加载知识库列表
+                    setYuqueReposLoading(true)
+                    const reposResult = await window.clipToolAPI.getYuqueRepos(yuqueConfig.token, result.user.login)
+                    if (reposResult.success && reposResult.repos) {
+                      setYuqueRepos(reposResult.repos as YuqueRepo[])
+                    }
+                    setYuqueReposLoading(false)
+                  } else {
+                    setYuqueStatus(`✖ ${result.error || '验证失败'}`)
+                  }
+                } catch {
+                  setYuqueStatus('✖ 验证失败')
+                } finally {
+                  setYuqueVerifying(false)
+                }
+              }}
+              disabled={!yuqueConfig.token || yuqueVerifying}
+            >
+              {yuqueVerifying ? '⏳ 验证中...' : '🔗 验证连接'}
+            </button>
+            <button
+              className="settings-cos-btn primary"
+              onClick={async () => {
+                const saved = await window.clipToolAPI.saveYuqueConfig(yuqueConfig)
+                setYuqueConfig(saved)
+                setYuqueStatus('✓ 语雀配置已保存')
+                setTimeout(() => setYuqueStatus(null), 2000)
+              }}
+              disabled={!yuqueConfig.token}
+            >
+              💾 保存配置
+            </button>
+          </div>
+
+          {yuqueReposLoading && (
+            <div style={{ fontSize: 12, color: '#8b949e', marginTop: 4 }}>⏳ 正在加载知识库列表...</div>
+          )}
+
+          {yuqueStatus && (
+            <div className={`settings-status ${yuqueStatus.startsWith('✓') ? 'success' : yuqueStatus.startsWith('⚠') ? 'warning' : 'error'}`}
+                 style={{ fontSize: 12, marginTop: 4 }}>
+              {yuqueStatus}
+            </div>
+          )}
+
+          <div className="settings-section-hint" style={{ marginTop: 8 }}>
+            💡 获取 Token：登录语雀 → 个人设置 → 开发者 → 创建 Token
           </div>
         </div>
       </>

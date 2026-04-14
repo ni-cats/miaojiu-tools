@@ -548,6 +548,7 @@ const App: React.FC = () => {
             onToggleFavorite={handleToggleFavorite}
             onUpdateTags={handleUpdateTags}
             onUpdateTitle={handleUpdateTitle}
+            onAddSnippet={handleSave}
           />
         )}
         {activeTab === 'doc' && <DocPanel onSave={handleSave} activeTab={activeTab} />}
