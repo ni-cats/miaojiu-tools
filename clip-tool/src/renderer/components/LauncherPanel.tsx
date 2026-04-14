@@ -438,11 +438,7 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     // 搜索筛选
     if (!searchQuery.trim()) return true
     const q = searchQuery.toLowerCase()
-    return (
-      link.name.toLowerCase().includes(q) ||
-      link.url.toLowerCase().includes(q) ||
-      link.category.toLowerCase().includes(q)
-    )
+    return link.name.toLowerCase().includes(q)
   }).sort((a, b) => {
     // 搜索时按使用频率降序排序，无搜索时按 order 排序
     if (searchQuery.trim()) {
@@ -937,8 +933,8 @@ copyWithToast(tsResult)
       setSelectedIndex((prev) => Math.max(prev - 1, 0))
     } else if (e.key === 'Tab') {
       // Tab 键：如果选中的是带参数的链接，直接进入内联参数输入模式
-      if (selectedIndex < filteredLinks.length) {
-        const link = filteredLinks[selectedIndex]
+      if (selectedIndex < flatGroupedLinks.length) {
+        const link = flatGroupedLinks[selectedIndex]
         if (link) {
           const placeholders = parseUrlPlaceholders(link.url)
           if (placeholders.length > 0) {
@@ -956,23 +952,23 @@ copyWithToast(tsResult)
       }
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      // 判断选中的是链接、内置工具还是本地应用
-      if (selectedIndex < filteredLinks.length) {
-        if (filteredLinks[selectedIndex]) {
-          handleOpen(filteredLinks[selectedIndex])
+      // 判断选中的是链接、内置工具还是本地应用（使用 flatGroupedLinks 保证与渲染顺序一致）
+      if (selectedIndex < flatGroupedLinks.length) {
+        if (flatGroupedLinks[selectedIndex]) {
+          handleOpen(flatGroupedLinks[selectedIndex])
         }
-      } else if (selectedIndex < filteredLinks.length + matchedTools.length) {
-        const toolIdx = selectedIndex - filteredLinks.length
+      } else if (selectedIndex < flatGroupedLinks.length + matchedTools.length) {
+        const toolIdx = selectedIndex - flatGroupedLinks.length
         if (matchedTools[toolIdx]) {
           handleToolOpen(matchedTools[toolIdx].toolKey)
         }
-      } else if (selectedIndex < filteredLinks.length + matchedTools.length + filteredApps.length) {
-        const appIdx = selectedIndex - filteredLinks.length - matchedTools.length
+      } else if (selectedIndex < flatGroupedLinks.length + matchedTools.length + filteredApps.length) {
+        const appIdx = selectedIndex - flatGroupedLinks.length - matchedTools.length
         if (filteredApps[appIdx]) {
           handleOpenApp(filteredApps[appIdx])
         }
       } else {
-        const shortcutIdx = selectedIndex - filteredLinks.length - matchedTools.length - filteredApps.length
+        const shortcutIdx = selectedIndex - flatGroupedLinks.length - matchedTools.length - filteredApps.length
         if (filteredShortcuts[shortcutIdx]) {
           handleRunShortcut(filteredShortcuts[shortcutIdx])
         }
@@ -992,6 +988,9 @@ copyWithToast(tsResult)
   categoryMap.forEach((catLinks, category) => {
     groupedLinks.push({ category, links: catLinks })
   })
+
+  // 按渲染顺序展开的链接列表（与 globalIndex 一一对应）
+  const flatGroupedLinks: QuickLink[] = groupedLinks.flatMap(g => g.links)
 
   // 计算全局索引
   let globalIndex = 0
@@ -1875,7 +1874,7 @@ copyWithToast(tsResult)
           <div className="launcher-group">
             <div className="launcher-group-title">内置工具</div>
             {matchedTools.map((tool, i) => {
-              const idx = filteredLinks.length + i
+              const idx = flatGroupedLinks.length + i
               return (
                 <div
                   key={tool.id}
@@ -1912,7 +1911,7 @@ copyWithToast(tsResult)
           <div className="launcher-group">
             <div className="launcher-group-title">本地应用</div>
             {filteredApps.map((app, i) => {
-              const idx = filteredLinks.length + matchedTools.length + i
+              const idx = flatGroupedLinks.length + matchedTools.length + i
               return (
                 <div
                   key={app.path}
@@ -1949,7 +1948,7 @@ copyWithToast(tsResult)
           <div className="launcher-group">
             <div className="launcher-group-title">快捷指令</div>
             {filteredShortcuts.map((shortcut, i) => {
-              const idx = filteredLinks.length + matchedTools.length + filteredApps.length + i
+              const idx = flatGroupedLinks.length + matchedTools.length + filteredApps.length + i
               return (
                 <div
                   key={shortcut.name}

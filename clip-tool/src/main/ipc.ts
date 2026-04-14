@@ -47,6 +47,8 @@ import {
   setAiTitleEnabled,
   getAiTagEnabled,
   setAiTagEnabled,
+  getEnableHistoryWindow,
+  setEnableHistoryWindow,
   getTheme,
   setTheme,
   pushSettingsToCloud,
@@ -422,6 +424,16 @@ export function registerIpcHandlers(
   // 设置是否启用 AI 生成标题
   ipcMain.handle('aiTitle:setEnabled', (_event, enabled: boolean) => {
     return setAiTitleEnabled(enabled)
+  })
+
+  // 获取是否启用独立历史小窗
+  ipcMain.handle('historyWindow:getEnabled', () => {
+    return getEnableHistoryWindow()
+  })
+
+  // 设置是否启用独立历史小窗
+  ipcMain.handle('historyWindow:setEnabled', (_event, enabled: boolean) => {
+    return setEnableHistoryWindow(enabled)
   })
 
   // 使用 AI 生成标题

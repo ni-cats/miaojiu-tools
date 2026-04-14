@@ -8,8 +8,13 @@ import { getShortcuts, type ShortcutConfig } from './store'
 /** 所有支持通过全局快捷键唤起的模式 */
 type WindowMode = 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'favorite' | 'settings' | 'profile' | 'launcher'
 
-/** 显示窗口并发送模式切换指令 */
+/** 显示窗口并发送模式切换指令（支持在全屏应用上方显示） */
 function showWindowWithMode(win: BrowserWindow, mode: WindowMode) {
+  // 确保窗口在所有工作空间可见（包括全屏空间）
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  // 临时置顶，确保在全屏应用上方显示
+  win.setAlwaysOnTop(true, 'floating')
+
   if (win.isVisible()) {
     // 窗口已显示，直接切换模式
     win.webContents.send('window:switchMode', mode)
@@ -22,6 +27,12 @@ function showWindowWithMode(win: BrowserWindow, mode: WindowMode) {
       win.webContents.send('window:switchMode', mode)
     }, 50)
   }
+
+  // 短暂延迟后取消置顶和全工作空间可见，避免窗口一直悬浮在最上层
+  setTimeout(() => {
+    win.setAlwaysOnTop(false)
+    win.setVisibleOnAllWorkspaces(false)
+  }, 300)
 }
 
 /** 快捷键配置字段到模式的映射 */

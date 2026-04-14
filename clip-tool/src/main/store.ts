@@ -108,6 +108,7 @@ interface StoreSchema {
   aiModels: AiModelConfig[]  // AI 模型配置列表
   aiTitleEnabled: boolean  // 是否启用 AI 生成标题
   aiTagEnabled: boolean  // 是否启用 AI 自动匹配标签
+  enableHistoryWindow: boolean  // 是否启用独立历史小窗（快捷键唤起编辑模式时）
   theme: string  // 主题名称
   pageVisibility: PageVisibility  // 页面可见性配置
   appFontSize: number  // 全局字体大小
@@ -229,6 +230,7 @@ const store = new Store<StoreSchema>({
       return appCfg.aiTitleEnabled !== undefined ? appCfg.aiTitleEnabled : true
     })(),
     aiTagEnabled: true,
+    enableHistoryWindow: false,  // 默认关闭独立历史小窗
     theme: 'system',
     pageVisibility: {
       save: true,
@@ -385,6 +387,7 @@ const SYNC_SETTING_NAMES = [
   'aiModels',
   'aiTitleEnabled',
   'aiTagEnabled',
+  'enableHistoryWindow',
   'launcherCategories',
   'pageVisibility',
   'appFontSize',
@@ -876,6 +879,20 @@ export function saveLauncherCategories(categories: string[]): string[] {
 
 // ====== AI 标题配置管理 ======
 
+// ====== 历史小窗配置管理 ======
+
+/** 获取是否启用独立历史小窗 */
+export function getEnableHistoryWindow(): boolean {
+  return store.get('enableHistoryWindow', false)
+}
+
+/** 设置是否启用独立历史小窗 */
+export function setEnableHistoryWindow(enabled: boolean): boolean {
+  store.set('enableHistoryWindow', enabled)
+  debounceSyncSetting('enableHistoryWindow', enabled)
+  return enabled
+}
+
 /** 获取是否启用 AI 生成标题 */
 export function getAiTitleEnabled(): boolean {
   return store.get('aiTitleEnabled', true)
@@ -996,6 +1013,7 @@ export function getAllSyncSettings(): Record<string, unknown> {
     aiModels: getAiModels(),
     aiTitleEnabled: getAiTitleEnabled(),
     aiTagEnabled: getAiTagEnabled(),
+    enableHistoryWindow: getEnableHistoryWindow(),
     launcherCategories: getLauncherCategories(),
     pageVisibility: getPageVisibility(),
     appFontSize: getAppFontSize(),
@@ -1069,6 +1087,9 @@ export async function pullSettingsFromCloud(): Promise<Record<string, unknown> |
   }
   if (cloudSettings.aiTagEnabled !== undefined) {
     store.set('aiTagEnabled', cloudSettings.aiTagEnabled as boolean)
+  }
+  if (cloudSettings.enableHistoryWindow !== undefined) {
+    store.set('enableHistoryWindow', cloudSettings.enableHistoryWindow as boolean)
   }
   // settings 目录中的 launcherCategories
   if (cloudSettings.launcherCategories) {

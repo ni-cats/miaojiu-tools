@@ -217,14 +217,21 @@ const App: React.FC = () => {
           launcherPanelRef.current?.focusSearch()
         }, 50)
       } else if (mode === 'editor') {
-        // 如果当前已在 editor tab，正常切换；否则打开独立历史小窗
-        setActiveTab((prev) => {
-          if (prev === 'editor') {
-            return 'editor'
+        // 根据配置决定：启用历史小窗时打开独立小窗，否则直接切换到 editor tab
+        window.clipToolAPI.getEnableHistoryWindow().then((enabled) => {
+          if (enabled) {
+            // 如果当前已在 editor tab，正常切换；否则打开独立历史小窗
+            setActiveTab((prev) => {
+              if (prev === 'editor') {
+                return 'editor'
+              } else {
+                window.clipToolAPI.openHistoryWindow()
+                return prev
+              }
+            })
           } else {
-            // 不在历史页面时，打开独立小窗
-            window.clipToolAPI.openHistoryWindow()
-            return prev // 保持当前 tab 不变
+            // 历史小窗已关闭，直接切换到 editor tab
+            setActiveTab('editor')
           }
         })
       } else {

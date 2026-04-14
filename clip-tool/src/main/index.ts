@@ -133,6 +133,8 @@ function createMainWindow() {
     skipTaskbar: true,
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: -999, y: -999 }, // 隐藏红绿灯按钮
+    // 支持在全屏应用上方显示
+    visibleOnAllWorkspaces: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -275,8 +277,14 @@ app.on('activate', () => {
   }
   // 从 Launchpad 或 Dock 点击时，显示窗口并默认进入保存模式
   if (mainWindow) {
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    mainWindow.setAlwaysOnTop(true, 'floating')
     mainWindow.show()
     mainWindow.focus()
     mainWindow.webContents.send('switch-mode', 'save')
+    setTimeout(() => {
+      mainWindow?.setAlwaysOnTop(false)
+      mainWindow?.setVisibleOnAllWorkspaces(false)
+    }, 300)
   }
 })

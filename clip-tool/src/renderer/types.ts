@@ -276,6 +276,9 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   // AI 标签匹配
   getAiTagEnabled: () => Promise<boolean>
   setAiTagEnabled: (enabled: boolean) => Promise<boolean>
+  // 历史小窗配置
+  getEnableHistoryWindow: () => Promise<boolean>
+  setEnableHistoryWindow: (enabled: boolean) => Promise<boolean>
   // 设置批量推拉
   pushSettings: () => Promise<boolean>
   pullSettings: () => Promise<Record<string, unknown> | null>

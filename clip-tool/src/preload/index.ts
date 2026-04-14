@@ -333,6 +333,12 @@ const api = {
   /** 设置是否启用 AI 生成标题 */
   setAiTitleEnabled: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('aiTitle:setEnabled', enabled),
 
+  /** 获取是否启用独立历史小窗 */
+  getEnableHistoryWindow: (): Promise<boolean> => ipcRenderer.invoke('historyWindow:getEnabled'),
+
+  /** 设置是否启用独立历史小窗 */
+  setEnableHistoryWindow: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('historyWindow:setEnabled', enabled),
+
   /** 使用 AI 生成标题 */
   generateAiTitle: (content: string, contentType: string): Promise<string | null> =>
     ipcRenderer.invoke('aiTitle:generate', content, contentType),

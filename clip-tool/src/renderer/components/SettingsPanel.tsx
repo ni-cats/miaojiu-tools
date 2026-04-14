@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import type { ShortcutConfig, CosConfig, StorageMode, AiModelConfig, PageVisibility, YuqueConfig, YuqueRepo } from '../types'
 import { getTagColor, registerTags } from '../utils/tagColor'
 import { TabSaveIcon, TabEditorIcon, TabSearchIcon, TabLauncherIcon, TabDocIcon, TabAiIcon, TabFavoriteIcon, TabSettingsIcon, TabProfileIcon, IconBot, IconClipboard, IconPlugin, IconSettings, NavConfigIcon, NavShortcutIcon, NavThemeIcon, NavPageIcon, NavPluginIcon, IconFont, IconTag, IconPreview, IconTranslate, IconToJSON, IconOCR, IconSensitive, IconWorkflow } from './TabIcons'
-import { Brain, Keyboard, Lightbulb, Eye, Palette, Wrench } from 'lucide-react'
+import { Brain, Keyboard, Lightbulb, Eye, Palette, Wrench, Clock } from 'lucide-react'
 
 /** 将 Electron accelerator 格式转换为可读的按键显示 */
 function formatShortcutDisplay(accelerator: string): string {
@@ -307,6 +307,8 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
   const [aiTitleEnabled, setAiTitleEnabled] = useState<boolean>((_init.aiTitleEnabled as boolean) ?? false)
   // AI 自动匹配标签配置
   const [aiTagEnabled, setAiTagEnabled] = useState<boolean>((_init.aiTagEnabled as boolean) ?? true)
+  // 独立历史小窗配置
+  const [enableHistoryWindow, setEnableHistoryWindow] = useState<boolean>((_init.enableHistoryWindow as boolean) ?? false)
 
   // 编辑 — 剪贴板历史条数
   const [editorHistoryLimit, setEditorHistoryLimit] = useState((_init.clipboardHistoryLimit as number) || 20)
@@ -390,6 +392,9 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
       }
       if (latest.aiTagEnabled !== undefined && latest.aiTagEnabled !== _init.aiTagEnabled) {
         setAiTagEnabled(latest.aiTagEnabled as boolean)
+      }
+      if (latest.enableHistoryWindow !== undefined && latest.enableHistoryWindow !== _init.enableHistoryWindow) {
+        setEnableHistoryWindow(latest.enableHistoryWindow as boolean)
       }
       if (latest.docEditorTheme && latest.docEditorTheme !== _init.docEditorTheme) {
         setDocEditorTheme(latest.docEditorTheme as string)
@@ -696,6 +701,7 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
         if (settings.aiModels) setAiModels(settings.aiModels as AiModelConfig[])
         if (settings.aiTitleEnabled !== undefined) setAiTitleEnabled(settings.aiTitleEnabled as boolean)
         if (settings.aiTagEnabled !== undefined) setAiTagEnabled(settings.aiTagEnabled as boolean)
+        if (settings.enableHistoryWindow !== undefined) setEnableHistoryWindow(settings.enableHistoryWindow as boolean)
         if (settings.launcherCategories) setLauncherCategories(settings.launcherCategories as string[])
         if (settings.docEditorTheme) setDocEditorTheme(settings.docEditorTheme as string)
         if (settings.pageVisibility) setPageVisibility(settings.pageVisibility as PageVisibility)
@@ -1559,6 +1565,28 @@ const SettingsPanel = forwardRef<SettingsPanelRef, { onShortcutsChanged?: () => 
                     const saved = await window.clipToolAPI.setAiTagEnabled(enabled)
                     setAiTagEnabled(saved)
                     updateCache({ aiTagEnabled: saved })
+                  }}
+                />
+                <span className="settings-cos-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-config-item" style={{ marginBottom: 16 }}>
+            <div className="settings-config-info">
+              <div className="settings-config-label"><Clock size={14} style={{ verticalAlign: -2, marginRight: 4 }} />独立历史小窗</div>
+              <div className="settings-config-desc">快捷键唤起历史页面时，若不在历史 Tab 则打开独立小窗口，而非切换到历史 Tab</div>
+            </div>
+            <div className="settings-config-action">
+              <label className="settings-cos-switch" title={enableHistoryWindow ? '已启用' : '未启用'}>
+                <input
+                  type="checkbox"
+                  checked={enableHistoryWindow}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked
+                    const saved = await window.clipToolAPI.setEnableHistoryWindow(enabled)
+                    setEnableHistoryWindow(saved)
+                    updateCache({ enableHistoryWindow: saved })
                   }}
                 />
                 <span className="settings-cos-slider"></span>
