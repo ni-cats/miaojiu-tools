@@ -8,7 +8,8 @@ import { flushSync } from 'react-dom'
 import { nanoid } from 'nanoid'
 import type { QuickLink, QuickLinkParam, LocalApp, MacShortcut, YuqueSearchResult, YuqueDoc } from '../types'
 import { getTagColor } from '../utils/tagColor'
-import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool, IconMacShortcut, IconYuqueSearch } from './LauncherIcons'
+import { solarToLunar } from '../utils/lunar'
+import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool, IconMacShortcut, IconYuqueSearch, IconScanText, IconLanguages } from './LauncherIcons'
 
 /** 预设的 Emoji 图标列表 */
 const ICON_OPTIONS = ['🌐', '📚', '🔧', '💻', '📊', '🎨', '📝', '🔗', '⚡', '🏠', '📦', '🎯', '🔍', '💡', '🚀', '📮']
@@ -215,6 +216,20 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
   const yuqueInputRef = useRef<HTMLInputElement>(null)
   const [yuqueQuery, setYuqueQuery] = useState('')
 
+  // OCR 识别工具状态
+  const [ocrImage, setOcrImage] = useState('')
+  const [ocrResult, setOcrResult] = useState('')
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState('')
+  // OCR 翻译工具状态
+  const [ocrTranslateImage, setOcrTranslateImage] = useState('')
+  const [ocrTranslateOriginal, setOcrTranslateOriginal] = useState('')
+  const [ocrTranslateResult, setOcrTranslateResult] = useState('')
+  const [ocrTranslateLoading, setOcrTranslateLoading] = useState(false)
+  const [ocrTranslateStep, setOcrTranslateStep] = useState('')
+  const [ocrTranslateError, setOcrTranslateError] = useState('')
+  const [ocrTargetLang, setOcrTargetLang] = useState('中文')
+
   // 新增/编辑表单
   const [formName, setFormName] = useState('')
   const [formUrl, setFormUrl] = useState('')
@@ -389,6 +404,8 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     timestamp: <IconTimestampTool size={18} />,
     imageBase64: <IconImageBase64Tool size={18} />,
     yuqueSearch: <IconYuqueSearch size={18} />,
+    ocr: <IconScanText size={18} />,
+    ocrTranslate: <IconLanguages size={18} />,
   }
 
   /** 内置工具列表定义 */
@@ -428,6 +445,24 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
       description: '搜索语雀文档，预览并复制内容',
       keywords: ['yuque', '语雀', '搜索', '文档', 'yq', '知识库', '工具'],
       toolKey: 'yuqueSearch',
+    },
+    {
+      id: '__builtin_ocr__',
+      name: 'OCR 文字识别',
+      icon: '🔍',
+      category: '工具',
+      description: '从图片中识别文字（离线）',
+      keywords: ['ocr', '识别', '文字', '图片', '截图', 'text', 'recognize', '工具'],
+      toolKey: 'ocr',
+    },
+    {
+      id: '__builtin_ocr_translate__',
+      name: 'OCR 翻译',
+      icon: '🌐',
+      category: '工具',
+      description: '识别图片文字并翻译',
+      keywords: ['ocr', '翻译', 'translate', '图片', '文字', '工具'],
+      toolKey: 'ocrTranslate',
     },
   ], [])
 
@@ -492,8 +527,91 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     }).slice(0, 6) // 最多显示 6 个匹配的快捷指令
   }, [searchQuery, macShortcuts, usageCount])
 
-  // 合并后的总列表长度（链接 + 内置工具 + 本地应用 + 快捷指令）
-  const totalItems = filteredLinks.length + matchedTools.length + filteredApps.length + filteredShortcuts.length
+  // ===== 即时结果检测（计算器 + 日期转换）=====
+  const instantResult = React.useMemo<{ type: 'calc' | 'date'; label: string; value: string; copyValue: string; extra?: string } | null>(() => {
+    const q = searchQuery.trim()
+    if (!q) return null
+
+    // —— 1. 数学计算检测 ——
+    // 仅允许数字、运算符、括号、空格、小数点、百分号
+    const calcRegex = /^[\d\s+\-*/().%^,]+$/
+    if (calcRegex.test(q) && /[+\-*/^%]/.test(q)) {
+      try {
+        let expr = q
+          .replace(/\^/g, '**')           // 幂运算
+          .replace(/(\d)%/g, '($1/100)')   // 百分比
+          .replace(/,/g, '')               // 去掉千分位逗号
+        // 安全检查：不允许字母（防止注入）
+        if (/[a-zA-Z_$]/.test(expr)) return null
+        // eslint-disable-next-line no-new-func
+        const result = new Function(`"use strict"; return (${expr})`)() as number
+        if (typeof result === 'number' && isFinite(result)) {
+          // 格式化数字：整数部分加千分位
+          const formatted = result % 1 === 0
+            ? result.toLocaleString('en-US')
+            : result.toLocaleString('en-US', { maximumFractionDigits: 10 })
+          return {
+            type: 'calc',
+            label: '计算结果',
+            value: `= ${formatted}`,
+            copyValue: String(result),
+          }
+        }
+      } catch { /* 表达式无效，忽略 */ }
+    }
+
+    // —— 2. 日期/时间戳检测 ——
+    // 2a. 纯数字 10位或13位 → 时间戳
+    if (/^\d{10}$/.test(q) || /^\d{13}$/.test(q)) {
+      const ts = q.length === 10 ? Number(q) * 1000 : Number(q)
+      const d = new Date(ts)
+      if (!isNaN(d.getTime())) {
+        const dateStr = d.toLocaleString('zh-CN', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: false,
+        })
+        const weekDay = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
+        const lunar = solarToLunar(d)
+        const lunarStr = lunar ? lunar.fullStr : ''
+        const tsSec = Math.floor(ts / 1000)
+        return {
+          type: 'date',
+          label: '日期转换',
+          value: `${dateStr}  星期${weekDay}`,
+          copyValue: dateStr,
+          extra: lunarStr ? `农历 ${lunarStr}  ·  时间戳 ${tsSec}` : `时间戳 ${tsSec}`,
+        }
+      }
+    }
+    // 2b. 日期字符串格式
+    const dateMatch = q.match(/^(\d{4})[\-/](\d{1,2})[\-/](\d{1,2})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?$/)
+    if (dateMatch) {
+      const d = new Date(q.replace(/\//g, '-'))
+      if (!isNaN(d.getTime())) {
+        const tsSec = Math.floor(d.getTime() / 1000)
+        const tsMs = d.getTime()
+        const weekDay = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
+        const lunar = solarToLunar(d)
+        const lunarStr = lunar ? lunar.fullStr : ''
+        return {
+          type: 'date',
+          label: '日期转换',
+          value: `时间戳  ${tsSec}（秒） /  ${tsMs}（毫秒）  ·  星期${weekDay}`,
+          copyValue: String(tsSec),
+          extra: lunarStr ? `农历 ${lunarStr}` : undefined,
+        }
+      }
+    }
+
+    return null
+  }, [searchQuery])
+
+  // 即时结果占据的条目数（0或1）
+  const instantResultCount = instantResult ? 1 : 0
+
+  // 合并后的总列表长度（即时结果 + 链接 + 内置工具 + 本地应用 + 快捷指令）
+  const totalItems = instantResultCount + filteredLinks.length + matchedTools.length + filteredApps.length + filteredShortcuts.length
 
   // Base64 实时编解码
   const handleBase64InputChange = useCallback((value: string) => {
@@ -815,13 +933,81 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
     setYuqueError('')
     setYuqueSelectedIndex(0)
     setYuquePreviewDoc(null)
+    // 重置 OCR 工具状态
+    setOcrImage('')
+    setOcrResult('')
+    setOcrLoading(false)
+    setOcrError('')
+    // 重置 OCR 翻译工具状态
+    setOcrTranslateImage('')
+    setOcrTranslateOriginal('')
+    setOcrTranslateResult('')
+    setOcrTranslateLoading(false)
+    setOcrTranslateStep('')
+    setOcrTranslateError('')
     // 自动聚焦到对应工具输入框
     setTimeout(() => {
       if (toolKey === 'base64') base64InputRef.current?.focus()
       else if (toolKey === 'timestamp') tsInputRef.current?.focus()
       else if (toolKey === 'yuqueSearch') yuqueInputRef.current?.focus()
     }, 50)
-  }, [])
+
+    // OCR 工具：打开后自动读取剪贴板图片并识别
+    if (toolKey === 'ocr') {
+      setTimeout(async () => {
+        try {
+          const clipData = await window.clipToolAPI.readClipboard()
+          if (!clipData.isImage && clipData.type !== 'image') {
+            setOcrError('剪贴板中没有图片，请先复制一张图片再打开此工具')
+            return
+          }
+          setOcrImage(clipData.content)
+          setOcrLoading(true)
+          const result = await window.clipToolAPI.ocrRecognize(clipData.content)
+          if (!result.text.trim()) {
+            setOcrError('未识别到文字内容')
+          } else {
+            setOcrResult(result.text)
+          }
+        } catch (err) {
+          setOcrError(err instanceof Error ? err.message : '识别失败')
+        } finally {
+          setOcrLoading(false)
+        }
+      }, 50)
+    }
+
+    // OCR 翻译工具：打开后自动读取剪贴板图片并翻译
+    if (toolKey === 'ocrTranslate') {
+      setTimeout(async () => {
+        try {
+          const clipData = await window.clipToolAPI.readClipboard()
+          if (!clipData.isImage && clipData.type !== 'image') {
+            setOcrTranslateError('剪贴板中没有图片，请先复制一张图片再打开此工具')
+            return
+          }
+          setOcrTranslateImage(clipData.content)
+          setOcrTranslateLoading(true)
+          setOcrTranslateStep('正在识别并翻译...')
+          const translateRes = await window.clipToolAPI.ocrTranslate(clipData.content, ocrTargetLang)
+          if (translateRes.error) {
+            setOcrTranslateError(translateRes.error)
+          }
+          if (translateRes.original) {
+            setOcrTranslateOriginal(translateRes.original)
+          }
+          if (translateRes.translated) {
+            setOcrTranslateResult(translateRes.translated)
+          }
+        } catch (err) {
+          setOcrTranslateError(err instanceof Error ? err.message : '操作失败')
+        } finally {
+          setOcrTranslateLoading(false)
+          setOcrTranslateStep('')
+        }
+      }, 50)
+    }
+  }, [ocrTargetLang])
 
   // 打开本地应用
   const handleOpenApp = useCallback((app: LocalApp) => {
@@ -842,6 +1028,14 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
 
   // 搜索框键盘事件
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    // 即时结果的回车复制处理
+    if (instantResult && selectedIndex === 0 && !showAiResult && !activeTool) {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        copyWithToast(instantResult.copyValue)
+        return
+      }
+    }
     // 搜索无结果时的特殊键盘处理（链接+工具都没有匹配时）
     if (totalItems === 0 && searchQuery.trim() && !showAiResult && !activeTool) {
       const fallbackCount = 3 // 始终 3 个选项：打开URL、Google搜索、AI搜索
@@ -933,8 +1127,8 @@ copyWithToast(tsResult)
       setSelectedIndex((prev) => Math.max(prev - 1, 0))
     } else if (e.key === 'Tab') {
       // Tab 键：如果选中的是带参数的链接，直接进入内联参数输入模式
-      if (selectedIndex < flatGroupedLinks.length) {
-        const link = flatGroupedLinks[selectedIndex]
+      if (selectedIndex - instantResultCount < flatGroupedLinks.length && selectedIndex >= instantResultCount) {
+        const link = flatGroupedLinks[selectedIndex - instantResultCount]
         if (link) {
           const placeholders = parseUrlPlaceholders(link.url)
           if (placeholders.length > 0) {
@@ -953,22 +1147,24 @@ copyWithToast(tsResult)
     } else if (e.key === 'Enter') {
       e.preventDefault()
       // 判断选中的是链接、内置工具还是本地应用（使用 flatGroupedLinks 保证与渲染顺序一致）
-      if (selectedIndex < flatGroupedLinks.length) {
-        if (flatGroupedLinks[selectedIndex]) {
-          handleOpen(flatGroupedLinks[selectedIndex])
+      // 跳过即时结果占据的索引
+      const adjustedIdx = selectedIndex - instantResultCount
+      if (adjustedIdx < flatGroupedLinks.length) {
+        if (flatGroupedLinks[adjustedIdx]) {
+          handleOpen(flatGroupedLinks[adjustedIdx])
         }
-      } else if (selectedIndex < flatGroupedLinks.length + matchedTools.length) {
-        const toolIdx = selectedIndex - flatGroupedLinks.length
+      } else if (adjustedIdx < flatGroupedLinks.length + matchedTools.length) {
+        const toolIdx = adjustedIdx - flatGroupedLinks.length
         if (matchedTools[toolIdx]) {
           handleToolOpen(matchedTools[toolIdx].toolKey)
         }
-      } else if (selectedIndex < flatGroupedLinks.length + matchedTools.length + filteredApps.length) {
-        const appIdx = selectedIndex - flatGroupedLinks.length - matchedTools.length
+      } else if (adjustedIdx < flatGroupedLinks.length + matchedTools.length + filteredApps.length) {
+        const appIdx = adjustedIdx - flatGroupedLinks.length - matchedTools.length
         if (filteredApps[appIdx]) {
           handleOpenApp(filteredApps[appIdx])
         }
       } else {
-        const shortcutIdx = selectedIndex - flatGroupedLinks.length - matchedTools.length - filteredApps.length
+        const shortcutIdx = adjustedIdx - flatGroupedLinks.length - matchedTools.length - filteredApps.length
         if (filteredShortcuts[shortcutIdx]) {
           handleRunShortcut(filteredShortcuts[shortcutIdx])
         }
@@ -992,8 +1188,8 @@ copyWithToast(tsResult)
   // 按渲染顺序展开的链接列表（与 globalIndex 一一对应）
   const flatGroupedLinks: QuickLink[] = groupedLinks.flatMap(g => g.links)
 
-  // 计算全局索引
-  let globalIndex = 0
+  // 计算全局索引（即时结果占据 index 0，后续从 instantResultCount 开始）
+  let globalIndex = instantResultCount
 
   return (
     <div className="launcher-panel">
@@ -1535,6 +1731,191 @@ copyWithToast(tsResult)
         </div>
       )}
 
+      {/* 内置工具区域 - OCR 文字识别 */}
+      {activeTool === 'ocr' && (
+        <div className="launcher-ocr-tool">
+          <div className="launcher-base64-header">
+            <span className="launcher-base64-title"><IconScanText size={16} /> OCR 文字识别</span>
+            <button
+              className="launcher-base64-close-btn"
+              onClick={() => setActiveTool(null)}
+              title="关闭工具 (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+          {ocrError && <div className="launcher-ocr-error" style={{ margin: '8px 12px 0' }}>{ocrError}</div>}
+          {ocrLoading && !ocrImage && (
+            <div className="launcher-ocr-loading-hint">正在读取剪贴板并识别...</div>
+          )}
+          {ocrImage ? (
+            <div className="launcher-ocr-split">
+              <div className="launcher-ocr-split-left">
+                <div className="launcher-ocr-preview">
+                  <img src={ocrImage} alt="OCR 图片" />
+                </div>
+              </div>
+              <div className="launcher-ocr-split-right">
+                {ocrLoading ? (
+                  <div className="launcher-ocr-loading-hint">识别中...</div>
+                ) : ocrResult ? (
+                  <div className="launcher-ocr-result">
+                    <div className="launcher-ocr-result-header">
+                      <span>识别结果</span>
+                      <button
+                        className="launcher-base64-copy-btn"
+                        onClick={() => copyWithToast(ocrResult)}
+                      >
+                        复制
+                      </button>
+                    </div>
+                    <pre className="launcher-ocr-result-text">{ocrResult}</pre>
+                  </div>
+                ) : (
+                  <div className="launcher-ocr-empty-hint">等待识别结果...</div>
+                )}
+              </div>
+            </div>
+          ) : !ocrLoading && !ocrError ? (
+            <div className="launcher-ocr-content">
+              <button
+                className="launcher-ocr-read-btn"
+                onClick={async () => {
+                  setOcrError('')
+                  setOcrResult('')
+                  try {
+                    const clipData = await window.clipToolAPI.readClipboard()
+                    if (!clipData.isImage && clipData.type !== 'image') {
+                      setOcrError('剪贴板中没有图片，请先复制一张图片')
+                      return
+                    }
+                    setOcrImage(clipData.content)
+                    setOcrLoading(true)
+                    const result = await window.clipToolAPI.ocrRecognize(clipData.content)
+                    if (!result.text.trim()) {
+                      setOcrError('未识别到文字内容')
+                    } else {
+                      setOcrResult(result.text)
+                    }
+                  } catch (err) {
+                    setOcrError(err instanceof Error ? err.message : '识别失败')
+                  } finally {
+                    setOcrLoading(false)
+                  }
+                }}
+                disabled={ocrLoading}
+              >
+                📋 从剪贴板读取图片并识别
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* 内置工具区域 - OCR 翻译 */}
+      {activeTool === 'ocrTranslate' && (
+        <div className="launcher-ocr-tool">
+          <div className="launcher-base64-header">
+            <span className="launcher-base64-title"><IconLanguages size={16} /> OCR 翻译</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <select
+                className="launcher-ocr-lang-select"
+                value={ocrTargetLang}
+                onChange={(e) => setOcrTargetLang(e.target.value)}
+                disabled={ocrTranslateLoading}
+              >
+                <option value="中文">中文</option>
+                <option value="英文">英文</option>
+                <option value="日文">日文</option>
+                <option value="韩文">韩文</option>
+                <option value="法文">法文</option>
+                <option value="德文">德文</option>
+              </select>
+              <button
+                className="launcher-base64-close-btn"
+                onClick={() => setActiveTool(null)}
+                title="关闭工具 (Esc)"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          {ocrTranslateError && <div className="launcher-ocr-error" style={{ margin: '8px 12px 0' }}>{ocrTranslateError}</div>}
+          {ocrTranslateLoading && !ocrTranslateImage && (
+            <div className="launcher-ocr-loading-hint">{ocrTranslateStep || '正在读取剪贴板...'}</div>
+          )}
+          {ocrTranslateImage ? (
+            <div className="launcher-ocr-split">
+              <div className="launcher-ocr-split-left">
+                <div className="launcher-ocr-preview">
+                  <img src={ocrTranslateImage} alt="OCR 图片" />
+                </div>
+              </div>
+              <div className="launcher-ocr-split-right">
+                {ocrTranslateLoading ? (
+                  <div className="launcher-ocr-loading-hint">{ocrTranslateStep || '处理中...'}</div>
+                ) : ocrTranslateResult ? (
+                  <div className="launcher-ocr-result launcher-ocr-result-translated">
+                    <div className="launcher-ocr-result-header">
+                      <span>译文（{ocrTargetLang}）</span>
+                      <button
+                        className="launcher-base64-copy-btn"
+                        onClick={() => copyWithToast(ocrTranslateResult)}
+                      >
+                        复制
+                      </button>
+                    </div>
+                    <pre className="launcher-ocr-result-text">{ocrTranslateResult}</pre>
+                  </div>
+                ) : (
+                  <div className="launcher-ocr-empty-hint">等待翻译结果...</div>
+                )}
+              </div>
+            </div>
+          ) : !ocrTranslateLoading && !ocrTranslateError ? (
+            <div className="launcher-ocr-content">
+              <button
+                className="launcher-ocr-read-btn"
+                onClick={async () => {
+                  setOcrTranslateError('')
+                  setOcrTranslateOriginal('')
+                  setOcrTranslateResult('')
+                  setOcrTranslateStep('')
+                  try {
+                    const clipData = await window.clipToolAPI.readClipboard()
+                    if (!clipData.isImage && clipData.type !== 'image') {
+                      setOcrTranslateError('剪贴板中没有图片，请先复制一张图片')
+                      return
+                    }
+                    setOcrTranslateImage(clipData.content)
+                    setOcrTranslateLoading(true)
+                    setOcrTranslateStep('正在识别并翻译...')
+                    const translateRes = await window.clipToolAPI.ocrTranslate(clipData.content, ocrTargetLang)
+                    if (translateRes.error) {
+                      setOcrTranslateError(translateRes.error)
+                    }
+                    if (translateRes.original) {
+                      setOcrTranslateOriginal(translateRes.original)
+                    }
+                    if (translateRes.translated) {
+                      setOcrTranslateResult(translateRes.translated)
+                    }
+                  } catch (err) {
+                    setOcrTranslateError(err instanceof Error ? err.message : '操作失败')
+                  } finally {
+                    setOcrTranslateLoading(false)
+                    setOcrTranslateStep('')
+                  }
+                }}
+                disabled={ocrTranslateLoading}
+              >
+                📋 从剪贴板读取图片并翻译
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {/* 添加/编辑表单 */}
       {isAdding && (
         <div className="launcher-form">
@@ -1802,7 +2183,30 @@ copyWithToast(tsResult)
             )}
           </div>
         ) : (
-          groupedLinks.map(({ category, links: catLinks }) => (
+          <>
+          {/* 即时结果卡片（计算器 / 日期转换） */}
+          {instantResult && (
+            <div
+              className={`launcher-instant-result ${selectedIndex === 0 ? 'selected' : ''}`}
+              onClick={() => copyWithToast(instantResult.copyValue)}
+              onMouseEnter={() => setSelectedIndex(0)}
+            >
+              <div className="launcher-instant-icon">
+                {instantResult.type === 'calc' ? '🧮' : '📅'}
+              </div>
+              <div className="launcher-instant-body">
+                <div className="launcher-instant-label">{instantResult.label}</div>
+                <div className="launcher-instant-value">{instantResult.value}</div>
+                {instantResult.extra && (
+                  <div className="launcher-instant-extra">{instantResult.extra}</div>
+                )}
+              </div>
+              <div className="launcher-instant-action">
+                {selectedIndex === 0 && <span className="launcher-instant-hint">↵ 复制</span>}
+              </div>
+            </div>
+          )}
+          {groupedLinks.map(({ category, links: catLinks }) => (
             <div key={category} className="launcher-group">
               <div className="launcher-group-title">{category}</div>
               {catLinks.map((link) => {
@@ -1866,15 +2270,14 @@ copyWithToast(tsResult)
                 )
               })}
             </div>
-          ))
-        )}
+          ))}
 
         {/* 内置工具条目（在链接列表后面显示） */}
         {matchedTools.length > 0 && (
           <div className="launcher-group">
             <div className="launcher-group-title">内置工具</div>
             {matchedTools.map((tool, i) => {
-              const idx = flatGroupedLinks.length + i
+              const idx = instantResultCount + flatGroupedLinks.length + i
               return (
                 <div
                   key={tool.id}
@@ -1911,7 +2314,7 @@ copyWithToast(tsResult)
           <div className="launcher-group">
             <div className="launcher-group-title">本地应用</div>
             {filteredApps.map((app, i) => {
-              const idx = flatGroupedLinks.length + matchedTools.length + i
+              const idx = instantResultCount + flatGroupedLinks.length + matchedTools.length + i
               return (
                 <div
                   key={app.path}
@@ -1948,7 +2351,7 @@ copyWithToast(tsResult)
           <div className="launcher-group">
             <div className="launcher-group-title">快捷指令</div>
             {filteredShortcuts.map((shortcut, i) => {
-              const idx = flatGroupedLinks.length + matchedTools.length + filteredApps.length + i
+              const idx = instantResultCount + flatGroupedLinks.length + matchedTools.length + filteredApps.length + i
               return (
                 <div
                   key={shortcut.name}
@@ -1978,6 +2381,8 @@ copyWithToast(tsResult)
               )
             })}
           </div>
+        )}
+          </>
         )}
       </div>
       )}
@@ -2013,6 +2418,11 @@ copyWithToast(tsResult)
             <span>↵ 预览</span>
             <span>⌘C 复制</span>
             <span>⌘O 打开</span>
+            <span>Esc 退出</span>
+          </>
+        ) : activeTool === 'ocr' || activeTool === 'ocrTranslate' ? (
+          <>
+            <span>点击按钮识别</span>
             <span>Esc 退出</span>
           </>
         ) : (

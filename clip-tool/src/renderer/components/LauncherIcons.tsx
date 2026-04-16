@@ -20,6 +20,8 @@ import {
   BookOpen,
   Sparkles,
   X,
+  ScanText,
+  Languages,
 } from 'lucide-react'
 
 interface IconProps {
@@ -129,6 +131,24 @@ export const IconDownload: React.FC<IconProps> = ({ size = 14, className, style,
   </svg>
 )
 
+// ===== OCR 图标 =====
+export const IconOCR: React.FC<IconProps> = ({ size = 14, className, style }) => (
+  <svg viewBox="0 0 1024 1024" width={size} height={size} className={className} style={style}>
+    <path d="M160 128h704a96 96 0 0 1 96 96v576a96 96 0 0 1-96 96H160a96 96 0 0 1-96-96V224a96 96 0 0 1 96-96z m0 64a32 32 0 0 0-32 32v576a32 32 0 0 0 32 32h704a32 32 0 0 0 32-32V224a32 32 0 0 0-32-32H160z" fill="currentColor" />
+    <path d="M288 384a96 96 0 1 1 0 192 96 96 0 0 1 0-192z m0 64a32 32 0 1 0 0 64 32 32 0 0 0 0-64z" fill="currentColor" />
+    <path d="M480 384h256a32 32 0 0 1 0 64H480a32 32 0 0 1 0-64z m0 128h192a32 32 0 0 1 0 64H480a32 32 0 0 1 0-64z" fill="currentColor" />
+  </svg>
+)
+
+export const IconOCRTranslate: React.FC<IconProps> = ({ size = 14, className, style }) => (
+  <svg viewBox="0 0 1024 1024" width={size} height={size} className={className} style={style}>
+    <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64z m0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z" fill="currentColor" />
+    <path d="M623.6 316.7C593.6 290.4 554 276 512 276s-81.6 14.4-111.6 40.7c-30.2 26.4-46.6 62.7-46.6 102.3 0 39.6 16.4 75.9 46.6 102.3 30 26.3 69.6 40.7 111.6 40.7s81.6-14.4 111.6-40.7c30.2-26.4 46.6-62.7 46.6-102.3 0-39.6-16.4-75.9-46.6-102.3z" fill="currentColor" />
+    <path d="M320 640h384v48H320z" fill="currentColor" />
+    <path d="M384 704h256v48H384z" fill="currentColor" />
+  </svg>
+)
+
 // ===== lucide-react 图标统一导出 =====
 export {
   Terminal as IconCommand,
@@ -147,4 +167,6 @@ export {
   Sparkles as IconSparkles,
   X as IconClose,
   BookOpen as IconYuqueSearch,
+  ScanText as IconScanText,
+  Languages as IconLanguages,
 }

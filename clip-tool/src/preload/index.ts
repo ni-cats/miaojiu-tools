@@ -491,6 +491,20 @@ const api = {
   /** 获取语雀同步映射表 */
   getYuqueSyncMap: (): Promise<Record<string, { yuqueDocId: number; yuqueSyncedAt: string }>> =>
     ipcRenderer.invoke('yuque:getSyncMap'),
+
+  // ====== OCR 文字识别 API ======
+
+  /** OCR 识别图片文字（本地离线） */
+  ocrRecognize: (base64Image: string): Promise<{ text: string; confidence: number }> =>
+    ipcRenderer.invoke('ocr:recognize', base64Image),
+
+  /** 获取 OCR 引擎状态 */
+  ocrGetStatus: (): Promise<{ ready: boolean; loading: boolean }> =>
+    ipcRenderer.invoke('ocr:getStatus'),
+
+  /** OCR 识别 + 翻译（识别离线，翻译需要混元大模型） */
+  ocrTranslate: (base64Image: string, targetLang: string): Promise<{ original: string; translated: string; error?: string }> =>
+    ipcRenderer.invoke('ocr:translate', base64Image, targetLang),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

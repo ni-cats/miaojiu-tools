@@ -300,6 +300,10 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   getYuqueDocDetail: (bookId: number, docId: number) => Promise<{ success: boolean; doc?: YuqueDoc; error?: string }>
   syncSnippetToYuque: (snippetId: string, title: string, content: string) => Promise<{ success: boolean; docId?: number; action?: 'created' | 'updated'; error?: string }>
   getYuqueSyncMap: () => Promise<YuqueSyncMap>
+  // OCR 文字识别
+  ocrRecognize: (base64Image: string) => Promise<{ text: string; confidence: number }>
+  ocrGetStatus: () => Promise<{ ready: boolean; loading: boolean }>
+  ocrTranslate: (base64Image: string, targetLang: string) => Promise<{ original: string; translated: string; error?: string }>
 }
 
 declare global {

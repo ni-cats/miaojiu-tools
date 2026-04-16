@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react'
 import type { ClipboardHistoryItem } from '../types'
 import { IconClipboard } from './TabIcons'
-import { Image as ImageIcon } from 'lucide-react'
+import { Image as ImageIcon, ScanText } from 'lucide-react'
 
 interface EditorPanelProps {
   onSave: (snippet: import('../types').SnippetData) => void
@@ -27,6 +27,12 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
   const [historySearchQuery, setHistorySearchQuery] = useState('')
   const historyListRef = useRef<HTMLDivElement>(null)
   const historySearchInputRef = useRef<HTMLInputElement>(null)
+  // 标记是否刚执行了复制/删除等操作，用于在剪贴板变化回调中恢复焦点
+  const shouldRestoreFocusRef = useRef(false)
+  // OCR 状态
+  const [ocrActiveId, setOcrActiveId] = useState<string | null>(null)
+  const [ocrResultMap, setOcrResultMap] = useState<Record<string, string>>({})
+  const [ocrLoadingId, setOcrLoadingId] = useState<string | null>(null)
 
   // 模糊匹配过滤后的历史列表
   const filteredHistory = useMemo(() => {
@@ -83,9 +89,15 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
   }, [])
 
   // 监听主进程后台剪贴板变化事件（替代前端轮询）
+  // 复制操作会触发剪贴板变化 → 列表重新渲染 → 搜索框失焦
+  // 通过 shouldRestoreFocusRef 标记，在复制后的重新渲染中恢复焦点
   useEffect(() => {
     const unsubscribe = window.clipToolAPI.onClipboardChanged(({ history: updatedHistory }) => {
       setHistory(updatedHistory)
+      if (shouldRestoreFocusRef.current) {
+        shouldRestoreFocusRef.current = false
+        setTimeout(() => historySearchInputRef.current?.focus(), 0)
+      }
     })
     return () => unsubscribe()
   }, [])
@@ -97,13 +109,17 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
 
   // 点击历史项直接复制到剪贴板
   const handleHistoryClick = useCallback((item: ClipboardHistoryItem) => {
+    // 标记需要恢复焦点（复制会触发剪贴板变化 → 列表重渲染 → 失焦）
+    shouldRestoreFocusRef.current = true
     if (item.isImage || item.type === 'image') {
       navigator.clipboard.writeText(item.content)
       showToast('✓ 图片地址已复制')
+      setTimeout(() => historySearchInputRef.current?.focus(), 0)
       return
     }
     navigator.clipboard.writeText(item.content)
     showToast('✓ 已复制到剪贴板')
+    setTimeout(() => historySearchInputRef.current?.focus(), 0)
   }, [showToast])
 
   // 删除单条历史
@@ -111,6 +127,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
     e.stopPropagation()
     const updated = await window.clipToolAPI.deleteClipboardHistoryItem(id)
     setHistory(updated)
+    setTimeout(() => historySearchInputRef.current?.focus(), 0)
   }, [])
 
   // 清空全部历史
@@ -118,6 +135,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
     const updated = await window.clipToolAPI.clearClipboardHistory()
     setHistory(updated)
     showToast('已清空')
+    setTimeout(() => historySearchInputRef.current?.focus(), 0)
   }, [showToast])
 
   // 格式化时间
@@ -199,6 +217,7 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
             <div
               key={item.id}
               className={`editor-history-item${selectedHistoryIndex === index ? ' selected' : ''}`}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 handleHistoryClick(item)
                 setSelectedHistoryIndex(-1)
@@ -220,6 +239,30 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
                 )}
               </div>
               <div className="editor-history-item-meta">
+                {(item.isImage || item.content.startsWith('data:image/')) && (
+                  <button
+                    className="editor-history-ocr-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (ocrLoadingId === item.id) return
+                      setOcrLoadingId(item.id)
+                      setOcrActiveId(item.id)
+                      window.clipToolAPI.ocrRecognize(item.content).then((result) => {
+                        setOcrResultMap((prev) => ({ ...prev, [item.id]: result.text || '未识别到文字内容' }))
+                      }).catch(() => {
+                        setOcrResultMap((prev) => ({ ...prev, [item.id]: 'OCR 识别失败' }))
+                      }).finally(() => {
+                        setOcrLoadingId(null)
+                        historySearchInputRef.current?.focus()
+                      })
+                      // 点击后立即恢复焦点
+                      setTimeout(() => historySearchInputRef.current?.focus(), 0)
+                    }}
+                    title="OCR 识别文字"
+                  >
+                    {ocrLoadingId === item.id ? '识别中...' : <><ScanText size={11} /> OCR</>}
+                  </button>
+                )}
                 <span className="editor-history-time">{formatTime(item.timestamp)}</span>
                 <button
                   className="editor-history-delete"
@@ -229,6 +272,36 @@ const EditorPanel = forwardRef<EditorPanelRef, EditorPanelProps>(({ onSave: _onS
                   ✕
                 </button>
               </div>
+              {/* OCR 识别结果内联展示 */}
+              {ocrActiveId === item.id && ocrResultMap[item.id] && (
+                <div className="editor-history-ocr-result" onClick={(e) => e.stopPropagation()}>
+                  <pre className="editor-history-ocr-text">{ocrResultMap[item.id]}</pre>
+                  <div className="editor-history-ocr-actions">
+                    <button
+                      className="editor-history-ocr-copy"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        shouldRestoreFocusRef.current = true
+                        navigator.clipboard.writeText(ocrResultMap[item.id])
+                        showToast('✓ OCR 结果已复制')
+                        setTimeout(() => historySearchInputRef.current?.focus(), 0)
+                      }}
+                    >
+                      复制
+                    </button>
+                    <button
+                      className="editor-history-ocr-close"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOcrActiveId(null)
+                        setTimeout(() => historySearchInputRef.current?.focus(), 0)
+                      }}
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}

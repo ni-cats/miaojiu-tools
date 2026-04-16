@@ -10,6 +10,7 @@ import { registerIpcHandlers } from './ipc'
 import { getWindowBounds, saveWindowBounds, pushSettingsToCloud, pullSettingsFromCloud, getCosConfig } from './store'
 import { startClipboardWatcher, stopClipboardWatcher } from './clipboard-watcher'
 import { initLog, log, timer } from './logger'
+import { initOcrEngine, destroyOcrEngine } from './ocr'
 
 let mainWindow: BrowserWindow | null = null
 let historyWindow: BrowserWindow | null = null
@@ -227,6 +228,14 @@ app.whenReady().then(() => {
   startClipboardWatcher()
   stopTimer()
 
+  // 异步预加载 OCR 引擎（不阻塞窗口创建和显示）
+  log('main', '🔍 OCR 引擎预加载...')
+  initOcrEngine().then(() => {
+    log('main', '🔍 OCR 引擎预加载完成 ✓')
+  }).catch((err) => {
+    log('main', `🔍 OCR 引擎预加载失败: ${err}`)
+  })
+
   // 首次启动自动显示窗口，让用户知道应用已运行
   if (mainWindow) {
     mainWindow.once('ready-to-show', () => {
@@ -262,6 +271,7 @@ app.whenReady().then(() => {
 app.on('will-quit', () => {
   stopClipboardWatcher()
   unregisterAllShortcuts()
+  destroyOcrEngine()
 })
 
 app.on('window-all-closed', () => {

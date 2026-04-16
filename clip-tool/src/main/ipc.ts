@@ -2,7 +2,7 @@
  * IPC 事件处理模块
  * 负责主进程与渲染进程之间的通信
  */
-import { ipcMain, BrowserWindow, shell } from 'electron'
+import { ipcMain, BrowserWindow, shell, app } from 'electron'
 import { log, timer, getLogFilePath } from './logger'
 import {
   getAllSnippets,
@@ -84,6 +84,7 @@ import { readClipboard, writeToClipboard } from './clipboard'
 import { testCosConnection, getDeviceId } from './cos'
 import { chatWithHunyuan, isHunyuanAvailable, generateTitle, matchTags, type ChatMessage } from './hunyuan'
 import { getInstalledApps, openApp, getAppIcon, getMacShortcuts, runMacShortcut } from './apps'
+import { recognizeImage, getOcrStatus } from './ocr'
 import {
   verifyToken,
   getUserRepos,
@@ -169,10 +170,20 @@ export function registerIpcHandlers(
     return updateSnippet(id, data)
   })
 
-  // 隐藏窗口
+  // 隐藏窗口（隐藏后让焦点回到之前的应用）
   ipcMain.on('window:hide', () => {
     const win = getMainWindow()
-    if (win) win.hide()
+    if (win) {
+      win.hide()
+      // macOS 上隐藏窗口后，需要 app.hide() 让焦点回到之前的应用
+      if (process.platform === 'darwin') {
+        const historyWin = getHistoryWindow()
+        // 只有当历史窗口也不可见时才隐藏整个应用
+        if (!historyWin || historyWin.isDestroyed() || !historyWin.isVisible()) {
+          app.hide()
+        }
+      }
+    }
   })
 
   // 最小化窗口
@@ -198,11 +209,19 @@ export function registerIpcHandlers(
     createHistoryWindow()
   })
 
-  // 关闭剪贴板历史窗口
+  // 关闭剪贴板历史窗口（关闭后让焦点回到之前的应用）
   ipcMain.on('historyWindow:close', () => {
     const win = getHistoryWindow()
     if (win && !win.isDestroyed()) {
       win.close()
+      // macOS 上关闭历史窗口后，需要让焦点回到之前的应用
+      if (process.platform === 'darwin') {
+        const mainWin = getMainWindow()
+        // 只有当主窗口也不可见时才隐藏整个应用
+        if (!mainWin || mainWin.isDestroyed() || !mainWin.isVisible()) {
+          app.hide()
+        }
+      }
     }
   })
 
@@ -812,6 +831,62 @@ export function registerIpcHandlers(
   // 获取语雀同步映射表
   ipcMain.handle('yuque:getSyncMap', () => {
     return getYuqueSyncMap()
+  })
+
+  // ====== OCR 文字识别 ======
+
+  // OCR 识别图片文字
+  ipcMain.handle('ocr:recognize', async (_event, base64Image: string) => {
+    return recognizeImage(base64Image)
+  })
+
+  // 获取 OCR 引擎状态
+  ipcMain.handle('ocr:getStatus', () => {
+    return getOcrStatus()
+  })
+
+  // OCR 识别 + 翻译（先识别再调用混元翻译）
+  ipcMain.handle('ocr:translate', async (_event, base64Image: string, targetLang: string) => {
+    // 第一步：OCR 识别
+    const ocrResult = await recognizeImage(base64Image)
+    if (!ocrResult.text.trim()) {
+      return { original: '', translated: '', error: '未识别到文字内容' }
+    }
+
+    // 第二步：调用混元翻译
+    if (!isHunyuanAvailable()) {
+      return {
+        original: ocrResult.text,
+        translated: '',
+        error: '翻译服务未配置，请在设置中配置混元大模型密钥',
+      }
+    }
+
+    try {
+      const messages: ChatMessage[] = [
+        {
+          Role: 'system',
+          Content: `你是一个翻译助手。请将以下文本翻译为${targetLang || '中文'}，只输出翻译结果，不要添加任何解释、前缀或标注。`,
+        },
+        {
+          Role: 'user',
+          Content: ocrResult.text,
+        },
+      ]
+      const win = getMainWindow()
+      const translated = await chatWithHunyuan(messages, win)
+      return {
+        original: ocrResult.text,
+        translated: translated.trim(),
+      }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      return {
+        original: ocrResult.text,
+        translated: '',
+        error: `翻译失败：${errMsg}`,
+      }
+    }
   })
 
 }

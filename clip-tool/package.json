@@ -24,7 +24,8 @@
     "lucide-react": "^1.8.0",
     "marked": "^15.0.12",
     "nanoid": "^5.0.4",
-    "tencentcloud-sdk-nodejs-hunyuan": "^4.1.188"
+    "tencentcloud-sdk-nodejs-hunyuan": "^4.1.188",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
