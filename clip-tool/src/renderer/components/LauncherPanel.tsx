@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid'
 import type { QuickLink, QuickLinkParam, LocalApp, MacShortcut, YuqueSearchResult, YuqueDoc } from '../types'
 import { getTagColor } from '../utils/tagColor'
 import { solarToLunar } from '../utils/lunar'
+import { markdownToHtml } from '../utils/simpleMarkdown'
 import { IconCommand, IconSearch, IconRocket, IconLink, IconGlobe, IconAi, IconWrench, IconClock, IconImage, IconApp, IconUpload, IconDownload, IconFolder, IconCalendar, IconTimer, IconEdit, IconTrash, IconLink2, IconSparkles, IconClose, IconBase64Tool, IconImageBase64Tool, IconTimestampTool, IconMacShortcut, IconYuqueSearch, IconScanText, IconLanguages } from './LauncherIcons'
 
 /** 预设的 Emoji 图标列表 */
@@ -1047,13 +1048,13 @@ const LauncherPanel = forwardRef<LauncherPanelRef, LauncherPanelProps>(({ onSwit
         setSelectedIndex((prev) => Math.max(prev - 1, 0))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        // 0=打开URL, 1=Google搜索, 2=AI搜索
+        // 0=AI搜索, 1=Google搜索, 2=打开URL
         if (selectedIndex === 0) {
-          handleOpenUrl(searchQuery.trim())
+          handleAiSearch(searchQuery.trim())
         } else if (selectedIndex === 1) {
           handleBrowserSearch(searchQuery.trim())
         } else {
-          handleAiSearch(searchQuery.trim())
+          handleOpenUrl(searchQuery.trim())
         }
       }
       return
@@ -2099,10 +2100,10 @@ copyWithToast(tsResult)
               </div>
             )}
             {aiStreamContent && (
-              <pre className="launcher-ai-result-text">{aiStreamContent}<span className="ai-chat-cursor">▍</span></pre>
+              <div className="launcher-ai-result-text ai-summary-markdown" dangerouslySetInnerHTML={{ __html: markdownToHtml(aiStreamContent) + '<span class="ai-chat-cursor">▍</span>' }} />
             )}
             {aiResult && !aiStreamContent && (
-              <pre className="launcher-ai-result-text">{aiResult}</pre>
+              <div className="launcher-ai-result-text ai-summary-markdown" dangerouslySetInnerHTML={{ __html: markdownToHtml(aiResult) }} />
             )}
           </div>
         </div>
@@ -2183,13 +2184,13 @@ copyWithToast(tsResult)
                 <div className="launcher-fallback-actions">
                   <button
                     className={`launcher-fallback-btn ${selectedIndex === 0 ? 'selected' : ''}`}
-                    onClick={() => handleOpenUrl(searchQuery.trim())}
+                    onClick={() => handleAiSearch(searchQuery.trim())}
                     onMouseEnter={() => setSelectedIndex(0)}
                   >
-                    <span className="launcher-fallback-icon"><IconLink size={18} /></span>
+                    <span className="launcher-fallback-icon"><IconAi size={22} /></span>
                     <div className="launcher-fallback-info">
-                      <span className="launcher-fallback-title">打开 URL</span>
-                      <span className="launcher-fallback-desc">在浏览器中打开「{searchQuery.trim()}」</span>
+                      <span className="launcher-fallback-title">AI 搜索</span>
+                      <span className="launcher-fallback-desc">在当前页面使用 AI 搜索「{searchQuery.trim()}」</span>
                     </div>
                     {selectedIndex === 0 && <span className="launcher-fallback-hint">↵</span>}
                   </button>
@@ -2207,13 +2208,13 @@ copyWithToast(tsResult)
                   </button>
                   <button
                     className={`launcher-fallback-btn ${selectedIndex === 2 ? 'selected' : ''}`}
-                    onClick={() => handleAiSearch(searchQuery.trim())}
+                    onClick={() => handleOpenUrl(searchQuery.trim())}
                     onMouseEnter={() => setSelectedIndex(2)}
                   >
-                    <span className="launcher-fallback-icon"><IconAi size={22} /></span>
+                    <span className="launcher-fallback-icon"><IconLink size={18} /></span>
                     <div className="launcher-fallback-info">
-                      <span className="launcher-fallback-title">AI 搜索</span>
-                      <span className="launcher-fallback-desc">在当前页面使用 AI 搜索「{searchQuery.trim()}」</span>
+                      <span className="launcher-fallback-title">打开 URL</span>
+                      <span className="launcher-fallback-desc">在浏览器中打开「{searchQuery.trim()}」</span>
                     </div>
                     {selectedIndex === 2 && <span className="launcher-fallback-hint">↵</span>}
                   </button>
