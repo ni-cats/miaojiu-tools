@@ -304,6 +304,7 @@ onSwitchMode: (callback: (mode: 'save' | 'search' | 'editor' | 'doc' | 'ai' | 'f
   ocrRecognize: (base64Image: string) => Promise<{ text: string; confidence: number }>
   ocrGetStatus: () => Promise<{ ready: boolean; loading: boolean }>
   ocrTranslate: (base64Image: string, targetLang: string) => Promise<{ original: string; translated: string; error?: string }>
+  ocrTranslateText: (text: string, targetLang: string) => Promise<{ translated: string; error?: string }>
 }
 
 declare global {

@@ -889,4 +889,42 @@ export function registerIpcHandlers(
     }
   })
 
+  // 仅翻译文本（不含 OCR 识别，用于切换语言时重新翻译已识别的原文）
+  ipcMain.handle('ocr:translateText', async (_event, text: string, targetLang: string) => {
+    if (!text.trim()) {
+      return { translated: '', error: '没有可翻译的文本' }
+    }
+
+    if (!isHunyuanAvailable()) {
+      return {
+        translated: '',
+        error: '翻译服务未配置，请在设置中配置混元大模型密钥',
+      }
+    }
+
+    try {
+      const messages: ChatMessage[] = [
+        {
+          Role: 'system',
+          Content: `你是一个翻译助手。请将以下文本翻译为${targetLang || '中文'}，只输出翻译结果，不要添加任何解释、前缀或标注。`,
+        },
+        {
+          Role: 'user',
+          Content: text,
+        },
+      ]
+      const win = getMainWindow()
+      const translated = await chatWithHunyuan(messages, win)
+      return {
+        translated: translated.trim(),
+      }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      return {
+        translated: '',
+        error: `翻译失败：${errMsg}`,
+      }
+    }
+  })
+
 }

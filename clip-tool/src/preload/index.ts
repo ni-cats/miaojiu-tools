@@ -505,6 +505,10 @@ const api = {
   /** OCR 识别 + 翻译（识别离线，翻译需要混元大模型） */
   ocrTranslate: (base64Image: string, targetLang: string): Promise<{ original: string; translated: string; error?: string }> =>
     ipcRenderer.invoke('ocr:translate', base64Image, targetLang),
+
+  /** 仅翻译文本（用于切换语言时重新翻译已识别的原文） */
+  ocrTranslateText: (text: string, targetLang: string): Promise<{ translated: string; error?: string }> =>
+    ipcRenderer.invoke('ocr:translateText', text, targetLang),
 }
 
 contextBridge.exposeInMainWorld('clipToolAPI', api)

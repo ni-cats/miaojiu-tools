@@ -180,7 +180,7 @@ const SavePanel = forwardRef<SavePanelRef, SavePanelProps>(({ onSave, triggerRea
         {saved ? (
           <span className="save-hint-done">✓ 已保存，窗口即将关闭...</span>
         ) : hasContent ? (
-          <span className="save-hint-ready">按 <kbd>Enter</kbd> 直接保存并关闭</span>
+          <span className="save-hint-ready"><kbd>Enter</kbd> 保存并关闭</span>
         ) : null}
       </div>
 

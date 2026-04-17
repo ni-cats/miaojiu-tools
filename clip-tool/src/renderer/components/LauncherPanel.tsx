@@ -1472,61 +1472,81 @@ copyWithToast(tsResult)
                 style={{ display: 'none' }}
                 onChange={handleImageFileSelect}
               />
-              <div
-                className="launcher-img-drop-zone"
-                onClick={() => imgFileInputRef.current?.click()}
-              >
-                {imgPreviewSrc ? (
-                  <img src={imgPreviewSrc} alt="预览" className="launcher-img-preview" />
-                ) : (
+              {imgPreviewSrc && imgBase64Result ? (
+                <div className="launcher-ocr-split">
+                  <div className="launcher-ocr-split-left">
+                    <div className="launcher-ocr-preview launcher-img-split-preview" onClick={() => imgFileInputRef.current?.click()} title="点击重新选择图片">
+                      <img src={imgPreviewSrc} alt="预览" />
+                    </div>
+                  </div>
+                  <div className="launcher-ocr-split-right">
+                    <div className="launcher-ocr-result">
+                      <div className="launcher-ocr-result-header">
+                        <span><IconUpload size={14} /> Base64 结果（{(imgBase64Result.length / 1024).toFixed(1)} KB）</span>
+                        <button
+                          className="launcher-base64-copy-btn"
+                          onClick={() => copyWithToast(imgBase64Result)}
+                        >
+                          复制
+                        </button>
+                      </div>
+                      <pre className="launcher-ocr-result-text">{imgBase64Result.substring(0, 500)}...</pre>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="launcher-img-drop-zone"
+                  onClick={() => imgFileInputRef.current?.click()}
+                >
                   <div className="launcher-img-drop-hint">
                     <span className="launcher-img-drop-icon"><IconFolder size={32} /></span>
                     <span>点击选择图片文件</span>
                     <span className="launcher-img-drop-sub">支持 PNG、JPG、GIF、SVG 等格式</span>
-                  </div>
-                )}
-              </div>
-              {imgBase64Result && (
-                <div className="launcher-base64-results">
-                  <div className="launcher-base64-result-block selected">
-                    <div className="launcher-base64-result-label">
-                      <span><IconUpload size={14} /> Base64 结果（{(imgBase64Result.length / 1024).toFixed(1)} KB）</span>
-                      <button
-                        className="launcher-base64-copy-btn"
-                        onClick={() => copyWithToast(imgBase64Result)}
-                      >
-                        复制
-                      </button>
-                    </div>
-                    <pre className="launcher-base64-result-text launcher-img-base64-text">{imgBase64Result.substring(0, 200)}...</pre>
                   </div>
                 </div>
               )}
             </div>
           ) : (
             <div className="launcher-base64-to-img">
-              <div className="launcher-base64-input-area">
-                <textarea
-                  className="launcher-base64-textarea"
-                  value={imgBase64Input}
-                  onChange={(e) => handleImgBase64InputChange(e.target.value)}
-                  placeholder="粘贴 Base64 字符串（支持带 data:image/... 前缀或纯 Base64）"
-                  autoFocus
-                />
-              </div>
-              {imgPreviewSrc && (
-                <div className="launcher-img-preview-area">
-                  <div className="launcher-base64-result-label">
-                    <span><IconImage size={14} /> 图片预览</span>
+              {imgPreviewSrc ? (
+                <div className="launcher-ocr-split">
+                  <div className="launcher-ocr-split-left">
+                    <div className="launcher-base64-input-area launcher-img-split-input">
+                      <textarea
+                        className="launcher-base64-textarea launcher-img-split-textarea"
+                        value={imgBase64Input}
+                        onChange={(e) => handleImgBase64InputChange(e.target.value)}
+                        placeholder="粘贴 Base64 字符串（支持带 data:image/... 前缀或纯 Base64）"
+                        autoFocus
+                      />
+                    </div>
                   </div>
-                  <div className="launcher-img-preview-box">
-                    <img
-                      src={imgPreviewSrc}
-                      alt="预览"
-                      className="launcher-img-preview"
-                      onError={() => setImgPreviewSrc('')}
-                    />
+                  <div className="launcher-ocr-split-right">
+                    <div className="launcher-img-preview-area launcher-img-split-preview-area">
+                      <div className="launcher-ocr-result-header">
+                        <span><IconImage size={14} /> 图片预览</span>
+                      </div>
+                      <div className="launcher-img-preview-box">
+                        <img
+                          src={imgPreviewSrc}
+                          alt="预览"
+                          className="launcher-img-preview"
+                          onError={() => setImgPreviewSrc('')}
+                        />
+                      </div>
+                    </div>
                   </div>
+                </div>
+              ) : (
+                <div className="launcher-base64-input-area">
+                  <textarea
+                    className="launcher-base64-textarea"
+                    value={imgBase64Input}
+                    onChange={(e) => handleImgBase64InputChange(e.target.value)}
+                    placeholder="粘贴 Base64 字符串（支持带 data:image/... 前缀或纯 Base64）"
+                    autoFocus
+                  />
                 </div>
               )}
             </div>
@@ -1821,7 +1841,31 @@ copyWithToast(tsResult)
               <select
                 className="launcher-ocr-lang-select"
                 value={ocrTargetLang}
-                onChange={(e) => setOcrTargetLang(e.target.value)}
+                onChange={async (e) => {
+                  const newLang = e.target.value
+                  setOcrTargetLang(newLang)
+                  // 如果已有 OCR 识别的原文，切换语言时重新翻译
+                  if (ocrTranslateOriginal) {
+                    setOcrTranslateLoading(true)
+                    setOcrTranslateStep('正在重新翻译...')
+                    setOcrTranslateResult('')
+                    setOcrTranslateError('')
+                    try {
+                      const res = await window.clipToolAPI.ocrTranslateText(ocrTranslateOriginal, newLang)
+                      if (res.error) {
+                        setOcrTranslateError(res.error)
+                      }
+                      if (res.translated) {
+                        setOcrTranslateResult(res.translated)
+                      }
+                    } catch (err) {
+                      setOcrTranslateError(err instanceof Error ? err.message : '翻译失败')
+                    } finally {
+                      setOcrTranslateLoading(false)
+                      setOcrTranslateStep('')
+                    }
+                  }
+                }}
                 disabled={ocrTranslateLoading}
               >
                 <option value="中文">中文</option>
